@@ -2,21 +2,36 @@ using System.Text.RegularExpressions;
 
 namespace ULinkRPC.CodeGen;
 
-internal static partial class Program
+internal static class PathHelper
 {
-    private static bool IsUnityProject(string path)
+    public const string DefaultUnityOutputRelativePath = "Assets/Scripts/Rpc/RpcGenerated";
+    public const string DefaultUnityRuntimeNamespace = "Rpc.Generated";
+
+    public static bool IsUnityProject(string path) =>
+        Directory.Exists(Path.Combine(path, "Assets")) &&
+        Directory.Exists(Path.Combine(path, "Packages"));
+
+    public static string? FindUnityProjectRoot(string startPath)
     {
-        return Directory.Exists(Path.Combine(path, "Assets")) && Directory.Exists(Path.Combine(path, "Packages"));
+        var dir = new DirectoryInfo(startPath);
+        while (dir != null)
+        {
+            if (IsUnityProject(dir.FullName))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        return null;
     }
 
-    private static string DeriveNamespaceFromOutputPath(string outputPath)
+    public static string DeriveNamespaceFromOutputPath(string outputPath)
     {
         if (string.IsNullOrWhiteSpace(outputPath))
             return DefaultUnityRuntimeNamespace;
 
         var fullPath = Path.GetFullPath(outputPath);
         var segments = fullPath
-            .Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)
+            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                   StringSplitOptions.RemoveEmptyEntries)
             .ToList();
 
         if (segments.Count == 0)
@@ -48,7 +63,7 @@ internal static partial class Program
                     current.StartsWith(previous, StringComparison.Ordinal) &&
                     current.Length > previous.Length)
                 {
-                    current = current.Substring(previous.Length);
+                    current = current[previous.Length..];
                 }
             }
 
@@ -57,13 +72,12 @@ internal static partial class Program
                 normalizedSegments.Add(identifier);
         }
 
-        if (normalizedSegments.Count == 0)
-            return DefaultUnityRuntimeNamespace;
-
-        return string.Join('.', normalizedSegments);
+        return normalizedSegments.Count == 0
+            ? DefaultUnityRuntimeNamespace
+            : string.Join('.', normalizedSegments);
     }
 
-    private static string ToNamespaceIdentifier(string segment)
+    public static string ToNamespaceIdentifier(string segment)
     {
         if (string.IsNullOrWhiteSpace(segment))
             return string.Empty;
@@ -76,19 +90,5 @@ internal static partial class Program
             sanitized = $"_{sanitized}";
 
         return sanitized;
-    }
-
-    private static string? FindUnityProjectRoot(string startPath)
-    {
-        var dir = new DirectoryInfo(startPath);
-        while (dir != null)
-        {
-            if (IsUnityProject(dir.FullName))
-                return dir.FullName;
-
-            dir = dir.Parent;
-        }
-
-        return null;
     }
 }

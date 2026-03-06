@@ -1,0 +1,203 @@
+namespace ULinkRPC.CodeGen;
+
+internal static class ServerEmitter
+{
+    public static string GenerateBinder(
+        RpcServiceInfo svc, string ns, string coreRuntimeUsing, string serverRuntimeUsing)
+    {
+        var ifaceName = svc.InterfaceName;
+        var binderTypeName = NamingHelper.GetBinderTypeName(ifaceName);
+        var contractUsings = NamingHelper.ExcludeUsingDirectives(
+            NamingHelper.GetContractUsingDirectives(svc),
+            "System", "System.Threading.Tasks", coreRuntimeUsing, serverRuntimeUsing);
+
+        var w = new CodeWriter();
+        w.WriteUsings("System", "System.Threading.Tasks");
+        w.WriteUsings(contractUsings);
+        w.WriteUsings(coreRuntimeUsing, serverRuntimeUsing);
+        w.Line();
+        w.OpenBlock($"namespace {ns}");
+
+        w.OpenBlock($"public static class {binderTypeName}");
+        w.Line($"private const int ServiceId = {svc.ServiceId};");
+        w.Line();
+
+        EmitDelegateBindOverload(w, svc);
+        if (svc.HasCallback)
+            EmitCallbackFactoryBindOverload(w, svc);
+
+        w.OpenBlock($"public static void Bind(RpcServer server, {ifaceName} impl)");
+
+        foreach (var m in svc.Methods)
+        {
+            var argType = NamingHelper.GetRequestPayloadType(m);
+            w.OpenBlock($"server.Register(ServiceId, {m.MethodId}, async (req, ct) =>");
+
+            if (m.Parameters.Count == 1)
+            {
+                w.Line($"var arg1 = server.Serializer.Deserialize<{argType}>(req.Payload.AsSpan())!;");
+            }
+            else if (m.Parameters.Count > 1)
+            {
+                var deconstructVars = NamingHelper.GetDeconstructVariableList(m.Parameters.Count);
+                w.Line($"var ({deconstructVars}) = server.Serializer.Deserialize<{argType}>(req.Payload.AsSpan())!;");
+            }
+
+            var invokeArgs = NamingHelper.GetInvokeArguments(m.Parameters.Count);
+            if (m.IsVoid)
+            {
+                w.Line($"await impl.{m.Name}({invokeArgs});");
+                w.Line("return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = Array.Empty<byte>() };");
+            }
+            else
+            {
+                w.Line($"var resp = await impl.{m.Name}({invokeArgs});");
+                w.Line("return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };");
+            }
+
+            w.CloseBlock(");");
+            w.Line();
+        }
+
+        w.CloseBlock();
+        w.CloseBlock();
+        w.CloseBlock();
+        return w.ToString();
+    }
+
+    public static string GenerateAllServicesBinder(
+        List<RpcServiceInfo> services, string ns, string runtimeUsing)
+    {
+        var contractUsings = NamingHelper.ExcludeUsingDirectives(
+            NamingHelper.GetContractUsingDirectives(services), runtimeUsing);
+
+        var w = new CodeWriter();
+        w.WriteUsings(contractUsings);
+        w.Line($"using {runtimeUsing};");
+        w.Line();
+        w.OpenBlock($"namespace {ns}");
+        w.OpenBlock("public static class AllServicesBinder");
+
+        var paramList = string.Join("",
+            services.Select(s => $", {s.InterfaceName} {NamingHelper.GetServiceParamName(s.InterfaceName)}"));
+        w.OpenBlock($"public static void BindAll(RpcServer server{paramList})");
+
+        foreach (var svc in services)
+        {
+            var binderTypeName = NamingHelper.GetBinderTypeName(svc.InterfaceName);
+            var paramName = NamingHelper.GetServiceParamName(svc.InterfaceName);
+            w.Line($"{binderTypeName}.Bind(server, {paramName});");
+        }
+
+        w.CloseBlock();
+        w.CloseBlock();
+        w.CloseBlock();
+        return w.ToString();
+    }
+
+    public static string GenerateCallbackProxy(
+        RpcServiceInfo svc, string ns, string coreRuntimeUsing, string serverRuntimeUsing)
+    {
+        var cbName = svc.CallbackInterfaceName!;
+        var proxyTypeName = NamingHelper.GetCallbackProxyTypeName(cbName);
+        var contractUsings = NamingHelper.ExcludeUsingDirectives(
+            NamingHelper.GetContractUsingDirectives(svc),
+            "System", coreRuntimeUsing, serverRuntimeUsing);
+
+        var w = new CodeWriter();
+        w.Line("using System;");
+        w.WriteUsings(contractUsings);
+        w.WriteUsings(coreRuntimeUsing, serverRuntimeUsing);
+        w.Line();
+        w.OpenBlock($"namespace {ns}");
+
+        w.OpenBlock($"public sealed class {proxyTypeName} : {cbName}");
+        w.Line($"private const int ServiceId = {svc.ServiceId};");
+        w.Line("private readonly RpcServer _server;");
+        w.Line();
+        w.Line($"public {proxyTypeName}(RpcServer server) {{ _server = server; }}");
+        w.Line();
+
+        foreach (var m in svc.CallbackMethods)
+        {
+            var paramSig = NamingHelper.GetMethodParameterSignature(m.Parameters);
+            var argType = NamingHelper.GetCallbackPayloadType(m);
+            var argVal = NamingHelper.GetCallbackPayloadValue(m);
+
+            w.OpenBlock($"public void {m.Name}({paramSig})");
+            w.Line($"_ = _server.PushAsync<{argType}>(ServiceId, {m.MethodId}, {argVal}).AsTask();");
+            w.CloseBlock();
+            w.Line();
+        }
+
+        w.CloseBlock();
+        w.CloseBlock();
+        return w.ToString();
+    }
+
+    private static void EmitDelegateBindOverload(CodeWriter w, RpcServiceInfo svc)
+    {
+        var delegateParams = svc.Methods
+            .Select(m => $"{NamingHelper.GetDelegateType(m)} {NamingHelper.GetHandlerParameterName(m.Name)}")
+            .ToList();
+        var paramList = delegateParams.Count > 0
+            ? ", " + string.Join(", ", delegateParams)
+            : "";
+        var ctorArgs = string.Join(", ",
+            svc.Methods.Select(m => NamingHelper.GetHandlerParameterName(m.Name)));
+
+        w.OpenBlock($"public static void Bind(RpcServer server{paramList})");
+        w.Line($"Bind(server, new DelegateImpl({ctorArgs}));");
+        w.CloseBlock();
+        w.Line();
+
+        w.OpenBlock($"private sealed class DelegateImpl : {svc.InterfaceName}");
+
+        foreach (var method in svc.Methods)
+            w.Line($"private readonly {NamingHelper.GetDelegateType(method)} {NamingHelper.GetHandlerFieldName(method.Name)};");
+
+        if (svc.Methods.Count > 0) w.Line();
+
+        var ctorParams = string.Join(", ",
+            svc.Methods.Select(m => $"{NamingHelper.GetDelegateType(m)} {NamingHelper.GetHandlerParameterName(m.Name)}"));
+        w.OpenBlock($"public DelegateImpl({ctorParams})");
+        foreach (var method in svc.Methods)
+        {
+            var handlerParam = NamingHelper.GetHandlerParameterName(method.Name);
+            var handlerField = NamingHelper.GetHandlerFieldName(method.Name);
+            w.Line($"{handlerField} = {handlerParam} ?? throw new ArgumentNullException(nameof({handlerParam}));");
+        }
+        w.CloseBlock();
+        w.Line();
+
+        foreach (var method in svc.Methods)
+        {
+            var paramSig = NamingHelper.GetMethodParameterSignature(method.Parameters);
+            var returnType = NamingHelper.GetInterfaceReturnType(method);
+            var invokeArgs = string.Join(", ", method.Parameters.Select(p => p.Name));
+            var fieldName = NamingHelper.GetHandlerFieldName(method.Name);
+
+            w.OpenBlock($"public {returnType} {method.Name}({paramSig})");
+            w.Line($"return {fieldName}({invokeArgs});");
+            w.CloseBlock();
+            w.Line();
+        }
+
+        w.CloseBlock();
+        w.Line();
+    }
+
+    private static void EmitCallbackFactoryBindOverload(CodeWriter w, RpcServiceInfo svc)
+    {
+        var callbackInterfaceName = svc.CallbackInterfaceName!;
+        var callbackProxyTypeName = NamingHelper.GetCallbackProxyTypeName(callbackInterfaceName);
+
+        w.OpenBlock($"public static void Bind(RpcServer server, Func<{callbackInterfaceName}, {svc.InterfaceName}> implFactory)");
+        w.Line("if (implFactory is null) throw new ArgumentNullException(nameof(implFactory));");
+        w.Line($"var callback = new {callbackProxyTypeName}(server);");
+        w.Line("var impl = implFactory(callback) ?? throw new InvalidOperationException(\"Service implementation factory returned null.\");");
+        w.Line("Bind(server, impl);");
+        w.CloseBlock();
+        w.Line();
+    }
+}

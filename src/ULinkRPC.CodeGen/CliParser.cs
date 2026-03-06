@@ -1,8 +1,8 @@
 namespace ULinkRPC.CodeGen;
 
-internal static partial class Program
+internal static class CliParser
 {
-    private static void PrintUsage()
+    public static void PrintUsage()
     {
         Console.WriteLine("ULinkRPC.CodeGen usage:");
         Console.WriteLine("  ulinkrpc-codegen [options]");
@@ -21,7 +21,7 @@ internal static partial class Program
         Console.WriteLine("  server: output defaults to ./Generated");
     }
 
-    private static bool TryParseCliArguments(string[] args, out RawOptions options, out string error)
+    public static bool TryParseCliArguments(string[] args, out RawOptions options, out string error)
     {
         options = RawOptions.Empty;
         var contractsPath = string.Empty;
@@ -53,7 +53,6 @@ internal static partial class Program
                     error = $"Unknown mode: {value}";
                     return false;
                 }
-
                 mode = parsedMode;
             }
             else
@@ -67,7 +66,7 @@ internal static partial class Program
         return true;
     }
 
-    private static bool TryResolveGenerationOptions(RawOptions raw, out ResolvedOptions options, out string error)
+    public static bool TryResolveGenerationOptions(RawOptions raw, out ResolvedOptions options, out string error)
     {
         options = ResolvedOptions.Empty;
         error = string.Empty;
@@ -96,14 +95,13 @@ internal static partial class Program
         {
             if (string.IsNullOrWhiteSpace(raw.OutputPath))
             {
-                var unityRoot = FindUnityProjectRoot(cwd);
+                var unityRoot = PathHelper.FindUnityProjectRoot(cwd);
                 if (unityRoot == null)
                 {
                     error = "Unity mode requires --output when current directory is not inside a Unity project.";
                     return false;
                 }
-
-                outputPath = Path.Combine(unityRoot, DefaultUnityOutputRelativePath);
+                outputPath = Path.Combine(unityRoot, PathHelper.DefaultUnityOutputRelativePath);
             }
             else
             {
@@ -111,7 +109,7 @@ internal static partial class Program
             }
 
             unityNamespace = string.IsNullOrWhiteSpace(raw.UnityNamespace)
-                ? DeriveNamespaceFromOutputPath(outputPath)
+                ? PathHelper.DeriveNamespaceFromOutputPath(outputPath)
                 : raw.UnityNamespace;
         }
 

@@ -1,0 +1,54 @@
+using System.Text;
+
+namespace ULinkRPC.CodeGen;
+
+internal sealed class CodeWriter
+{
+    private readonly StringBuilder _sb = new();
+    private int _indent;
+
+    public CodeWriter Line(string text)
+    {
+        for (var i = 0; i < _indent; i++)
+            _sb.Append("    ");
+        _sb.Append(text).Append('\n');
+        return this;
+    }
+
+    public CodeWriter Line()
+    {
+        _sb.Append('\n');
+        return this;
+    }
+
+    public CodeWriter OpenBlock(string header)
+    {
+        Line(header);
+        Line("{");
+        _indent++;
+        return this;
+    }
+
+    public CodeWriter CloseBlock(string suffix = "")
+    {
+        _indent--;
+        Line("}" + suffix);
+        return this;
+    }
+
+    public CodeWriter WriteUsings(IEnumerable<string> namespaces)
+    {
+        foreach (var ns in namespaces)
+            Line($"using {ns};");
+        return this;
+    }
+
+    public CodeWriter WriteUsings(params string[] namespaces)
+    {
+        foreach (var ns in namespaces)
+            Line($"using {ns};");
+        return this;
+    }
+
+    public override string ToString() => _sb.ToString();
+}

@@ -8,7 +8,7 @@
     <RootNamespace>ULinkRPC.CodeGen</RootNamespace>
     <AssemblyName>ULinkRPC.CodeGen</AssemblyName>
     <PackageId>ULinkRPC.CodeGen</PackageId>
-    <Version>0.6.0</Version>
+    <Version>0.7.0</Version>
     <Authors>ULinkRPC</Authors>
     <Description>ULinkRPC RPC code generator for Unity and server projects.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -19,6 +19,10 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ULinkRPC.CodeGen.Tests" />
   </ItemGroup>
 
   <ItemGroup>

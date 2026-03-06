@@ -1,0 +1,109 @@
+using System.Text.RegularExpressions;
+
+namespace ULinkRPC.CodeGen;
+
+internal static class FacadeEmitter
+{
+    public static string GenerateClientFacade(List<RpcServiceInfo> services, string ns, string coreRuntimeUsing)
+    {
+        var groups = BuildFacadeGroups(services);
+        var contractUsings = NamingHelper.ExcludeUsingDirectives(
+            NamingHelper.GetContractUsingDirectives(services), "System", coreRuntimeUsing);
+
+        var w = new CodeWriter();
+        w.Line("using System;");
+        w.WriteUsings(contractUsings);
+        w.Line($"using {coreRuntimeUsing};");
+        w.Line();
+        w.OpenBlock($"namespace {ns}");
+
+        w.OpenBlock("public sealed class RpcApi");
+        w.OpenBlock("public RpcApi(IRpcClient client)");
+        w.Line("if (client is null) throw new ArgumentNullException(nameof(client));");
+        foreach (var group in groups)
+            w.Line($"{group.GroupName} = new {GetFacadeGroupTypeName(group.GroupName)}(client);");
+        w.CloseBlock();
+        w.Line();
+
+        foreach (var group in groups)
+            w.Line($"public {GetFacadeGroupTypeName(group.GroupName)} {group.GroupName} {{ get; }}");
+        w.CloseBlock();
+        w.Line();
+
+        foreach (var group in groups)
+        {
+            var groupTypeName = GetFacadeGroupTypeName(group.GroupName);
+            w.OpenBlock($"public sealed class {groupTypeName}");
+            w.OpenBlock($"public {groupTypeName}(IRpcClient client)");
+            w.Line("if (client is null) throw new ArgumentNullException(nameof(client));");
+            foreach (var member in group.Members)
+                w.Line($"{member.PropertyName} = client.{NamingHelper.GetClientFactoryMethodName(member.Service.InterfaceName)}();");
+            w.CloseBlock();
+            w.Line();
+
+            foreach (var member in group.Members)
+                w.Line($"public {member.Service.InterfaceName} {member.PropertyName} {{ get; }}");
+            w.CloseBlock();
+            w.Line();
+        }
+
+        w.OpenBlock("public static class RpcApiExtensions");
+        w.OpenBlock("public static RpcApi CreateRpcApi(this IRpcClient client)");
+        w.Line("if (client is null) throw new ArgumentNullException(nameof(client));");
+        w.Line("return new RpcApi(client);");
+        w.CloseBlock();
+        w.CloseBlock();
+
+        w.CloseBlock();
+        return w.ToString();
+    }
+
+    private static string GetFacadeGroupTypeName(string groupName) => $"{groupName}RpcGroup";
+
+    private static List<FacadeGroupInfo> BuildFacadeGroups(List<RpcServiceInfo> services) =>
+        services
+            .GroupBy(GetFacadeGroupName)
+            .OrderBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => new FacadeGroupInfo(g.Key, BuildFacadeMembers(g.ToList())))
+            .ToList();
+
+    private static List<FacadeMemberInfo> BuildFacadeMembers(List<RpcServiceInfo> services)
+    {
+        var members = new List<FacadeMemberInfo>();
+        var usedNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var svc in services.OrderBy(s => s.InterfaceName, StringComparer.Ordinal))
+        {
+            var baseName = GetFacadeServicePropertyName(svc.InterfaceName);
+            var uniqueName = baseName;
+            var suffix = 2;
+            while (!usedNames.Add(uniqueName))
+            {
+                uniqueName = $"{baseName}{suffix}";
+                suffix++;
+            }
+            members.Add(new FacadeMemberInfo(svc, uniqueName));
+        }
+        return members;
+    }
+
+    private static string GetFacadeGroupName(RpcServiceInfo svc)
+    {
+        var ns = NamingHelper.GetNamespaceFromFullName(svc.InterfaceFullName);
+        if (string.IsNullOrWhiteSpace(ns))
+            return "Default";
+
+        var firstSegment = ns.Split('.', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return NamingHelper.ToPascalIdentifier(firstSegment ?? "Default");
+    }
+
+    private static string GetFacadeServicePropertyName(string ifaceName)
+    {
+        var serviceTypeName = NamingHelper.GetServiceTypeName(ifaceName);
+        if (serviceTypeName.EndsWith("Service", StringComparison.Ordinal) &&
+            serviceTypeName.Length > "Service".Length)
+        {
+            serviceTypeName = serviceTypeName[..^"Service".Length];
+        }
+        return NamingHelper.ToPascalIdentifier(serviceTypeName);
+    }
+}
