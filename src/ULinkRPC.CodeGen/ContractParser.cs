@@ -4,8 +4,15 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ULinkRPC.CodeGen;
 
-internal static class ContractParser
+internal static partial class ContractParser
 {
+    private const string RpcServiceAttributeName = "RpcService";
+    private const string RpcMethodAttributeName = "RpcMethod";
+    private const string RpcServiceBaseInterfaceName = "IRpcService";
+    private const string ValueTaskTypeName = "ValueTask";
+    private const string ValueTaskNamespace = "System.Threading.Tasks";
+    private const string AnalysisCompilationName = "ULinkRPC.Contracts.Analysis";
+
     public static List<RpcServiceInfo> FindRpcServicesFromSource(string contractsPath)
     {
         var files = Directory.GetFiles(contractsPath, "*.cs", SearchOption.AllDirectories);
@@ -23,6 +30,8 @@ internal static class ContractParser
             sourceFiles.Add(sourceFile);
             services.AddRange(sourceFile.Services);
         }
+
+        ValidateNoDuplicateServiceIds(services);
 
         foreach (var svc in services)
         {
@@ -54,8 +63,11 @@ internal static class ContractParser
                 references.Add(MetadataReference.CreateFromFile(path));
         }
 
+        if (references.Count == 0)
+            Console.Error.WriteLine("Warning: No platform assembly references found. Type resolution may be incomplete.");
+
         return CSharpCompilation.Create(
-            "ULinkRPC.Contracts.Analysis",
+            AnalysisCompilationName,
             trees,
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -78,7 +90,7 @@ internal static class ContractParser
             if (semanticModel.GetDeclaredSymbol(iface) is not INamedTypeSymbol ifaceSymbol)
                 continue;
 
-            if (!TryGetAttributeIntValue(iface.AttributeLists, semanticModel, "RpcService", out var serviceId))
+            if (!TryGetAttributeIntValue(iface.AttributeLists, semanticModel, RpcServiceAttributeName, out var serviceId))
                 continue;
 
             var methods = ParseServiceMethods(iface, semanticModel, out var requiredNamespaces);
@@ -113,7 +125,7 @@ internal static class ContractParser
             if (semanticModel.GetDeclaredSymbol(iface) is not INamedTypeSymbol ifaceSymbol)
                 continue;
 
-            if (TryGetAttributeIntValue(iface.AttributeLists, semanticModel, "RpcService", out _))
+            if (TryGetAttributeIntValue(iface.AttributeLists, semanticModel, RpcServiceAttributeName, out _))
                 continue;
 
             var methods = ParseCallbackMethods(iface, semanticModel, out var requiredNamespaces);
@@ -142,7 +154,7 @@ internal static class ContractParser
             if (semanticModel.GetDeclaredSymbol(method) is not IMethodSymbol methodSymbol)
                 continue;
 
-            if (!TryGetAttributeIntValue(method.AttributeLists, semanticModel, "RpcMethod", out var methodId))
+            if (!TryGetAttributeIntValue(method.AttributeLists, semanticModel, RpcMethodAttributeName, out var methodId))
                 continue;
 
             var parameters = ParseParameters(method.ParameterList.Parameters);
@@ -165,6 +177,7 @@ internal static class ContractParser
             methods.Add(new RpcMethodInfo(method.Identifier.ValueText, methodId, parameters, retType, isVoid));
         }
 
+        ValidateNoDuplicateMethodIds(methods, iface.Identifier.ValueText);
         return methods;
     }
 
@@ -180,7 +193,7 @@ internal static class ContractParser
             if (semanticModel.GetDeclaredSymbol(method) is not IMethodSymbol methodSymbol)
                 continue;
 
-            if (!TryGetAttributeIntValue(method.AttributeLists, semanticModel, "RpcMethod", out var methodId))
+            if (!TryGetAttributeIntValue(method.AttributeLists, semanticModel, RpcMethodAttributeName, out var methodId))
                 continue;
 
             if (!methodSymbol.ReturnsVoid)
@@ -193,6 +206,7 @@ internal static class ContractParser
             methods.Add(new RpcCallbackMethodInfo(method.Identifier.ValueText, methodId, parameters));
         }
 
+        ValidateNoDuplicateCallbackMethodIds(methods, iface.Identifier.ValueText);
         return methods;
     }
 
@@ -211,282 +225,42 @@ internal static class ContractParser
         return result;
     }
 
-    #region Attribute helpers
+    #region Validation
 
-    private static bool TryGetAttributeIntValue(
-        SyntaxList<AttributeListSyntax> attributeLists,
-        SemanticModel semanticModel,
-        string attributeBaseName,
-        out int value)
+    private static void ValidateNoDuplicateServiceIds(List<RpcServiceInfo> services)
     {
-        foreach (var attribute in attributeLists.SelectMany(list => list.Attributes))
+        var seen = new Dictionary<int, string>();
+        foreach (var svc in services)
         {
-            if (!IsMatchingAttribute(attribute, semanticModel, attributeBaseName))
-                continue;
-
-            if (TryExtractAttributeIntArgument(attribute, semanticModel, out var intValue))
-            {
-                value = intValue;
-                return true;
-            }
-        }
-
-        value = default;
-        return false;
-    }
-
-    private static bool IsMatchingAttribute(
-        AttributeSyntax attribute, SemanticModel semanticModel, string attributeBaseName)
-    {
-        foreach (var symbol in GetAttributeCandidateSymbols(attribute, semanticModel))
-        {
-            var containingType = symbol.ContainingType;
-            if (containingType == null) continue;
-
-            var typeName = containingType.Name;
-            if (string.Equals(typeName, attributeBaseName, StringComparison.Ordinal) ||
-                string.Equals(typeName, $"{attributeBaseName}Attribute", StringComparison.Ordinal))
-                return true;
-        }
-
-        return IsAttributeName(attribute.Name, attributeBaseName);
-    }
-
-    private static IEnumerable<IMethodSymbol> GetAttributeCandidateSymbols(
-        AttributeSyntax attribute, SemanticModel semanticModel)
-    {
-        var symbolInfo = semanticModel.GetSymbolInfo(attribute);
-        if (symbolInfo.Symbol is IMethodSymbol methodSymbol)
-            yield return methodSymbol;
-
-        foreach (var candidate in symbolInfo.CandidateSymbols.OfType<IMethodSymbol>())
-            yield return candidate;
-    }
-
-    private static bool TryExtractAttributeIntArgument(
-        AttributeSyntax attribute, SemanticModel semanticModel, out int value)
-    {
-        value = default;
-        var arguments = attribute.ArgumentList?.Arguments;
-        if (arguments == null || arguments.Value.Count == 0)
-            return false;
-
-        foreach (var argument in arguments.Value)
-        {
-            if (!IsNamedAttributeArgument(argument)) continue;
-            if (TryGetIntConstant(argument.Expression, semanticModel, out value))
-                return true;
-        }
-
-        foreach (var argument in arguments.Value)
-        {
-            if (IsNamedAttributeArgument(argument)) continue;
-            if (TryGetIntConstant(argument.Expression, semanticModel, out value))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool IsNamedAttributeArgument(AttributeArgumentSyntax argument) =>
-        argument.NameColon != null || argument.NameEquals != null;
-
-    private static bool TryGetIntConstant(ExpressionSyntax expression, SemanticModel semanticModel, out int value)
-    {
-        value = default;
-        var constant = semanticModel.GetConstantValue(expression);
-        if (!constant.HasValue || constant.Value == null)
-            return false;
-
-        switch (constant.Value)
-        {
-            case int intValue:
-                value = intValue;
-                return true;
-            case long longValue when longValue is >= int.MinValue and <= int.MaxValue:
-                value = (int)longValue;
-                return true;
-            case short shortValue:
-                value = shortValue;
-                return true;
-            case byte byteValue:
-                value = byteValue;
-                return true;
-            default:
-                return false;
+            if (seen.TryGetValue(svc.ServiceId, out var existingName))
+                throw new InvalidOperationException(
+                    $"Duplicate ServiceId {svc.ServiceId} found on '{existingName}' and '{svc.InterfaceName}'. Each [RpcService] must have a unique id.");
+            seen[svc.ServiceId] = svc.InterfaceName;
         }
     }
 
-    private static bool IsAttributeName(NameSyntax attributeName, string attributeBaseName)
+    private static void ValidateNoDuplicateMethodIds(List<RpcMethodInfo> methods, string interfaceName)
     {
-        var simpleName = GetRightMostName(attributeName);
-        return string.Equals(simpleName, attributeBaseName, StringComparison.Ordinal) ||
-               string.Equals(simpleName, $"{attributeBaseName}Attribute", StringComparison.Ordinal);
-    }
-
-    private static string GetRightMostName(NameSyntax nameSyntax) => nameSyntax switch
-    {
-        IdentifierNameSyntax id => id.Identifier.ValueText,
-        GenericNameSyntax generic => generic.Identifier.ValueText,
-        QualifiedNameSyntax qualified => GetRightMostName(qualified.Right),
-        AliasQualifiedNameSyntax aliasQualified => GetRightMostName(aliasQualified.Name),
-        _ => nameSyntax.ToString()
-    };
-
-    #endregion
-
-    #region Type helpers
-
-    private static INamedTypeSymbol? TryGetServiceCallbackType(INamedTypeSymbol serviceInterface)
-    {
-        foreach (var baseInterface in serviceInterface.AllInterfaces)
+        var seen = new Dictionary<int, string>();
+        foreach (var m in methods)
         {
-            if (!string.Equals(baseInterface.Name, "IRpcService", StringComparison.Ordinal))
-                continue;
-            if (baseInterface.TypeArguments.Length < 2)
-                continue;
-            return baseInterface.TypeArguments[1] as INamedTypeSymbol;
-        }
-        return null;
-    }
-
-    private static bool TryGetServiceCallbackTypeFromSyntax(
-        InterfaceDeclarationSyntax iface,
-        SemanticModel semanticModel,
-        out string? callbackName,
-        out string? callbackFullName)
-    {
-        callbackName = null;
-        callbackFullName = null;
-        if (iface.BaseList == null)
-            return false;
-
-        foreach (var baseType in iface.BaseList.Types)
-        {
-            if (!TryGetIrpcServiceGeneric(baseType.Type, out var generic) ||
-                generic.TypeArgumentList.Arguments.Count < 2)
-                continue;
-
-            var callbackTypeSyntax = generic.TypeArgumentList.Arguments[1];
-            callbackName = GetTypeSimpleName(callbackTypeSyntax);
-            callbackFullName = GetTypeFullNameFromSyntax(callbackTypeSyntax, semanticModel) ?? callbackName;
-            return true;
-        }
-        return false;
-    }
-
-    private static bool TryGetIrpcServiceGeneric(TypeSyntax typeSyntax, out GenericNameSyntax generic)
-    {
-        switch (typeSyntax)
-        {
-            case GenericNameSyntax genericName when genericName.Identifier.ValueText == "IRpcService":
-                generic = genericName;
-                return true;
-            case QualifiedNameSyntax qualified:
-                return TryGetIrpcServiceGeneric(qualified.Right, out generic);
-            case AliasQualifiedNameSyntax aliasQualified:
-                return TryGetIrpcServiceGeneric(aliasQualified.Name, out generic);
-            default:
-                generic = null!;
-                return false;
+            if (seen.TryGetValue(m.MethodId, out var existingName))
+                throw new InvalidOperationException(
+                    $"Duplicate MethodId {m.MethodId} found on '{existingName}' and '{m.Name}' in {interfaceName}. Each [RpcMethod] within a service must have a unique id.");
+            seen[m.MethodId] = m.Name;
         }
     }
 
-    private static string GetTypeSimpleName(TypeSyntax typeSyntax) => typeSyntax switch
+    private static void ValidateNoDuplicateCallbackMethodIds(List<RpcCallbackMethodInfo> methods, string interfaceName)
     {
-        IdentifierNameSyntax id => id.Identifier.ValueText,
-        GenericNameSyntax generic => generic.Identifier.ValueText,
-        QualifiedNameSyntax qualified => GetTypeSimpleName(qualified.Right),
-        AliasQualifiedNameSyntax aliasQualified => GetTypeSimpleName(aliasQualified.Name),
-        NullableTypeSyntax nullable => GetTypeSimpleName(nullable.ElementType),
-        _ => typeSyntax.ToString()
-    };
-
-    private static string? GetTypeFullNameFromSyntax(TypeSyntax typeSyntax, SemanticModel semanticModel)
-    {
-        if (semanticModel.GetTypeInfo(typeSyntax).Type is INamedTypeSymbol typeSymbol)
-            return GetTypeFullName(typeSymbol);
-        return null;
-    }
-
-    private static bool TryParseRpcReturnType(
-        IMethodSymbol methodSymbol,
-        TypeSyntax returnTypeSyntax,
-        out string? returnType,
-        out bool isVoid)
-    {
-        returnType = null;
-        isVoid = false;
-
-        if (methodSymbol.ReturnType is not INamedTypeSymbol returnTypeSymbol)
-            return false;
-
-        var returnTypeNamespace = returnTypeSymbol.ContainingNamespace?.ToDisplayString();
-        if (!string.Equals(returnTypeSymbol.Name, "ValueTask", StringComparison.Ordinal) ||
-            !string.Equals(returnTypeNamespace, "System.Threading.Tasks", StringComparison.Ordinal))
-            return false;
-
-        if (returnTypeSymbol.TypeArguments.Length == 0)
+        var seen = new Dictionary<int, string>();
+        foreach (var m in methods)
         {
-            isVoid = true;
-            return true;
+            if (seen.TryGetValue(m.MethodId, out var existingName))
+                throw new InvalidOperationException(
+                    $"Duplicate MethodId {m.MethodId} found on '{existingName}' and '{m.Name}' in {interfaceName}. Each [RpcMethod] within a callback interface must have a unique id.");
+            seen[m.MethodId] = m.Name;
         }
-
-        if (returnTypeSymbol.TypeArguments.Length != 1)
-            return false;
-
-        returnType = TryGetValueTaskGenericType(returnTypeSyntax);
-        return !string.IsNullOrWhiteSpace(returnType);
-    }
-
-    private static string GetTypeFullName(INamedTypeSymbol symbol) =>
-        symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
-
-    private static void AddTypeNamespaces(ISet<string> target, ITypeSymbol? typeSymbol)
-    {
-        if (typeSymbol == null) return;
-
-        switch (typeSymbol)
-        {
-            case IArrayTypeSymbol arrayType:
-                AddTypeNamespaces(target, arrayType.ElementType);
-                return;
-            case IPointerTypeSymbol pointerType:
-                AddTypeNamespaces(target, pointerType.PointedAtType);
-                return;
-            case INamedTypeSymbol namedType:
-                AddNamespace(target, namedType.ContainingNamespace);
-                foreach (var typeArgument in namedType.TypeArguments)
-                    AddTypeNamespaces(target, typeArgument);
-                if (namedType.IsTupleType)
-                    foreach (var tupleElement in namedType.TupleElements)
-                        AddTypeNamespaces(target, tupleElement.Type);
-                return;
-        }
-    }
-
-    private static void AddNamespace(ISet<string> target, INamespaceSymbol? namespaceSymbol)
-    {
-        if (namespaceSymbol == null || namespaceSymbol.IsGlobalNamespace) return;
-        var ns = namespaceSymbol.ToDisplayString();
-        if (!string.IsNullOrWhiteSpace(ns))
-            target.Add(ns);
-    }
-
-    private static string? TryGetValueTaskGenericType(TypeSyntax returnType)
-    {
-        if (returnType is GenericNameSyntax generic &&
-            string.Equals(generic.Identifier.ValueText, "ValueTask", StringComparison.Ordinal) &&
-            generic.TypeArgumentList.Arguments.Count == 1)
-            return generic.TypeArgumentList.Arguments[0].ToString();
-
-        if (returnType is QualifiedNameSyntax qualified)
-            return TryGetValueTaskGenericType(qualified.Right);
-
-        if (returnType is AliasQualifiedNameSyntax aliasQualified)
-            return TryGetValueTaskGenericType(aliasQualified.Name);
-
-        return null;
     }
 
     #endregion

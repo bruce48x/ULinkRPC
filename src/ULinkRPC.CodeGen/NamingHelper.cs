@@ -5,6 +5,9 @@ namespace ULinkRPC.CodeGen;
 
 internal static class NamingHelper
 {
+    private const string DefaultFallbackServerNamespace = "ULinkRPC.Server.Generated";
+    private const string ContractsNamespaceSuffix = ".Contracts";
+
     public static string GetServiceTypeName(string ifaceName)
     {
         if (ifaceName.Length > 1 && ifaceName[0] == 'I' && char.IsUpper(ifaceName[1]))
@@ -67,37 +70,39 @@ internal static class NamingHelper
         return $"Func<{string.Join(", ", genericArgs)}>";
     }
 
+    #region Payload types (unified)
+
     public static string GetRequestPayloadType(RpcMethodInfo method) =>
-        method.Parameters.Count switch
-        {
-            0 => "RpcVoid",
-            1 => method.Parameters[0].TypeName,
-            _ => $"({string.Join(", ", method.Parameters.Select(p => p.TypeName))})"
-        };
+        GetPayloadType(method.Parameters);
 
     public static string GetRequestPayloadValue(RpcMethodInfo method) =>
-        method.Parameters.Count switch
-        {
-            0 => "default",
-            1 => method.Parameters[0].Name,
-            _ => $"({string.Join(", ", method.Parameters.Select(p => p.Name))})"
-        };
+        GetPayloadValue(method.Parameters, "default");
 
     public static string GetCallbackPayloadType(RpcCallbackMethodInfo method) =>
-        method.Parameters.Count switch
-        {
-            0 => "RpcVoid",
-            1 => method.Parameters[0].TypeName,
-            _ => $"({string.Join(", ", method.Parameters.Select(p => p.TypeName))})"
-        };
+        GetPayloadType(method.Parameters);
 
     public static string GetCallbackPayloadValue(RpcCallbackMethodInfo method) =>
-        method.Parameters.Count switch
+        GetPayloadValue(method.Parameters, "default!");
+
+    private static string GetPayloadType(IReadOnlyList<RpcParameterInfo> parameters) =>
+        parameters.Count switch
         {
-            0 => "default!",
-            1 => method.Parameters[0].Name,
-            _ => $"({string.Join(", ", method.Parameters.Select(p => p.Name))})"
+            0 => "RpcVoid",
+            1 => parameters[0].TypeName,
+            _ => $"({string.Join(", ", parameters.Select(p => p.TypeName))})"
         };
+
+    private static string GetPayloadValue(IReadOnlyList<RpcParameterInfo> parameters, string zeroParamDefault) =>
+        parameters.Count switch
+        {
+            0 => zeroParamDefault,
+            1 => parameters[0].Name,
+            _ => $"({string.Join(", ", parameters.Select(p => p.Name))})"
+        };
+
+    #endregion
+
+    #region Arguments
 
     public static string GetDeconstructVariableList(int parameterCount) =>
         string.Join(", ", Enumerable.Range(1, parameterCount).Select(i => $"arg{i}"));
@@ -113,6 +118,10 @@ internal static class NamingHelper
         args.Add(includeCt ? "ct" : "CancellationToken.None");
         return string.Join(", ", args);
     }
+
+    #endregion
+
+    #region Using directives
 
     public static string GetNamespaceFromFullName(string fullName)
     {
@@ -133,20 +142,28 @@ internal static class NamingHelper
         return usingDirectives.Where(d => !excludedSet.Contains(d)).ToList();
     }
 
+    #endregion
+
+    #region Namespace defaults
+
     public static string GetDefaultServerNamespace(List<RpcServiceInfo> services)
     {
         var first = services.FirstOrDefault();
         if (first == null)
-            return "ULinkRPC.Server.Generated";
+            return DefaultFallbackServerNamespace;
 
         var baseNs = GetNamespaceFromFullName(first.InterfaceFullName);
-        if (baseNs.EndsWith(".Contracts", StringComparison.Ordinal))
-            baseNs = baseNs[..^".Contracts".Length];
+        if (baseNs.EndsWith(ContractsNamespaceSuffix, StringComparison.Ordinal))
+            baseNs = baseNs[..^ContractsNamespaceSuffix.Length];
 
         return string.IsNullOrWhiteSpace(baseNs)
-            ? "ULinkRPC.Server.Generated"
+            ? DefaultFallbackServerNamespace
             : $"{baseNs}.Server.Generated";
     }
+
+    #endregion
+
+    #region Identifier conversion
 
     public static string ToPascalIdentifier(string value)
     {
@@ -174,4 +191,6 @@ internal static class NamingHelper
         if (char.IsDigit(sb[0])) sb.Insert(0, '_');
         return sb.ToString();
     }
+
+    #endregion
 }

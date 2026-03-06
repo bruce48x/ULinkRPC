@@ -46,16 +46,35 @@ internal static class Program
             return 1;
         }
 
-        if (options.Mode == OutputMode.Unity)
-            Directory.CreateDirectory(options.OutputPath);
-
         if (options.Mode == OutputMode.Server)
         {
             if (string.IsNullOrWhiteSpace(options.ServerNamespace))
                 options = options with { ServerNamespace = NamingHelper.GetDefaultServerNamespace(services) };
-
-            Directory.CreateDirectory(options.ServerOutputPath);
         }
+
+        try
+        {
+            return GenerateFiles(services, options);
+        }
+        catch (IOException ex)
+        {
+            Console.Error.WriteLine($"I/O error: {ex.Message}");
+            return 1;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.Error.WriteLine($"Access denied: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static int GenerateFiles(List<RpcServiceInfo> services, ResolvedOptions options)
+    {
+        if (options.Mode == OutputMode.Unity)
+            Directory.CreateDirectory(options.OutputPath);
+
+        if (options.Mode == OutputMode.Server)
+            Directory.CreateDirectory(options.ServerOutputPath);
 
         var generated = 0;
         foreach (var svc in services)

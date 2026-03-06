@@ -111,6 +111,12 @@ internal static class CliParser
             unityNamespace = string.IsNullOrWhiteSpace(raw.UnityNamespace)
                 ? PathHelper.DeriveNamespaceFromOutputPath(outputPath)
                 : raw.UnityNamespace;
+
+            if (!IsValidNamespace(unityNamespace))
+            {
+                error = $"Invalid namespace '{unityNamespace}'. A namespace must be a valid C# identifier (e.g., 'MyApp.Generated').";
+                return false;
+            }
         }
 
         if (mode == OutputMode.Server)
@@ -119,6 +125,12 @@ internal static class CliParser
             serverOutputPath = string.IsNullOrWhiteSpace(raw.ServerOutputPath)
                 ? Path.Combine(cwd, "Generated")
                 : Path.GetFullPath(raw.ServerOutputPath);
+
+            if (!string.IsNullOrEmpty(serverNamespace) && !IsValidNamespace(serverNamespace))
+            {
+                error = $"Invalid namespace '{serverNamespace}'. A namespace must be a valid C# identifier (e.g., 'MyApp.Server').";
+                return false;
+            }
         }
 
         if (!Directory.Exists(contractsPath))
@@ -128,6 +140,25 @@ internal static class CliParser
         }
 
         options = new ResolvedOptions(contractsPath, outputPath, unityNamespace, serverOutputPath, serverNamespace, mode);
+        return true;
+    }
+
+    private static bool IsValidNamespace(string ns)
+    {
+        if (string.IsNullOrWhiteSpace(ns))
+            return false;
+
+        foreach (var segment in ns.Split('.'))
+        {
+            if (string.IsNullOrWhiteSpace(segment))
+                return false;
+            if (char.IsDigit(segment[0]))
+                return false;
+            foreach (var ch in segment)
+                if (!char.IsLetterOrDigit(ch) && ch != '_')
+                    return false;
+        }
+
         return true;
     }
 

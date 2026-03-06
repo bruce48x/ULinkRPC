@@ -38,6 +38,17 @@ public class ModelTests
     }
 
     [Fact]
+    public void Constructor_DeduplicatesInitialDirectives()
+    {
+        var svc = new RpcServiceInfo("IFoo", "Ns.IFoo", 1,
+            [new RpcMethodInfo("Bar", 1, [], null, true)],
+            ["Ns", "Ns", "Other"]);
+
+        Assert.Equal(1, svc.UsingDirectives.Count(d => d == "Ns"));
+        Assert.Equal(1, svc.UsingDirectives.Count(d => d == "Other"));
+    }
+
+    [Fact]
     public void AddUsingDirective_IgnoresDuplicateFromConstructorInit()
     {
         var svc = new RpcServiceInfo("IFoo", "Ns.IFoo", 1,

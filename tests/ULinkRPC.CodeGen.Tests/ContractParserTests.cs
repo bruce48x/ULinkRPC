@@ -412,6 +412,58 @@ public class ContractParserTests : IDisposable
         Assert.Contains("Unsupported return type", ex.Message);
     }
 
+    [Fact]
+    public void DuplicateServiceId_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            [RpcService(1)]
+            public interface ISvcA
+            {
+                [RpcMethod(1)]
+                ValueTask Do();
+            }
+
+            [RpcService(1)]
+            public interface ISvcB
+            {
+                [RpcMethod(1)]
+                ValueTask Do();
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("Duplicate ServiceId 1", ex.Message);
+        Assert.Contains("ISvcA", ex.Message);
+        Assert.Contains("ISvcB", ex.Message);
+    }
+
+    [Fact]
+    public void DuplicateMethodId_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            [RpcService(1)]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask DoA();
+
+                [RpcMethod(1)]
+                ValueTask DoB();
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("Duplicate MethodId 1", ex.Message);
+        Assert.Contains("DoA", ex.Message);
+        Assert.Contains("DoB", ex.Message);
+    }
+
     #endregion
 
     #region Namespace collection

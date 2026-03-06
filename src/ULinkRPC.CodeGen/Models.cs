@@ -26,8 +26,11 @@ internal sealed class RpcServiceInfo
         InterfaceFullName = interfaceFullName;
         ServiceId = serviceId;
         Methods = methods;
-        _usingSet = new HashSet<string>(usingDirectives, StringComparer.Ordinal);
-        UsingDirectives = new List<string>(usingDirectives);
+        _usingSet = new HashSet<string>(StringComparer.Ordinal);
+        UsingDirectives = new List<string>();
+        foreach (var d in usingDirectives)
+            if (_usingSet.Add(d))
+                UsingDirectives.Add(d);
 
         var lastDot = interfaceFullName.LastIndexOf('.');
         var contractNs = lastDot > 0 ? interfaceFullName[..lastDot] : string.Empty;

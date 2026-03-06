@@ -155,6 +155,47 @@ public class CliParserTests
         }
     }
 
+    [Theory]
+    [InlineData("123Invalid")]
+    [InlineData("has space")]
+    [InlineData("dot..double")]
+    [InlineData("trailing.")]
+    [InlineData(".leading")]
+    public void Resolve_UnityMode_InvalidNamespace_Fails(string badNs)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"test_contracts_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var raw = new RawOptions(tempDir, "/out", badNs, "", "", OutputMode.Unity);
+            Assert.False(CliParser.TryResolveGenerationOptions(raw, out _, out var error));
+            Assert.Contains("Invalid namespace", error);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("123Bad")]
+    [InlineData("has space")]
+    public void Resolve_ServerMode_InvalidNamespace_Fails(string badNs)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"test_contracts_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var raw = new RawOptions(tempDir, "", "", "/so", badNs, OutputMode.Server);
+            Assert.False(CliParser.TryResolveGenerationOptions(raw, out _, out var error));
+            Assert.Contains("Invalid namespace", error);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
     [Fact]
     public void Resolve_UnityMode_ExplicitOutputAndNamespace()
     {
