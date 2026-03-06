@@ -24,6 +24,8 @@ Generated client stubs now depend on `ULinkRPC.Core.IRpcClient`.
 Generated client calls use typed descriptors (`RpcMethod<TArg, TResult>` / `RpcPushMethod<TArg>`) instead of passing raw service/method ids.
 Generated Unity client output also includes `IRpcClient` extension factories (for example `client.CreatePlayerService()`) so business code does not instantiate generated client types directly.
 Generated Unity client output includes a mandatory grouped facade `RpcApi`; business code should enter via `client.CreateRpcApi()` and access services through named groups (for example `rpcApi.Game.Player`).
+Unity generated code namespace is derived from Unity output directory (for example `Assets/Scripts/Rpc/RpcGenerated` -> `Rpc.Generated`).
+Generated files now inherit `using` directives declared by contract sources so referenced types resolve correctly.
 Generated binders reference `ULinkRPC.Core` + `ULinkRPC.Server` and include both `Bind(RpcServer, IYourService)` and delegate-based `Bind(...)` overloads. For `IRpcService<TSelf, TCallback>` services, server binder also emits `Bind(RpcServer, Func<TCallback, TSelf>)` to wire callback proxy and implementation together.
 
 ### Options
@@ -38,6 +40,7 @@ Generated binders reference `ULinkRPC.Core` + `ULinkRPC.Server` and include both
 ## Default Behavior
 
 - Unity project: by default generates to `samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated` (or matching `RpcCall.MemoryPack` path when detected).
+- Unity project outside repo layouts: by default generates to `Assets/Scripts/Rpc/RpcGenerated` under detected Unity project root.
 - Server project: by default generates to `samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated` (or matching `RpcCall.MemoryPack` path when detected).
 
 Paths can be overridden via options.

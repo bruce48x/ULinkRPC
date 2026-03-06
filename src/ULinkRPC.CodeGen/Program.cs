@@ -9,7 +9,8 @@ internal static class Program
     private const string UnityOutputRelativePath = "samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated";
     private const string ServerOutputRelativePath = "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated";
     private const string DefaultOutputDirName = "RpcGenerated";
-    private const string DefaultRuntimeNamespace = "Game.Rpc.Runtime.Generated";
+    private const string DefaultUnityOutputRelativePath = "Assets/Scripts/Rpc/RpcGenerated";
+    private const string DefaultUnityRuntimeNamespace = "Rpc.Generated";
     private const string DefaultCoreRuntimeUsing = "ULinkRPC.Core";
     private const string DefaultServerRuntimeUsing = "ULinkRPC.Server";
 
@@ -38,6 +39,8 @@ internal static class Program
             return 1;
         }
 
+        var unityRuntimeNamespace = DeriveNamespaceFromOutputPath(outputPath);
+
         var services = FindRpcServicesFromSource(contractsPath);
         if (services.Count == 0)
         {
@@ -64,7 +67,7 @@ internal static class Program
         {
             if (mode == OutputMode.Unity || outputSpecified)
             {
-                var (client, _) = GenerateCode(svc, DefaultRuntimeNamespace, DefaultCoreRuntimeUsing,
+                var (client, _) = GenerateCode(svc, unityRuntimeNamespace, DefaultCoreRuntimeUsing,
                     DefaultServerRuntimeUsing);
                 if (client != null)
                 {
@@ -75,7 +78,7 @@ internal static class Program
 
                 if (svc.HasCallback)
                 {
-                    var cbBinder = GenerateCallbackBinderCode(svc, DefaultRuntimeNamespace,
+                    var cbBinder = GenerateCallbackBinderCode(svc, unityRuntimeNamespace,
                         DefaultCoreRuntimeUsing, DefaultCoreRuntimeUsing);
                     var cbBinderTypeName = GetCallbackBinderTypeName(svc.CallbackInterfaceName!);
                     File.WriteAllText(Path.Combine(outputPath, $"{cbBinderTypeName}.cs"), cbBinder, Encoding.UTF8);
@@ -104,7 +107,7 @@ internal static class Program
 
         if (mode == OutputMode.Unity || outputSpecified)
         {
-            var facade = GenerateClientFacadeCode(services, DefaultRuntimeNamespace, DefaultCoreRuntimeUsing);
+            var facade = GenerateClientFacadeCode(services, unityRuntimeNamespace, DefaultCoreRuntimeUsing);
             File.WriteAllText(Path.Combine(outputPath, "RpcApi.cs"), facade, Encoding.UTF8);
             generated++;
         }
@@ -230,9 +233,17 @@ internal static class Program
         {
             if (string.IsNullOrWhiteSpace(outputPath))
             {
-                outputPath = isInRepo
-                    ? Path.Combine(repoRoot!, layout?.UnityOutputRelativePath ?? UnityOutputRelativePath)
-                    : Path.Combine(cwd, DefaultOutputDirName);
+                if (isInRepo)
+                {
+                    outputPath = Path.Combine(repoRoot!, layout?.UnityOutputRelativePath ?? UnityOutputRelativePath);
+                }
+                else
+                {
+                    var unityRoot = FindUnityProjectRoot(cwd);
+                    outputPath = unityRoot != null
+                        ? Path.Combine(unityRoot, DefaultUnityOutputRelativePath)
+                        : Path.Combine(cwd, DefaultOutputDirName);
+                }
             }
             else
             {
@@ -348,15 +359,16 @@ internal static class Program
     private static List<RpcServiceInfo> FindRpcServicesFromSource(string contractsPath)
     {
         var files = Directory.GetFiles(contractsPath, "*.cs", SearchOption.AllDirectories);
-        var allTexts = new List<string>();
+        var sourceFiles = new List<SourceFileInfo>();
         var services = new List<RpcServiceInfo>();
 
         foreach (var file in files)
         {
             var text = File.ReadAllText(file);
-            allTexts.Add(text);
             var ns = ParseNamespace(text);
-            services.AddRange(ParseServices(text, ns));
+            var usingDirectives = ParseUsingDirectives(text);
+            sourceFiles.Add(new SourceFileInfo(text, usingDirectives));
+            services.AddRange(ParseServices(text, ns, usingDirectives));
         }
 
         foreach (var svc in services)
@@ -364,12 +376,13 @@ internal static class Program
             if (string.IsNullOrEmpty(svc.CallbackInterfaceName))
                 continue;
 
-            foreach (var text in allTexts)
+            foreach (var sourceFile in sourceFiles)
             {
-                var cbMethods = ParseCallbackInterface(text, svc.CallbackInterfaceName);
+                var cbMethods = ParseCallbackInterface(sourceFile.Text, svc.CallbackInterfaceName);
                 if (cbMethods != null)
                 {
                     svc.CallbackMethods = cbMethods;
+                    svc.AddUsingDirectives(sourceFile.UsingDirectives);
                     break;
                 }
             }
@@ -448,7 +461,18 @@ internal static class Program
         return match.Success ? match.Groups[1].Value : string.Empty;
     }
 
-    private static IEnumerable<RpcServiceInfo> ParseServices(string text, string ns)
+    private static IReadOnlyList<string> ParseUsingDirectives(string text)
+    {
+        var matches = Regex.Matches(text, @"^\s*(?:global\s+)?using\s+([^;]+);\s*$", RegexOptions.Multiline);
+        return matches
+            .Cast<Match>()
+            .Select(match => match.Groups[1].Value.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static IEnumerable<RpcServiceInfo> ParseServices(string text, string ns, IReadOnlyList<string> usingDirectives)
     {
         var svcRegex = new Regex(
             @"\[RpcService\((\d+)\)\]\s*public\s+interface\s+(\w+)\s*(?::\s*IRpcService<\w+,\s*(\w+)>)?\s*{",
@@ -474,7 +498,7 @@ internal static class Program
             var methods = ParseMethods(body);
             if (methods.Count > 0)
             {
-                var svc = new RpcServiceInfo(ifaceName, ifaceFullName, serviceId, methods)
+                var svc = new RpcServiceInfo(ifaceName, ifaceFullName, serviceId, methods, usingDirectives)
                 {
                     CallbackInterfaceName = callbackName
                 };
@@ -850,7 +874,12 @@ internal static class Program
     {
         var ifaceName = svc.InterfaceName;
         var clientTypeName = GetClientTypeName(ifaceName);
-        var contractUsings = GetContractNamespaces(svc);
+        var contractUsings = ExcludeUsingDirectives(
+            GetContractUsingDirectives(svc),
+            "System",
+            "System.Threading",
+            "System.Threading.Tasks",
+            clientRuntimeUsing);
 
         var clientBody = new StringBuilder();
         clientBody.Append("using System;\nusing System.Threading;\nusing System.Threading.Tasks;\n")
@@ -921,7 +950,12 @@ internal static class Program
     {
         var ifaceName = svc.InterfaceName;
         var binderTypeName = GetBinderTypeName(ifaceName);
-        var contractUsings = GetContractNamespaces(svc);
+        var contractUsings = ExcludeUsingDirectives(
+            GetContractUsingDirectives(svc),
+            "System",
+            "System.Threading.Tasks",
+            coreRuntimeUsing,
+            serverRuntimeUsing);
         var binderSb = new StringBuilder();
         binderSb.Append("using System;\nusing System.Threading.Tasks;\n")
             .Append(FormatUsingBlock(contractUsings))
@@ -971,7 +1005,7 @@ internal static class Program
 
     private static string GenerateAllServicesBinder(List<RpcServiceInfo> services, string ns, string runtimeUsing)
     {
-        var contractUsings = GetContractNamespaces(services);
+        var contractUsings = ExcludeUsingDirectives(GetContractUsingDirectives(services), runtimeUsing);
         var sb = new StringBuilder();
         sb.Append(FormatUsingBlock(contractUsings))
             .Append("using ")
@@ -998,7 +1032,7 @@ internal static class Program
     private static string GenerateClientFacadeCode(List<RpcServiceInfo> services, string ns, string coreRuntimeUsing)
     {
         var groups = BuildFacadeGroups(services);
-        var contractUsings = GetContractNamespaces(services);
+        var contractUsings = ExcludeUsingDirectives(GetContractUsingDirectives(services), "System", coreRuntimeUsing);
         var sb = new StringBuilder();
         sb.Append("using System;\n")
             .Append(FormatUsingBlock(contractUsings))
@@ -1053,7 +1087,11 @@ internal static class Program
     {
         var cbName = svc.CallbackInterfaceName!;
         var proxyTypeName = GetCallbackProxyTypeName(cbName);
-        var contractUsings = GetContractNamespaces(svc);
+        var contractUsings = ExcludeUsingDirectives(
+            GetContractUsingDirectives(svc),
+            "System",
+            coreRuntimeUsing,
+            serverRuntimeUsing);
         var sb = new StringBuilder();
         sb.Append("using System;\n")
             .Append(FormatUsingBlock(contractUsings))
@@ -1085,7 +1123,7 @@ internal static class Program
     {
         var cbName = svc.CallbackInterfaceName!;
         var binderTypeName = GetCallbackBinderTypeName(cbName);
-        var contractUsings = GetContractNamespaces(svc);
+        var contractUsings = ExcludeUsingDirectives(GetContractUsingDirectives(svc), "System", coreRuntimeUsing);
         var sb = new StringBuilder();
         sb.Append("using System;\n")
             .Append(FormatUsingBlock(contractUsings))
@@ -1457,19 +1495,17 @@ internal static class Program
         return string.Join(", ", args);
     }
 
-    private static IReadOnlyList<string> GetContractNamespaces(RpcServiceInfo svc)
+    private static IReadOnlyList<string> GetContractUsingDirectives(RpcServiceInfo svc)
     {
-        var ns = GetNamespaceFromFullName(svc.InterfaceFullName);
-        return string.IsNullOrWhiteSpace(ns)
-            ? Array.Empty<string>()
-            : new[] { ns };
+        return svc.UsingDirectives
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 
-    private static IReadOnlyList<string> GetContractNamespaces(IEnumerable<RpcServiceInfo> services)
+    private static IReadOnlyList<string> GetContractUsingDirectives(IEnumerable<RpcServiceInfo> services)
     {
         return services
-            .Select(svc => GetNamespaceFromFullName(svc.InterfaceFullName))
-            .Where(ns => !string.IsNullOrWhiteSpace(ns))
+            .SelectMany(svc => svc.UsingDirectives)
             .Distinct(StringComparer.Ordinal)
             .ToList();
     }
@@ -1486,6 +1522,14 @@ internal static class Program
         foreach (var ns in namespaces)
             sb.Append("using ").Append(ns).Append(";\n");
         return sb.ToString();
+    }
+
+    private static IReadOnlyList<string> ExcludeUsingDirectives(IEnumerable<string> usingDirectives, params string[] excluded)
+    {
+        var excludedSet = new HashSet<string>(excluded, StringComparer.Ordinal);
+        return usingDirectives
+            .Where(directive => !excludedSet.Contains(directive))
+            .ToList();
     }
 
     private static string GetDefaultServerNamespace(List<RpcServiceInfo> services)
@@ -1530,18 +1574,65 @@ internal static class Program
         public string InterfaceFullName { get; }
         public int ServiceId { get; }
         public List<RpcMethodInfo> Methods { get; }
+        public List<string> UsingDirectives { get; }
         public string? CallbackInterfaceName { get; set; }
         public List<RpcCallbackMethodInfo> CallbackMethods { get; set; } = new();
 
-        public RpcServiceInfo(string interfaceName, string interfaceFullName, int serviceId, List<RpcMethodInfo> methods)
+        public RpcServiceInfo(
+            string interfaceName,
+            string interfaceFullName,
+            int serviceId,
+            List<RpcMethodInfo> methods,
+            IReadOnlyList<string> usingDirectives)
         {
             InterfaceName = interfaceName;
             InterfaceFullName = interfaceFullName;
             ServiceId = serviceId;
             Methods = methods;
+            UsingDirectives = BuildUsingDirectives(interfaceFullName, usingDirectives);
+        }
+
+        public void AddUsingDirectives(IEnumerable<string> usingDirectives)
+        {
+            foreach (var directive in usingDirectives)
+            {
+                if (!UsingDirectives.Contains(directive, StringComparer.Ordinal))
+                    UsingDirectives.Add(directive);
+            }
         }
 
         public bool HasCallback => !string.IsNullOrEmpty(CallbackInterfaceName) && CallbackMethods.Count > 0;
+
+        private static List<string> BuildUsingDirectives(string interfaceFullName, IEnumerable<string> usingDirectives)
+        {
+            var allUsings = new List<string>();
+            foreach (var directive in usingDirectives)
+            {
+                if (!allUsings.Contains(directive, StringComparer.Ordinal))
+                    allUsings.Add(directive);
+            }
+
+            var contractNamespace = GetNamespaceFromFullName(interfaceFullName);
+            if (!string.IsNullOrWhiteSpace(contractNamespace) &&
+                !allUsings.Contains(contractNamespace, StringComparer.Ordinal))
+            {
+                allUsings.Add(contractNamespace);
+            }
+
+            return allUsings;
+        }
+    }
+
+    private sealed class SourceFileInfo
+    {
+        public string Text { get; }
+        public IReadOnlyList<string> UsingDirectives { get; }
+
+        public SourceFileInfo(string text, IReadOnlyList<string> usingDirectives)
+        {
+            Text = text;
+            UsingDirectives = usingDirectives;
+        }
     }
 
     private sealed class RpcMethodInfo
@@ -1688,6 +1779,89 @@ internal static class Program
     private static bool IsUnityProject(string path)
     {
         return Directory.Exists(Path.Combine(path, "Assets")) && Directory.Exists(Path.Combine(path, "Packages"));
+    }
+
+    private static string DeriveNamespaceFromOutputPath(string outputPath)
+    {
+        if (string.IsNullOrWhiteSpace(outputPath))
+            return DefaultUnityRuntimeNamespace;
+
+        var fullPath = Path.GetFullPath(outputPath);
+        var segments = fullPath
+            .Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+
+        if (segments.Count == 0)
+            return DefaultUnityRuntimeNamespace;
+
+        var startIndex = 0;
+        for (var i = 0; i < segments.Count - 1; i++)
+        {
+            if (segments[i].Equals("Assets", StringComparison.OrdinalIgnoreCase) &&
+                segments[i + 1].Equals("Scripts", StringComparison.OrdinalIgnoreCase))
+            {
+                startIndex = i + 2;
+                break;
+            }
+        }
+
+        var relevantSegments = segments.Skip(startIndex).ToList();
+        if (relevantSegments.Count == 0)
+            return DefaultUnityRuntimeNamespace;
+
+        var normalizedSegments = new List<string>();
+        for (var i = 0; i < relevantSegments.Count; i++)
+        {
+            var current = relevantSegments[i];
+            if (i > 0)
+            {
+                var previous = relevantSegments[i - 1];
+                if (current.EndsWith("Generated", StringComparison.Ordinal) &&
+                    current.StartsWith(previous, StringComparison.Ordinal) &&
+                    current.Length > previous.Length)
+                {
+                    current = current.Substring(previous.Length);
+                }
+            }
+
+            var identifier = ToNamespaceIdentifier(current);
+            if (!string.IsNullOrWhiteSpace(identifier))
+                normalizedSegments.Add(identifier);
+        }
+
+        if (normalizedSegments.Count == 0)
+            return DefaultUnityRuntimeNamespace;
+
+        return string.Join('.', normalizedSegments);
+    }
+
+    private static string ToNamespaceIdentifier(string segment)
+    {
+        if (string.IsNullOrWhiteSpace(segment))
+            return string.Empty;
+
+        var sanitized = Regex.Replace(segment, "[^A-Za-z0-9_]", string.Empty);
+        if (string.IsNullOrWhiteSpace(sanitized))
+            return string.Empty;
+
+        if (char.IsDigit(sanitized[0]))
+            sanitized = $"_{sanitized}";
+
+        return sanitized;
+    }
+
+    private static string? FindUnityProjectRoot(string startPath)
+    {
+        var dir = new DirectoryInfo(startPath);
+        while (dir != null)
+        {
+            if (IsUnityProject(dir.FullName))
+                return dir.FullName;
+
+            dir = dir.Parent;
+        }
+
+        return null;
     }
 
     private static bool IsServerProject(string path)

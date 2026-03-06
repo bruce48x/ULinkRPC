@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Game.Rpc.Contracts;
 using ULinkRPC.Core;
 
-namespace Game.Rpc.Runtime.Generated
+namespace Rpc.Generated
 {
     public sealed class RpcApi
     {
