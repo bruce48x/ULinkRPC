@@ -1,5 +1,8 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ULinkRPC.CodeGen;
 
@@ -298,11 +301,9 @@ internal static class Program
 
         foreach (var file in files)
         {
-            var text = File.ReadAllText(file);
-            var ns = ParseNamespace(text);
-            var usingDirectives = ParseUsingDirectives(text);
-            sourceFiles.Add(new SourceFileInfo(text, usingDirectives));
-            services.AddRange(ParseServices(text, ns, usingDirectives));
+            var sourceFile = ParseSourceFile(file);
+            sourceFiles.Add(sourceFile);
+            services.AddRange(sourceFile.Services);
         }
 
         foreach (var svc in services)
@@ -312,10 +313,9 @@ internal static class Program
 
             foreach (var sourceFile in sourceFiles)
             {
-                var cbMethods = ParseCallbackInterface(sourceFile.Text, svc.CallbackInterfaceName);
-                if (cbMethods != null)
+                if (sourceFile.CallbackInterfaces.TryGetValue(svc.CallbackInterfaceName, out var callbackInfo))
                 {
-                    svc.CallbackMethods = cbMethods;
+                    svc.CallbackMethods = callbackInfo.Methods;
                     svc.AddUsingDirectives(sourceFile.UsingDirectives);
                     break;
                 }
@@ -325,479 +325,275 @@ internal static class Program
         return services;
     }
 
-    private static List<RpcCallbackMethodInfo>? ParseCallbackInterface(string text, string callbackName)
+    private static SourceFileInfo ParseSourceFile(string filePath)
     {
-        var pattern = $@"public\s+interface\s+{Regex.Escape(callbackName)}\s*{{";
-        var match = Regex.Match(text, pattern, RegexOptions.Multiline);
-        if (!match.Success)
-            return null;
-
-        var braceIndex = text.IndexOf('{', match.Index);
-        if (braceIndex < 0)
-            return null;
-
-        var endIndex = FindMatchingBrace(text, braceIndex);
-        if (endIndex < 0)
-            return null;
-
-        var body = text.Substring(braceIndex + 1, endIndex - braceIndex - 1);
-        return ParseCallbackMethods(body);
+        var text = File.ReadAllText(filePath);
+        var syntaxTree = CSharpSyntaxTree.ParseText(text, path: filePath);
+        var root = syntaxTree.GetCompilationUnitRoot();
+        var usingDirectives = ParseUsingDirectives(root);
+        var services = ParseServices(root, usingDirectives);
+        var callbackInterfaces = ParseCallbackInterfaces(root);
+        return new SourceFileInfo(usingDirectives, services, callbackInterfaces);
     }
 
-    private static List<RpcCallbackMethodInfo> ParseCallbackMethods(string body)
+    private static IReadOnlyList<string> ParseUsingDirectives(CompilationUnitSyntax root)
     {
-        var methodRegex = new Regex(@"\[RpcMethod\((\d+)\)\]\s*([^\r\n;]+);", RegexOptions.Multiline);
-        var matches = methodRegex.Matches(body);
-        var methods = new List<RpcCallbackMethodInfo>();
-
-        foreach (Match match in matches)
-        {
-            var methodId = int.Parse(match.Groups[1].Value);
-            var signature = match.Groups[2].Value.Trim();
-            if (!TryParseCallbackSignature(signature, out var name, out var parameters))
-                continue;
-
-            methods.Add(new RpcCallbackMethodInfo(name, methodId, parameters));
-        }
-
-        return methods;
-    }
-
-    private static bool TryParseCallbackSignature(string signature, out string name, out List<RpcParameterInfo> parameters)
-    {
-        name = string.Empty;
-        parameters = new List<RpcParameterInfo>();
-
-        var openParen = signature.IndexOf('(');
-        var closeParen = signature.LastIndexOf(')');
-        if (openParen <= 0 || closeParen <= openParen)
-            return false;
-
-        var header = signature.Substring(0, openParen).Trim();
-        var paramList = signature.Substring(openParen + 1, closeParen - openParen - 1).Trim();
-        var splitAt = FindLastTopLevelWhitespace(header);
-        if (splitAt <= 0 || splitAt >= header.Length - 1)
-            return false;
-
-        var ret = header.Substring(0, splitAt).Trim();
-        name = header.Substring(splitAt).Trim();
-
-        if (!string.Equals(ret, "void", StringComparison.Ordinal))
-            return false;
-
-        parameters = ParseParameters(paramList);
-        return true;
-    }
-
-    private static string ParseNamespace(string text)
-    {
-        var match = Regex.Match(text, @"^\s*namespace\s+([A-Za-z0-9_.]+)\s*$", RegexOptions.Multiline);
-        return match.Success ? match.Groups[1].Value : string.Empty;
-    }
-
-    private static IReadOnlyList<string> ParseUsingDirectives(string text)
-    {
-        var matches = Regex.Matches(text, @"^\s*(?:global\s+)?using\s+([^;]+);\s*$", RegexOptions.Multiline);
-        return matches
-            .Cast<Match>()
-            .Select(match => match.Groups[1].Value.Trim())
+        return root.DescendantNodes()
+            .OfType<UsingDirectiveSyntax>()
+            .Select(FormatUsingDirective)
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Distinct(StringComparer.Ordinal)
             .ToList();
     }
 
-    private static IEnumerable<RpcServiceInfo> ParseServices(string text, string ns, IReadOnlyList<string> usingDirectives)
+    private static string FormatUsingDirective(UsingDirectiveSyntax usingDirective)
     {
-        var svcRegex = new Regex(
-            @"\[RpcService\((\d+)\)\]\s*public\s+interface\s+(\w+)\s*(?::\s*IRpcService<\w+,\s*(\w+)>)?\s*{",
-            RegexOptions.Multiline);
-        var matches = svcRegex.Matches(text);
-
-        foreach (Match match in matches)
-        {
-            var serviceId = int.Parse(match.Groups[1].Value);
-            var ifaceName = match.Groups[2].Value;
-            var ifaceFullName = string.IsNullOrEmpty(ns) ? ifaceName : $"{ns}.{ifaceName}";
-            var callbackName = match.Groups[3].Success ? match.Groups[3].Value : null;
-
-            var braceIndex = text.IndexOf('{', match.Index);
-            if (braceIndex < 0)
-                continue;
-
-            var endIndex = FindMatchingBrace(text, braceIndex);
-            if (endIndex < 0)
-                continue;
-
-            var body = text.Substring(braceIndex + 1, endIndex - braceIndex - 1);
-            var methods = ParseMethods(body);
-            if (methods.Count > 0)
-            {
-                var svc = new RpcServiceInfo(ifaceName, ifaceFullName, serviceId, methods, usingDirectives)
-                {
-                    CallbackInterfaceName = callbackName
-                };
-                yield return svc;
-            }
-        }
+        var prefix = usingDirective.StaticKeyword.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.StaticKeyword)
+            ? "static "
+            : string.Empty;
+        var alias = usingDirective.Alias != null
+            ? $"{usingDirective.Alias.Name} = "
+            : string.Empty;
+        return $"{prefix}{alias}{usingDirective.Name}";
     }
 
-    private static int FindMatchingBrace(string text, int startIndex)
+    private static List<RpcServiceInfo> ParseServices(CompilationUnitSyntax root, IReadOnlyList<string> usingDirectives)
     {
-        var depth = 0;
-        for (var i = startIndex; i < text.Length; i++)
+        var services = new List<RpcServiceInfo>();
+        foreach (var iface in root.DescendantNodes().OfType<InterfaceDeclarationSyntax>())
         {
-            if (text[i] == '{')
-                depth++;
-            else if (text[i] == '}')
+            if (!TryGetAttributeIntValue(iface.AttributeLists, "RpcService", out var serviceId))
+                continue;
+
+            var methods = ParseServiceMethods(iface);
+            if (methods.Count == 0)
+                continue;
+
+            var interfaceName = iface.Identifier.ValueText;
+            var namespaceName = GetContainingNamespace(iface);
+            var fullName = string.IsNullOrWhiteSpace(namespaceName)
+                ? interfaceName
+                : $"{namespaceName}.{interfaceName}";
+
+            var service = new RpcServiceInfo(interfaceName, fullName, serviceId, methods, usingDirectives)
             {
-                depth--;
-                if (depth == 0)
-                    return i;
-            }
+                CallbackInterfaceName = TryGetServiceCallbackInterfaceName(iface)
+            };
+            services.Add(service);
         }
-        return -1;
+
+        return services;
     }
 
-    private static List<RpcMethodInfo> ParseMethods(string body)
+    private static Dictionary<string, CallbackInterfaceInfo> ParseCallbackInterfaces(CompilationUnitSyntax root)
     {
-        var methodRegex = new Regex(@"\[RpcMethod\((\d+)\)\]\s*([^\r\n;]+);", RegexOptions.Multiline);
-        var matches = methodRegex.Matches(body);
+        var callbacks = new Dictionary<string, CallbackInterfaceInfo>(StringComparer.Ordinal);
+        foreach (var iface in root.DescendantNodes().OfType<InterfaceDeclarationSyntax>())
+        {
+            if (TryGetAttributeIntValue(iface.AttributeLists, "RpcService", out _))
+                continue;
+
+            var methods = ParseCallbackMethods(iface);
+            if (methods.Count == 0)
+                continue;
+
+            var callbackName = iface.Identifier.ValueText;
+            if (!callbacks.ContainsKey(callbackName))
+                callbacks.Add(callbackName, new CallbackInterfaceInfo(callbackName, methods));
+        }
+
+        return callbacks;
+    }
+
+    private static List<RpcMethodInfo> ParseServiceMethods(InterfaceDeclarationSyntax iface)
+    {
         var methods = new List<RpcMethodInfo>();
-
-        foreach (Match match in matches)
+        foreach (var method in iface.Members.OfType<MethodDeclarationSyntax>())
         {
-            var methodId = int.Parse(match.Groups[1].Value);
-            var signature = match.Groups[2].Value.Trim();
-            if (!TryParseMethodSignature(signature, out var name, out var parameters, out var retType, out var isVoid))
+            if (!TryGetAttributeIntValue(method.AttributeLists, "RpcMethod", out var methodId))
                 continue;
 
-            methods.Add(new RpcMethodInfo(name, methodId, parameters, retType, isVoid));
+            var parameters = ParseParameters(method.ParameterList.Parameters);
+            var returnTypeText = method.ReturnType.ToString();
+            var isVoid = IsValueTaskVoid(method.ReturnType);
+            var retType = isVoid
+                ? null
+                : TryGetValueTaskGenericType(method.ReturnType) ?? returnTypeText;
+
+            methods.Add(new RpcMethodInfo(method.Identifier.ValueText, methodId, parameters, retType, isVoid));
         }
 
         return methods;
     }
 
-    private static bool TryParseMethodSignature(
-        string signature,
-        out string name,
-        out List<RpcParameterInfo> parameters,
-        out string? retType,
-        out bool isVoid)
+    private static List<RpcCallbackMethodInfo> ParseCallbackMethods(InterfaceDeclarationSyntax iface)
     {
-        name = string.Empty;
-        parameters = new List<RpcParameterInfo>();
-        retType = null;
-        isVoid = false;
-
-        var openParen = signature.IndexOf('(');
-        var closeParen = signature.LastIndexOf(')');
-        if (openParen <= 0 || closeParen <= openParen)
-            return false;
-
-        var header = signature.Substring(0, openParen).Trim();
-        var paramList = signature.Substring(openParen + 1, closeParen - openParen - 1).Trim();
-        var splitAt = FindLastTopLevelWhitespace(header);
-        if (splitAt <= 0 || splitAt >= header.Length - 1)
-            return false;
-
-        var ret = header.Substring(0, splitAt).Trim();
-        name = header.Substring(splitAt).Trim();
-        if (string.IsNullOrWhiteSpace(name))
-            return false;
-
-        if (string.Equals(ret, "ValueTask", StringComparison.Ordinal) ||
-            string.Equals(ret, "System.Threading.Tasks.ValueTask", StringComparison.Ordinal))
+        var methods = new List<RpcCallbackMethodInfo>();
+        foreach (var method in iface.Members.OfType<MethodDeclarationSyntax>())
         {
-            isVoid = true;
-        }
-        else
-        {
-            var genericMatch = Regex.Match(ret, @"^(?:System\.Threading\.Tasks\.)?ValueTask<(.+)>$");
-            if (genericMatch.Success)
-                retType = genericMatch.Groups[1].Value.Trim();
-            else
-                retType = ret;
+            if (!TryGetAttributeIntValue(method.AttributeLists, "RpcMethod", out var methodId))
+                continue;
+
+            if (!string.Equals(method.ReturnType.ToString(), "void", StringComparison.Ordinal))
+                continue;
+
+            var parameters = ParseParameters(method.ParameterList.Parameters);
+            methods.Add(new RpcCallbackMethodInfo(method.Identifier.ValueText, methodId, parameters));
         }
 
-        parameters = ParseParameters(paramList);
-
-        return true;
+        return methods;
     }
 
-    private static List<RpcParameterInfo> ParseParameters(string paramList)
+    private static List<RpcParameterInfo> ParseParameters(SeparatedSyntaxList<ParameterSyntax> parameters)
     {
         var result = new List<RpcParameterInfo>();
-        if (string.IsNullOrWhiteSpace(paramList))
-            return result;
-
-        var parts = SplitTopLevel(paramList, ',');
-        for (var i = 0; i < parts.Count; i++)
+        for (var i = 0; i < parameters.Count; i++)
         {
-            var parsed = TryParseParameter(parts[i], i + 1);
-            if (parsed != null)
-                result.Add(parsed);
+            var parameter = parameters[i];
+            var typeName = parameter.Type?.ToString() ?? "object";
+            var name = parameter.Identifier.ValueText;
+            if (string.IsNullOrWhiteSpace(name))
+                name = $"arg{i + 1}";
+
+            result.Add(new RpcParameterInfo(typeName, name));
         }
 
         return result;
     }
 
-    private static RpcParameterInfo? TryParseParameter(string input, int index)
+    private static bool TryGetAttributeIntValue(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        string attributeBaseName,
+        out int value)
     {
-        var param = input.Trim();
-        if (string.IsNullOrWhiteSpace(param))
-            return null;
+        foreach (var attribute in attributeLists.SelectMany(list => list.Attributes))
+        {
+            if (!IsAttributeName(attribute.Name, attributeBaseName))
+                continue;
 
-        param = TrimLeadingParameterAttributes(param);
-        var eqIndex = FindFirstTopLevel(param, '=');
-        if (eqIndex >= 0)
-            param = param.Substring(0, eqIndex).Trim();
+            var firstArg = attribute.ArgumentList?.Arguments.FirstOrDefault();
+            if (firstArg == null)
+                continue;
 
-        if (string.IsNullOrWhiteSpace(param))
-            return null;
+            if (firstArg.Expression is LiteralExpressionSyntax literal &&
+                literal.Token.Value is int intValue)
+            {
+                value = intValue;
+                return true;
+            }
 
-        var splitAt = FindLastTopLevelWhitespace(param);
-        if (splitAt <= 0 || splitAt >= param.Length - 1)
-            return new RpcParameterInfo(TrimParameterTypeModifiers(param), $"arg{index}");
+            if (int.TryParse(firstArg.Expression.ToString(), out intValue))
+            {
+                value = intValue;
+                return true;
+            }
+        }
 
-        var typeName = TrimParameterTypeModifiers(param.Substring(0, splitAt).Trim());
-        var name = param.Substring(splitAt).Trim();
-        if (string.IsNullOrWhiteSpace(typeName))
-            return null;
-
-        if (string.IsNullOrWhiteSpace(name))
-            name = $"arg{index}";
-
-        return new RpcParameterInfo(typeName, name);
+        value = default;
+        return false;
     }
 
-    private static string TrimLeadingParameterAttributes(string input)
+    private static bool IsAttributeName(NameSyntax attributeName, string attributeBaseName)
     {
-        var text = input.Trim();
-        while (text.StartsWith("[", StringComparison.Ordinal))
+        var simpleName = GetRightMostName(attributeName);
+        return string.Equals(simpleName, attributeBaseName, StringComparison.Ordinal) ||
+               string.Equals(simpleName, $"{attributeBaseName}Attribute", StringComparison.Ordinal);
+    }
+
+    private static string GetRightMostName(NameSyntax nameSyntax)
+    {
+        return nameSyntax switch
         {
-            var depth = 0;
-            var consumed = 0;
-            for (var i = 0; i < text.Length; i++)
+            IdentifierNameSyntax id => id.Identifier.ValueText,
+            GenericNameSyntax generic => generic.Identifier.ValueText,
+            QualifiedNameSyntax qualified => GetRightMostName(qualified.Right),
+            AliasQualifiedNameSyntax aliasQualified => GetRightMostName(aliasQualified.Name),
+            _ => nameSyntax.ToString()
+        };
+    }
+
+    private static string GetContainingNamespace(InterfaceDeclarationSyntax iface)
+    {
+        var namespaces = iface.Ancestors()
+            .OfType<BaseNamespaceDeclarationSyntax>()
+            .Select(ns => ns.Name.ToString())
+            .Reverse()
+            .ToList();
+        return namespaces.Count == 0 ? string.Empty : string.Join('.', namespaces);
+    }
+
+    private static string? TryGetServiceCallbackInterfaceName(InterfaceDeclarationSyntax iface)
+    {
+        if (iface.BaseList == null)
+            return null;
+
+        foreach (var baseType in iface.BaseList.Types)
+        {
+            if (TryGetIrpcServiceGeneric(baseType.Type, out var generic))
             {
-                if (text[i] == '[')
-                    depth++;
-                else if (text[i] == ']')
+                if (generic.TypeArgumentList.Arguments.Count >= 2)
                 {
-                    depth--;
-                    if (depth == 0)
-                    {
-                        consumed = i + 1;
-                        break;
-                    }
+                    var callbackType = generic.TypeArgumentList.Arguments[1];
+                    return GetTypeSimpleName(callbackType);
                 }
             }
-
-            if (consumed == 0)
-                break;
-
-            text = text.Substring(consumed).TrimStart();
         }
 
-        return text;
+        return null;
     }
 
-    private static string TrimParameterTypeModifiers(string typePart)
+    private static bool TryGetIrpcServiceGeneric(TypeSyntax typeSyntax, out GenericNameSyntax generic)
     {
-        var text = typePart.Trim();
-        while (true)
+        switch (typeSyntax)
         {
-            if (text.StartsWith("in ", StringComparison.Ordinal))
-            {
-                text = text.Substring(3).TrimStart();
-                continue;
-            }
-
-            if (text.StartsWith("out ", StringComparison.Ordinal))
-            {
-                text = text.Substring(4).TrimStart();
-                continue;
-            }
-
-            if (text.StartsWith("ref ", StringComparison.Ordinal))
-            {
-                text = text.Substring(4).TrimStart();
-                continue;
-            }
-
-            if (text.StartsWith("params ", StringComparison.Ordinal))
-            {
-                text = text.Substring(7).TrimStart();
-                continue;
-            }
-
-            if (text.StartsWith("this ", StringComparison.Ordinal))
-            {
-                text = text.Substring(5).TrimStart();
-                continue;
-            }
-
-            if (text.StartsWith("scoped ", StringComparison.Ordinal))
-            {
-                text = text.Substring(7).TrimStart();
-                continue;
-            }
-
-            if (text.StartsWith("readonly ", StringComparison.Ordinal))
-            {
-                text = text.Substring(9).TrimStart();
-                continue;
-            }
-
-            return text;
+            case GenericNameSyntax genericName when genericName.Identifier.ValueText == "IRpcService":
+                generic = genericName;
+                return true;
+            case QualifiedNameSyntax qualified:
+                return TryGetIrpcServiceGeneric(qualified.Right, out generic);
+            case AliasQualifiedNameSyntax aliasQualified:
+                return TryGetIrpcServiceGeneric(aliasQualified.Name, out generic);
+            default:
+                generic = null!;
+                return false;
         }
     }
 
-    private static int FindFirstTopLevel(string text, char target)
+    private static string GetTypeSimpleName(TypeSyntax typeSyntax)
     {
-        var angleDepth = 0;
-        var parenDepth = 0;
-        var bracketDepth = 0;
-        var braceDepth = 0;
-        for (var i = 0; i < text.Length; i++)
+        return typeSyntax switch
         {
-            var ch = text[i];
-            switch (ch)
-            {
-                case '<':
-                    angleDepth++;
-                    break;
-                case '>':
-                    if (angleDepth > 0) angleDepth--;
-                    break;
-                case '(':
-                    parenDepth++;
-                    break;
-                case ')':
-                    if (parenDepth > 0) parenDepth--;
-                    break;
-                case '[':
-                    bracketDepth++;
-                    break;
-                case ']':
-                    if (bracketDepth > 0) bracketDepth--;
-                    break;
-                case '{':
-                    braceDepth++;
-                    break;
-                case '}':
-                    if (braceDepth > 0) braceDepth--;
-                    break;
-                default:
-                    if (ch == target && angleDepth == 0 && parenDepth == 0 && bracketDepth == 0 && braceDepth == 0)
-                        return i;
-                    break;
-            }
-        }
-
-        return -1;
+            IdentifierNameSyntax id => id.Identifier.ValueText,
+            GenericNameSyntax generic => generic.Identifier.ValueText,
+            QualifiedNameSyntax qualified => GetTypeSimpleName(qualified.Right),
+            AliasQualifiedNameSyntax aliasQualified => GetTypeSimpleName(aliasQualified.Name),
+            NullableTypeSyntax nullable => GetTypeSimpleName(nullable.ElementType),
+            _ => typeSyntax.ToString()
+        };
     }
 
-    private static int FindLastTopLevelWhitespace(string text)
+    private static bool IsValueTaskVoid(TypeSyntax returnType)
     {
-        var angleDepth = 0;
-        var parenDepth = 0;
-        var bracketDepth = 0;
-        var braceDepth = 0;
-        var splitAt = -1;
-        for (var i = 0; i < text.Length; i++)
-        {
-            var ch = text[i];
-            switch (ch)
-            {
-                case '<':
-                    angleDepth++;
-                    break;
-                case '>':
-                    if (angleDepth > 0) angleDepth--;
-                    break;
-                case '(':
-                    parenDepth++;
-                    break;
-                case ')':
-                    if (parenDepth > 0) parenDepth--;
-                    break;
-                case '[':
-                    bracketDepth++;
-                    break;
-                case ']':
-                    if (bracketDepth > 0) bracketDepth--;
-                    break;
-                case '{':
-                    braceDepth++;
-                    break;
-                case '}':
-                    if (braceDepth > 0) braceDepth--;
-                    break;
-                default:
-                    if (char.IsWhiteSpace(ch) && angleDepth == 0 && parenDepth == 0 && bracketDepth == 0 && braceDepth == 0)
-                        splitAt = i;
-                    break;
-            }
-        }
-
-        return splitAt;
+        return TryGetValueTaskGenericType(returnType) == null &&
+               string.Equals(GetTypeSimpleName(returnType), "ValueTask", StringComparison.Ordinal);
     }
 
-    private static List<string> SplitTopLevel(string text, char separator)
+    private static string? TryGetValueTaskGenericType(TypeSyntax returnType)
     {
-        var result = new List<string>();
-        if (string.IsNullOrWhiteSpace(text))
-            return result;
-
-        var angleDepth = 0;
-        var parenDepth = 0;
-        var bracketDepth = 0;
-        var braceDepth = 0;
-        var lastIndex = 0;
-
-        for (var i = 0; i < text.Length; i++)
+        if (returnType is GenericNameSyntax generic &&
+            string.Equals(generic.Identifier.ValueText, "ValueTask", StringComparison.Ordinal) &&
+            generic.TypeArgumentList.Arguments.Count == 1)
         {
-            var ch = text[i];
-            switch (ch)
-            {
-                case '<':
-                    angleDepth++;
-                    break;
-                case '>':
-                    if (angleDepth > 0) angleDepth--;
-                    break;
-                case '(':
-                    parenDepth++;
-                    break;
-                case ')':
-                    if (parenDepth > 0) parenDepth--;
-                    break;
-                case '[':
-                    bracketDepth++;
-                    break;
-                case ']':
-                    if (bracketDepth > 0) bracketDepth--;
-                    break;
-                case '{':
-                    braceDepth++;
-                    break;
-                case '}':
-                    if (braceDepth > 0) braceDepth--;
-                    break;
-                default:
-                    if (ch == separator && angleDepth == 0 && parenDepth == 0 && bracketDepth == 0 && braceDepth == 0)
-                    {
-                        result.Add(text.Substring(lastIndex, i - lastIndex).Trim());
-                        lastIndex = i + 1;
-                    }
-                    break;
-            }
+            return generic.TypeArgumentList.Arguments[0].ToString();
         }
 
-        if (lastIndex <= text.Length)
-            result.Add(text.Substring(lastIndex).Trim());
+        if (returnType is QualifiedNameSyntax qualified)
+            return TryGetValueTaskGenericType(qualified.Right);
 
-        return result;
+        if (returnType is AliasQualifiedNameSyntax aliasQualified)
+            return TryGetValueTaskGenericType(aliasQualified.Name);
+
+        return null;
     }
 
     private static (string? Client, string? Binder) GenerateCode(
@@ -1559,13 +1355,30 @@ internal static class Program
 
     private sealed class SourceFileInfo
     {
-        public string Text { get; }
         public IReadOnlyList<string> UsingDirectives { get; }
+        public IReadOnlyList<RpcServiceInfo> Services { get; }
+        public IReadOnlyDictionary<string, CallbackInterfaceInfo> CallbackInterfaces { get; }
 
-        public SourceFileInfo(string text, IReadOnlyList<string> usingDirectives)
+        public SourceFileInfo(
+            IReadOnlyList<string> usingDirectives,
+            IReadOnlyList<RpcServiceInfo> services,
+            IReadOnlyDictionary<string, CallbackInterfaceInfo> callbackInterfaces)
         {
-            Text = text;
             UsingDirectives = usingDirectives;
+            Services = services;
+            CallbackInterfaces = callbackInterfaces;
+        }
+    }
+
+    private sealed class CallbackInterfaceInfo
+    {
+        public string Name { get; }
+        public List<RpcCallbackMethodInfo> Methods { get; }
+
+        public CallbackInterfaceInfo(string name, List<RpcCallbackMethodInfo> methods)
+        {
+            Name = name;
+            Methods = methods;
         }
     }
 
