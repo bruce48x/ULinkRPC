@@ -1,0 +1,35 @@
+{
+  "name": "Game.Rpc.Tests.Editor",
+  "rootNamespace": "",
+  "references": [
+    "Game.Rpc.Contracts",
+    "ULinkRPC.Core",
+    "ULinkRPC.Client"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll",
+    "ULinkRPC.Core.dll",
+    "ULinkRPC.Client.dll",
+    "ULinkRPC.Transport.Tcp.dll",
+    "ULinkRPC.Serializer.Json.dll",
+    "System.Text.Json.dll",
+    "System.Text.Encodings.Web.dll",
+    "System.Runtime.CompilerServices.Unsafe.dll",
+    "Microsoft.Bcl.AsyncInterfaces.dll"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

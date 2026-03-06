@@ -1,0 +1,17 @@
+{
+  "name": "ULinkRPC.Generated",
+  "references": [
+    "Game.Rpc.Contracts",
+    "ULinkRPC.Core",
+    "ULinkRPC.Client"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

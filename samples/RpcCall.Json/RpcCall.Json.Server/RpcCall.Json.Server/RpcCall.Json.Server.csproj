@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>RpcCall.Json.Server</RootNamespace>
+        <AssemblyName>RpcCall.Json.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="..\..\RpcCall.Json.Unity\Packages\com.samples.contracts\**\*.cs"/>
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Server\ULinkRPC.Server.csproj" />
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Serializer.Json\ULinkRPC.Serializer.Json.csproj" />
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.Tcp\ULinkRPC.Transport.Tcp.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="Runtime\**\*.cs" />
+        <Compile Remove="Transports\**\*.cs" />
+    </ItemGroup>
+
+</Project>

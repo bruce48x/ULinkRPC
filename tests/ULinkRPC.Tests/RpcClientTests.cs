@@ -1,0 +1,263 @@
+using ULinkRPC.Client;
+using ULinkRPC.Core;
+using ULinkRPC.Serializer.Json;
+using ULinkRPC.Server;
+using ULinkRPC.Transport.Loopback;
+
+namespace ULinkRPC.Tests;
+
+public class RpcClientTests
+{
+    private static readonly RpcMethod<string, string> EchoMethod = new(1, 1);
+    private static readonly RpcMethod<string, RpcVoid> VoidMethod = new(1, 1);
+    private static readonly RpcMethod<int, int> DoubleMethod = new(1, 1);
+    private static readonly RpcPushMethod<string> NotifyPushMethod = new(1, 1);
+
+    [Fact]
+    public async Task CallAsync_ReturnsResult()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcServer(serverTransport, serializer);
+        server.Register(1, 1, (req, ct) =>
+        {
+            var arg = serializer.Deserialize<string>(req.Payload.AsSpan());
+            var result = serializer.Serialize($"Hello {arg}");
+            return ValueTask.FromResult(new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = result
+            });
+        });
+
+        await server.StartAsync();
+
+        var client = new RpcClient(clientTransport, serializer);
+        await client.StartAsync();
+
+        var response = await client.CallAsync(EchoMethod, "World");
+        Assert.Equal("Hello World", response);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task CallAsync_VoidReturn()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcServer(serverTransport, serializer);
+        server.Register(1, 1, (req, ct) => ValueTask.FromResult(new RpcResponseEnvelope
+        {
+            RequestId = req.RequestId,
+            Status = RpcStatus.Ok,
+            Payload = Array.Empty<byte>()
+        }));
+
+        await server.StartAsync();
+
+        var client = new RpcClient(clientTransport, serializer);
+        await client.StartAsync();
+
+        var result = await client.CallAsync(VoidMethod, "test");
+        Assert.Same(RpcVoid.Instance, result);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task CallAsync_ServerError_ThrowsOnClient()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcServer(serverTransport, serializer);
+        server.Register(1, 1, (req, ct) =>
+            throw new InvalidOperationException("handler exploded"));
+
+        await server.StartAsync();
+
+        var client = new RpcClient(clientTransport, serializer);
+        await client.StartAsync();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.CallAsync(EchoMethod, "test").AsTask());
+        Assert.Contains("Exception", ex.Message);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task CallAsync_Cancellation_PropagatedCorrectly()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        // Don't start a server so the call will hang
+        var client = new RpcClient(clientTransport, serializer);
+        await client.StartAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAsync<TaskCanceledException>(() =>
+            client.CallAsync(EchoMethod, "test", cts.Token).AsTask());
+
+        await client.DisposeAsync();
+        await serverTransport.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task StartAsync_CalledTwice_Throws()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var client = new RpcClient(clientTransport, serializer);
+
+        await client.StartAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.StartAsync().AsTask());
+
+        await client.DisposeAsync();
+        await serverTransport.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DisposeAsync_CanBeCalledMultipleTimes()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var client = new RpcClient(clientTransport, serializer);
+
+        await client.StartAsync();
+
+        await client.DisposeAsync();
+        await client.DisposeAsync();
+
+        await serverTransport.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Disconnected_EventFired_OnTransportClose()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var client = new RpcClient(clientTransport, serializer);
+
+        var disconnectedTcs = new TaskCompletionSource<Exception?>();
+        client.Disconnected += ex => disconnectedTcs.TrySetResult(ex);
+
+        await client.StartAsync();
+
+        await serverTransport.DisposeAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        cts.Token.Register(() => disconnectedTcs.TrySetCanceled());
+
+        var disconnectError = await disconnectedTcs.Task;
+        // Event was fired (could be null for graceful or non-null for error)
+
+        await client.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task PushHandler_ReceivesPushFromServer()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcServer(serverTransport, serializer);
+        await server.StartAsync();
+
+        var client = new RpcClient(clientTransport, serializer);
+
+        string? receivedMessage = null;
+        var pushReceived = new TaskCompletionSource<bool>();
+        client.RegisterPushHandler(NotifyPushMethod, (payload) =>
+        {
+            receivedMessage = payload;
+            pushReceived.TrySetResult(true);
+        });
+
+        await client.StartAsync();
+
+        await server.PushAsync(1, 1, "hello from server");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        cts.Token.Register(() => pushReceived.TrySetCanceled());
+        await pushReceived.Task;
+
+        Assert.Equal("hello from server", receivedMessage);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public void RegisterPushHandler_NullHandler_Throws()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out _);
+        var serializer = new JsonRpcSerializer();
+        var client = new RpcClient(clientTransport, serializer);
+
+        Assert.Throws<ArgumentNullException>(() =>
+            client.RegisterPushHandler(NotifyPushMethod, null!));
+    }
+
+    [Fact]
+    public void Constructor_NullTransport_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new RpcClient(null!, new JsonRpcSerializer()));
+    }
+
+    [Fact]
+    public void Constructor_NullSerializer_Throws()
+    {
+        LoopbackTransport.CreatePair(out var client, out var server);
+        Assert.Throws<ArgumentNullException>(() => new RpcClient(client, null!));
+    }
+
+    [Fact]
+    public async Task MultipleConcurrentCalls_AllResolveCorrectly()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcServer(serverTransport, serializer);
+        server.Register(1, 1, async (req, ct) =>
+        {
+            var arg = serializer.Deserialize<int>(req.Payload.AsSpan());
+            await Task.Delay(10, ct);
+            return new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = serializer.Serialize(arg * 2)
+            };
+        });
+
+        await server.StartAsync();
+
+        var client = new RpcClient(clientTransport, serializer);
+        await client.StartAsync();
+
+        var tasks = Enumerable.Range(1, 20)
+            .Select(i => client.CallAsync(DoubleMethod, i).AsTask())
+            .ToArray();
+
+        var results = await Task.WhenAll(tasks);
+
+        for (int i = 0; i < 20; i++)
+            Assert.Equal((i + 1) * 2, results[i]);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+}

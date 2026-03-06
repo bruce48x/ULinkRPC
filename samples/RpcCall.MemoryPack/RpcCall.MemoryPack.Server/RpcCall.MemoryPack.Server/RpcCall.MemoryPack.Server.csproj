@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>RpcCall.MemoryPack.Server</RootNamespace>
+        <AssemblyName>RpcCall.MemoryPack.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MemoryPack.Generator" Version="1.21.4">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <Compile Include="..\..\RpcCall.MemoryPack.Unity\Packages\com.samples.contracts\**\*.cs"/>
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Server\ULinkRPC.Server.csproj" />
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Serializer.MemoryPack\ULinkRPC.Serializer.MemoryPack.csproj" />
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.Tcp\ULinkRPC.Transport.Tcp.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="Runtime\**\*.cs" />
+        <Compile Remove="Transports\**\*.cs" />
+    </ItemGroup>
+
+</Project>
