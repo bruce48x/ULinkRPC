@@ -1,0 +1,208 @@
+using ULinkRPC.CodeGen;
+using Xunit;
+
+namespace ULinkRPC.CodeGen.Tests;
+
+public class ClientEmitterTests
+{
+    private static RpcServiceInfo MakeService(params RpcMethodInfo[] methods) =>
+        new("IPlayerService", "MyGame.Contracts.IPlayerService", 1, [.. methods], ["MyGame.Contracts"]);
+
+    private static RpcMethodInfo VoidMethod(string name, int id, params RpcParameterInfo[] parameters) =>
+        new(name, id, [.. parameters], null, true);
+
+    private static RpcMethodInfo ReturnMethod(string name, int id, string retType, params RpcParameterInfo[] parameters) =>
+        new(name, id, [.. parameters], retType, false);
+
+    private static RpcParameterInfo Param(string type, string name) => new(type, name);
+
+    #region Client class structure
+
+    [Fact]
+    public void GeneratesClientClass_WithServiceIdAndConstructor()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("public sealed class PlayerServiceClient : IPlayerService", code);
+        Assert.Contains("private const int ServiceId = 1;", code);
+        Assert.Contains("private readonly IRpcClient _client;", code);
+        Assert.Contains("public PlayerServiceClient(IRpcClient client) { _client = client; }", code);
+    }
+
+    [Fact]
+    public void GeneratesExtensionMethod()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("public static class PlayerServiceClientExtensions", code);
+        Assert.Contains("public static IPlayerService CreatePlayerService(this IRpcClient client)", code);
+        Assert.Contains("throw new ArgumentNullException(nameof(client))", code);
+        Assert.Contains("return new PlayerServiceClient(client);", code);
+    }
+
+    [Fact]
+    public void GeneratesUsingsAndNamespace()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ClientEmitter.GenerateClient(svc, "My.Generated", "ULinkRPC.Core");
+
+        Assert.Contains("using System;", code);
+        Assert.Contains("using System.Threading;", code);
+        Assert.Contains("using System.Threading.Tasks;", code);
+        Assert.Contains("using ULinkRPC.Core;", code);
+        Assert.Contains("namespace My.Generated", code);
+    }
+
+    [Fact]
+    public void ExcludesCoreRuntimeFromContractUsings()
+    {
+        var svc = new RpcServiceInfo("IFoo", "Ns.IFoo", 1,
+            [VoidMethod("Do", 1)], ["ULinkRPC.Core", "Ns"]);
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        var coreOccurrences = code.Split("using ULinkRPC.Core;").Length - 1;
+        Assert.Equal(1, coreOccurrences);
+    }
+
+    #endregion
+
+    #region Void methods
+
+    [Fact]
+    public void VoidMethod_ZeroParams_GeneratesBothOverloads()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("private static readonly RpcMethod<RpcVoid, RpcVoid> pingRpcMethod = new(ServiceId, 1);", code);
+        Assert.Contains("public async ValueTask Ping()", code);
+        Assert.Contains("public async ValueTask Ping(CancellationToken ct)", code);
+        Assert.Contains("await _client.CallAsync(pingRpcMethod, default, ct);", code);
+    }
+
+    [Fact]
+    public void VoidMethod_OneParam()
+    {
+        var svc = MakeService(VoidMethod("SetName", 2, Param("string", "name")));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("private static readonly RpcMethod<string, RpcVoid> setNameRpcMethod", code);
+        Assert.Contains("public async ValueTask SetName(string name)", code);
+        Assert.Contains("public async ValueTask SetName(string name, CancellationToken ct)", code);
+        Assert.Contains("await _client.CallAsync(setNameRpcMethod, name, ct);", code);
+    }
+
+    [Fact]
+    public void VoidMethod_MultipleParams_UsesTuple()
+    {
+        var svc = MakeService(VoidMethod("Move", 1, Param("float", "x"), Param("float", "y")));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("RpcMethod<(float, float), RpcVoid>", code);
+        Assert.Contains("public async ValueTask Move(float x, float y)", code);
+        Assert.Contains("public async ValueTask Move(float x, float y, CancellationToken ct)", code);
+        Assert.Contains("(x, y), ct", code);
+    }
+
+    #endregion
+
+    #region Non-void methods
+
+    [Fact]
+    public void NonVoidMethod_ZeroParams()
+    {
+        var svc = MakeService(ReturnMethod("GetCount", 1, "int"));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("private static readonly RpcMethod<RpcVoid, int> getCountRpcMethod", code);
+        Assert.Contains("public ValueTask<int> GetCount()", code);
+        Assert.Contains("public ValueTask<int> GetCount(CancellationToken ct)", code);
+        Assert.Contains("return _client.CallAsync(getCountRpcMethod, default, ct);", code);
+    }
+
+    [Fact]
+    public void NonVoidMethod_OneParam()
+    {
+        var svc = MakeService(ReturnMethod("GetName", 1, "string", Param("int", "id")));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("RpcMethod<int, string>", code);
+        Assert.Contains("public ValueTask<string> GetName(int id)", code);
+        Assert.Contains("return _client.CallAsync(getNameRpcMethod, id, ct);", code);
+    }
+
+    [Fact]
+    public void NonVoidMethod_MultipleParams()
+    {
+        var svc = MakeService(ReturnMethod("Find", 3, "bool", Param("int", "a"), Param("string", "b")));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("RpcMethod<(int, string), bool>", code);
+        Assert.Contains("public ValueTask<bool> Find(int a, string b, CancellationToken ct)", code);
+    }
+
+    #endregion
+
+    #region Callback binder
+
+    [Fact]
+    public void CallbackBinder_GeneratesStructure()
+    {
+        var svc = MakeServiceWithCallback();
+        var code = ClientEmitter.GenerateCallbackBinder(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("public static class GameCallbackBinder", code);
+        Assert.Contains("private const int ServiceId = 1;", code);
+        Assert.Contains("public static void Bind(IRpcClient client, IGameCallback receiver)", code);
+    }
+
+    [Fact]
+    public void CallbackBinder_ZeroParam_DispatchesDirectly()
+    {
+        var svc = MakeServiceWithCallback(new RpcCallbackMethodInfo("OnPing", 1, []));
+        var code = ClientEmitter.GenerateCallbackBinder(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("RpcPushMethod<RpcVoid>", code);
+        Assert.Contains("receiver.OnPing();", code);
+    }
+
+    [Fact]
+    public void CallbackBinder_OneParam_PassesArgDirectly()
+    {
+        var svc = MakeServiceWithCallback(
+            new RpcCallbackMethodInfo("OnEvent", 1, [Param("int", "code")]));
+        var code = ClientEmitter.GenerateCallbackBinder(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("RpcPushMethod<int>", code);
+        Assert.Contains("receiver.OnEvent(arg);", code);
+    }
+
+    [Fact]
+    public void CallbackBinder_MultipleParams_DeconstructsTuple()
+    {
+        var svc = MakeServiceWithCallback(
+            new RpcCallbackMethodInfo("OnMove", 2, [Param("float", "x"), Param("float", "y")]));
+        var code = ClientEmitter.GenerateCallbackBinder(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.Contains("RpcPushMethod<(float, float)>", code);
+        Assert.Contains("var (arg1, arg2) = arg;", code);
+        Assert.Contains("receiver.OnMove(arg1, arg2);", code);
+    }
+
+    private static RpcServiceInfo MakeServiceWithCallback(params RpcCallbackMethodInfo[] cbMethods)
+    {
+        var svc = new RpcServiceInfo("IGameService", "Ns.IGameService", 1,
+            [VoidMethod("Start", 1)], ["Ns"])
+        {
+            CallbackInterfaceName = "IGameCallback",
+            CallbackInterfaceFullName = "Ns.IGameCallback"
+        };
+        svc.CallbackMethods = cbMethods.Length > 0 ? [.. cbMethods]
+            : [new RpcCallbackMethodInfo("OnEvent", 1, [Param("int", "code")])];
+        return svc;
+    }
+
+    #endregion
+}

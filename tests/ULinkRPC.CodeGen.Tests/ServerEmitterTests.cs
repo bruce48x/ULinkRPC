@@ -1,0 +1,242 @@
+using ULinkRPC.CodeGen;
+using Xunit;
+
+namespace ULinkRPC.CodeGen.Tests;
+
+public class ServerEmitterTests
+{
+    private static RpcServiceInfo MakeService(params RpcMethodInfo[] methods) =>
+        new("IPlayerService", "MyGame.Contracts.IPlayerService", 1, [.. methods], ["MyGame.Contracts"]);
+
+    private static RpcMethodInfo VoidMethod(string name, int id, params RpcParameterInfo[] parameters) =>
+        new(name, id, [.. parameters], null, true);
+
+    private static RpcMethodInfo ReturnMethod(string name, int id, string retType, params RpcParameterInfo[] parameters) =>
+        new(name, id, [.. parameters], retType, false);
+
+    private static RpcParameterInfo Param(string type, string name) => new(type, name);
+
+    #region Binder structure
+
+    [Fact]
+    public void Binder_GeneratesClassAndBindMethod()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("public static class PlayerServiceBinder", code);
+        Assert.Contains("private const int ServiceId = 1;", code);
+        Assert.Contains("public static void Bind(RpcServer server, IPlayerService impl)", code);
+    }
+
+    [Fact]
+    public void Binder_GeneratesUsings()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("using System;", code);
+        Assert.Contains("using System.Threading.Tasks;", code);
+        Assert.Contains("using ULinkRPC.Core;", code);
+        Assert.Contains("using ULinkRPC.Server;", code);
+    }
+
+    #endregion
+
+    #region Binder - deserialization patterns
+
+    [Fact]
+    public void Binder_ZeroParams_NoDeserialization()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("server.Register(ServiceId, 1,", code);
+        Assert.DoesNotContain("Deserialize", code);
+        Assert.Contains("await impl.Ping()", code);
+    }
+
+    [Fact]
+    public void Binder_OneParam_DeserializesToVariable()
+    {
+        var svc = MakeService(VoidMethod("Set", 1, Param("int", "x")));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("var arg1 = server.Serializer.Deserialize<int>(req.Payload.AsSpan())!;", code);
+        Assert.Contains("await impl.Set(arg1)", code);
+    }
+
+    [Fact]
+    public void Binder_MultipleParams_DeconstructsTuple()
+    {
+        var svc = MakeService(VoidMethod("Move", 1, Param("float", "x"), Param("float", "y")));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("var (arg1, arg2) = server.Serializer.Deserialize<(float, float)>(req.Payload.AsSpan())!;", code);
+        Assert.Contains("await impl.Move(arg1, arg2)", code);
+    }
+
+    #endregion
+
+    #region Binder - void vs non-void response
+
+    [Fact]
+    public void Binder_VoidMethod_ReturnsEmptyPayload()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("Payload = Array.Empty<byte>()", code);
+    }
+
+    [Fact]
+    public void Binder_NonVoidMethod_SerializesResponse()
+    {
+        var svc = MakeService(ReturnMethod("Get", 1, "string", Param("int", "id")));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("var resp = await impl.Get(arg1)", code);
+        Assert.Contains("Payload = server.Serializer.Serialize(resp)", code);
+    }
+
+    #endregion
+
+    #region Delegate bind overload
+
+    [Fact]
+    public void DelegateOverload_GeneratesDelegateImplClass()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1), ReturnMethod("Get", 2, "int"));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("private sealed class DelegateImpl : IPlayerService", code);
+        Assert.Contains("Func<ValueTask> pingHandler", code);
+        Assert.Contains("Func<ValueTask<int>> getHandler", code);
+        Assert.Contains("_pingHandler = pingHandler ?? throw new ArgumentNullException", code);
+    }
+
+    [Fact]
+    public void DelegateOverload_WithParams_CorrectSignature()
+    {
+        var svc = MakeService(VoidMethod("Set", 1, Param("string", "name")));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("Func<string, ValueTask> setHandler", code);
+    }
+
+    #endregion
+
+    #region Callback factory bind
+
+    [Fact]
+    public void CallbackFactoryBind_GeneratesOverload()
+    {
+        var svc = MakeServiceWithCallback();
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("public static void Bind(RpcServer server, Func<IGameCallback, IGameSvc> implFactory)", code);
+        Assert.Contains("var callback = new GameCallbackProxy(server);", code);
+        Assert.Contains("var impl = implFactory(callback) ?? throw new InvalidOperationException", code);
+        Assert.Contains("Bind(server, impl);", code);
+    }
+
+    [Fact]
+    public void NoCallback_NoFactoryOverload()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.DoesNotContain("implFactory", code);
+    }
+
+    #endregion
+
+    #region Callback proxy
+
+    [Fact]
+    public void CallbackProxy_UsesFireAndForget_NotWait()
+    {
+        var svc = MakeServiceWithCallback(
+            new RpcCallbackMethodInfo("OnEvent", 1, [Param("int", "code")]));
+        var code = ServerEmitter.GenerateCallbackProxy(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("public sealed class GameCallbackProxy : IGameCallback", code);
+        Assert.Contains("_ = _server.PushAsync<int>(ServiceId, 1, code).AsTask();", code);
+        Assert.DoesNotContain(".Wait()", code);
+    }
+
+    [Fact]
+    public void CallbackProxy_ZeroParams()
+    {
+        var svc = MakeServiceWithCallback(new RpcCallbackMethodInfo("OnPing", 1, []));
+        var code = ServerEmitter.GenerateCallbackProxy(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("_ = _server.PushAsync<RpcVoid>(ServiceId, 1, default!).AsTask();", code);
+    }
+
+    [Fact]
+    public void CallbackProxy_MultipleParams_UsesTuple()
+    {
+        var svc = MakeServiceWithCallback(
+            new RpcCallbackMethodInfo("OnPos", 1, [Param("float", "x"), Param("float", "y")]));
+        var code = ServerEmitter.GenerateCallbackProxy(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("PushAsync<(float, float)>(ServiceId, 1, (x, y))", code);
+    }
+
+    [Fact]
+    public void CallbackProxy_MultipleCallbackMethods()
+    {
+        var svc = MakeServiceWithCallback(
+            new RpcCallbackMethodInfo("OnA", 1, [Param("int", "a")]),
+            new RpcCallbackMethodInfo("OnB", 2, [Param("string", "b")]));
+        var code = ServerEmitter.GenerateCallbackProxy(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
+
+        Assert.Contains("public void OnA(int a)", code);
+        Assert.Contains("public void OnB(string b)", code);
+    }
+
+    #endregion
+
+    #region AllServicesBinder
+
+    [Fact]
+    public void AllServicesBinder_SingleService()
+    {
+        var svc = MakeService(VoidMethod("Ping", 1));
+        var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
+
+        Assert.Contains("public static class AllServicesBinder", code);
+        Assert.Contains("public static void BindAll(RpcServer server, IPlayerService playerService)", code);
+        Assert.Contains("PlayerServiceBinder.Bind(server, playerService);", code);
+    }
+
+    [Fact]
+    public void AllServicesBinder_MultipleServices()
+    {
+        var svc1 = MakeService(VoidMethod("Do", 1));
+        var svc2 = new RpcServiceInfo("IChatService", "Ns.IChatService", 2,
+            [VoidMethod("Send", 1)], ["Ns"]);
+        var code = ServerEmitter.GenerateAllServicesBinder([svc1, svc2], "S", "ULinkRPC.Server");
+
+        Assert.Contains("IPlayerService playerService", code);
+        Assert.Contains("IChatService chatService", code);
+        Assert.Contains("PlayerServiceBinder.Bind(server, playerService);", code);
+        Assert.Contains("ChatServiceBinder.Bind(server, chatService);", code);
+    }
+
+    #endregion
+
+    private static RpcServiceInfo MakeServiceWithCallback(params RpcCallbackMethodInfo[] cbMethods)
+    {
+        var svc = new RpcServiceInfo("IGameSvc", "Ns.IGameSvc", 1,
+            [VoidMethod("Start", 1)], ["Ns"])
+        {
+            CallbackInterfaceName = "IGameCallback",
+            CallbackInterfaceFullName = "Ns.IGameCallback"
+        };
+        svc.CallbackMethods = cbMethods.Length > 0 ? [.. cbMethods]
+            : [new RpcCallbackMethodInfo("OnEvent", 1, [Param("int", "code")])];
+        return svc;
+    }
+}

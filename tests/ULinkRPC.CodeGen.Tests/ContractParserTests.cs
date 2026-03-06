@@ -3,26 +3,51 @@ using Xunit;
 
 namespace ULinkRPC.CodeGen.Tests;
 
-public class ContractParserTests
+public class ContractParserTests : IDisposable
 {
-    [Fact]
-    public void FindRpcServicesFromSource_ParsesSimpleService()
+    private readonly List<string> _tempDirs = [];
+
+    public void Dispose()
     {
-        var tempDir = CreateTempContracts("""
-            using System;
+        foreach (var dir in _tempDirs)
+            if (Directory.Exists(dir))
+                Directory.Delete(dir, true);
+    }
+
+    private string CreateTempContracts(params string[] files)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"ulinkrpc_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        _tempDirs.Add(dir);
+        for (var i = 0; i < files.Length; i++)
+            File.WriteAllText(Path.Combine(dir, $"File{i}.cs"), files[i]);
+        return dir;
+    }
+
+    private const string AttributeDefinitions = """
+        using System;
+        using System.Threading.Tasks;
+
+        [AttributeUsage(AttributeTargets.Interface)]
+        public class RpcServiceAttribute : Attribute
+        {
+            public RpcServiceAttribute(int id) { }
+        }
+
+        [AttributeUsage(AttributeTargets.Method)]
+        public class RpcMethodAttribute : Attribute
+        {
+            public RpcMethodAttribute(int id) { }
+        }
+        """;
+
+    #region Basic parsing
+
+    [Fact]
+    public void ParsesSimpleService_WithVoidAndNonVoidMethods()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
-
-            [AttributeUsage(AttributeTargets.Interface)]
-            public class RpcServiceAttribute : Attribute
-            {
-                public RpcServiceAttribute(int id) { }
-            }
-
-            [AttributeUsage(AttributeTargets.Method)]
-            public class RpcMethodAttribute : Attribute
-            {
-                public RpcMethodAttribute(int id) { }
-            }
 
             [RpcService(1)]
             public interface IPlayerService
@@ -35,78 +60,96 @@ public class ContractParserTests
             }
             """);
 
-        try
-        {
-            var services = ContractParser.FindRpcServicesFromSource(tempDir);
+        var services = ContractParser.FindRpcServicesFromSource(dir);
 
-            Assert.Single(services);
-            var svc = services[0];
-            Assert.Equal("IPlayerService", svc.InterfaceName);
-            Assert.Equal(1, svc.ServiceId);
-            Assert.Equal(2, svc.Methods.Count);
+        Assert.Single(services);
+        var svc = services[0];
+        Assert.Equal("IPlayerService", svc.InterfaceName);
+        Assert.Equal(1, svc.ServiceId);
+        Assert.Equal(2, svc.Methods.Count);
 
-            var getName = svc.Methods[0];
-            Assert.Equal("GetName", getName.Name);
-            Assert.Equal(1, getName.MethodId);
-            Assert.False(getName.IsVoid);
-            Assert.Equal("string", getName.RetTypeName);
-            Assert.Single(getName.Parameters);
-            Assert.Equal("int", getName.Parameters[0].TypeName);
-            Assert.Equal("playerId", getName.Parameters[0].Name);
+        var getName = svc.Methods[0];
+        Assert.Equal("GetName", getName.Name);
+        Assert.Equal(1, getName.MethodId);
+        Assert.False(getName.IsVoid);
+        Assert.Equal("string", getName.RetTypeName);
+        Assert.Single(getName.Parameters);
+        Assert.Equal("int", getName.Parameters[0].TypeName);
+        Assert.Equal("playerId", getName.Parameters[0].Name);
 
-            var setName = svc.Methods[1];
-            Assert.Equal("SetName", setName.Name);
-            Assert.Equal(2, setName.MethodId);
-            Assert.True(setName.IsVoid);
-            Assert.Null(setName.RetTypeName);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+        var setName = svc.Methods[1];
+        Assert.Equal("SetName", setName.Name);
+        Assert.True(setName.IsVoid);
+        Assert.Null(setName.RetTypeName);
     }
 
     [Fact]
-    public void FindRpcServicesFromSource_IgnoresInterfacesWithoutAttribute()
+    public void MultipleParameters_ParsedCorrectly()
     {
-        var tempDir = CreateTempContracts("""
+        var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
 
+            [RpcService(10)]
+            public interface IMultiSvc
+            {
+                [RpcMethod(5)]
+                ValueTask<bool> Check(int a, string b, float c);
+            }
+            """);
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+        var method = Assert.Single(services).Methods[0];
+
+        Assert.Equal(3, method.Parameters.Count);
+        Assert.Equal("int", method.Parameters[0].TypeName);
+        Assert.Equal("string", method.Parameters[1].TypeName);
+        Assert.Equal("float", method.Parameters[2].TypeName);
+    }
+
+    [Fact]
+    public void ZeroParameterMethod_ParsedCorrectly()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            [RpcService(1)]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask Ping();
+            }
+            """);
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+        var method = Assert.Single(services).Methods[0];
+
+        Assert.Empty(method.Parameters);
+        Assert.True(method.IsVoid);
+    }
+
+    #endregion
+
+    #region Filtering
+
+    [Fact]
+    public void IgnoresInterfacesWithoutAttribute()
+    {
+        var dir = CreateTempContracts("""
+            using System.Threading.Tasks;
             public interface INotAnRpcService
             {
                 ValueTask DoStuff();
             }
             """);
 
-        try
-        {
-            var services = ContractParser.FindRpcServicesFromSource(tempDir);
-            Assert.Empty(services);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+        Assert.Empty(ContractParser.FindRpcServicesFromSource(dir));
     }
 
     [Fact]
-    public void FindRpcServicesFromSource_SkipsMethodsWithoutAttribute()
+    public void SkipsMethodsWithoutRpcMethodAttribute()
     {
-        var tempDir = CreateTempContracts("""
-            using System;
+        var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
-
-            [AttributeUsage(AttributeTargets.Interface)]
-            public class RpcServiceAttribute : Attribute
-            {
-                public RpcServiceAttribute(int id) { }
-            }
-
-            [AttributeUsage(AttributeTargets.Method)]
-            public class RpcMethodAttribute : Attribute
-            {
-                public RpcMethodAttribute(int id) { }
-            }
 
             [RpcService(1)]
             public interface ISvc
@@ -118,72 +161,288 @@ public class ContractParserTests
             }
             """);
 
-        try
-        {
-            var services = ContractParser.FindRpcServicesFromSource(tempDir);
-            Assert.Single(services);
-            Assert.Single(services[0].Methods);
-            Assert.Equal("Tagged", services[0].Methods[0].Name);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+        Assert.Single(services);
+        Assert.Single(services[0].Methods);
+        Assert.Equal("Tagged", services[0].Methods[0].Name);
     }
 
     [Fact]
-    public void FindRpcServicesFromSource_MultipleParameters()
+    public void SkipsServicesWithNoTaggedMethods()
     {
-        var tempDir = CreateTempContracts("""
-            using System;
+        var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
 
-            [AttributeUsage(AttributeTargets.Interface)]
-            public class RpcServiceAttribute : Attribute
+            [RpcService(1)]
+            public interface IEmptySvc
             {
-                public RpcServiceAttribute(int id) { }
-            }
-
-            [AttributeUsage(AttributeTargets.Method)]
-            public class RpcMethodAttribute : Attribute
-            {
-                public RpcMethodAttribute(int id) { }
-            }
-
-            [RpcService(10)]
-            public interface IMultiSvc
-            {
-                [RpcMethod(5)]
-                ValueTask<bool> Check(int a, string b, float c);
+                ValueTask NotTagged();
             }
             """);
 
-        try
-        {
-            var services = ContractParser.FindRpcServicesFromSource(tempDir);
-            Assert.Single(services);
-            var method = services[0].Methods[0];
-            Assert.Equal(3, method.Parameters.Count);
-            Assert.Equal("a", method.Parameters[0].Name);
-            Assert.Equal("int", method.Parameters[0].TypeName);
-            Assert.Equal("b", method.Parameters[1].Name);
-            Assert.Equal("string", method.Parameters[1].TypeName);
-            Assert.Equal("c", method.Parameters[2].Name);
-            Assert.Equal("float", method.Parameters[2].TypeName);
-            Assert.False(method.IsVoid);
-            Assert.Equal("bool", method.RetTypeName);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+        Assert.Empty(ContractParser.FindRpcServicesFromSource(dir));
     }
 
-    private static string CreateTempContracts(string code)
+    #endregion
+
+    #region Multiple services and files
+
+    [Fact]
+    public void MultipleServicesInOneFile()
     {
-        var dir = Path.Combine(Path.GetTempPath(), $"ulinkrpc_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "Contracts.cs"), code);
-        return dir;
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            [RpcService(1)]
+            public interface IServiceA
+            {
+                [RpcMethod(1)]
+                ValueTask DoA();
+            }
+
+            [RpcService(2)]
+            public interface IServiceB
+            {
+                [RpcMethod(1)]
+                ValueTask DoB();
+            }
+            """);
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+        Assert.Equal(2, services.Count);
+        Assert.Contains(services, s => s.InterfaceName == "IServiceA" && s.ServiceId == 1);
+        Assert.Contains(services, s => s.InterfaceName == "IServiceB" && s.ServiceId == 2);
     }
+
+    [Fact]
+    public void ServicesAcrossMultipleFiles()
+    {
+        var dir = CreateTempContracts(
+            AttributeDefinitions,
+            """
+            using System.Threading.Tasks;
+            [RpcService(1)]
+            public interface IFileOneService
+            {
+                [RpcMethod(1)]
+                ValueTask Do1();
+            }
+            """,
+            """
+            using System.Threading.Tasks;
+            [RpcService(2)]
+            public interface IFileTwoService
+            {
+                [RpcMethod(1)]
+                ValueTask Do2();
+            }
+            """);
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+        Assert.Equal(2, services.Count);
+        Assert.Contains(services, s => s.InterfaceName == "IFileOneService");
+        Assert.Contains(services, s => s.InterfaceName == "IFileTwoService");
+    }
+
+    #endregion
+
+    #region Callback interfaces
+
+    [Fact]
+    public void ParsesCallbackInterface_ViaTypeArgument()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System;
+            using System.Threading.Tasks;
+
+            public interface IRpcService<TSelf, TCallback> { }
+
+            public interface IGameCallback
+            {
+                [RpcMethod(1)]
+                void OnPlayerJoined(int playerId);
+
+                [RpcMethod(2)]
+                void OnMessage(string msg);
+            }
+
+            [RpcService(5)]
+            public interface IGameService : IRpcService<IGameService, IGameCallback>
+            {
+                [RpcMethod(1)]
+                ValueTask Start();
+            }
+            """);
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+        Assert.Single(services);
+        var svc = services[0];
+
+        Assert.Equal("IGameService", svc.InterfaceName);
+        Assert.Equal("IGameCallback", svc.CallbackInterfaceName);
+        Assert.True(svc.HasCallback);
+        Assert.Equal(2, svc.CallbackMethods.Count);
+        Assert.Equal("OnPlayerJoined", svc.CallbackMethods[0].Name);
+        Assert.Equal(1, svc.CallbackMethods[0].MethodId);
+        Assert.Single(svc.CallbackMethods[0].Parameters);
+        Assert.Equal("OnMessage", svc.CallbackMethods[1].Name);
+    }
+
+    [Fact]
+    public void CallbackInterface_ZeroParamMethod()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System;
+            using System.Threading.Tasks;
+
+            public interface IRpcService<TSelf, TCallback> { }
+
+            public interface INotify
+            {
+                [RpcMethod(1)]
+                void Ping();
+            }
+
+            [RpcService(1)]
+            public interface ISvc : IRpcService<ISvc, INotify>
+            {
+                [RpcMethod(1)]
+                ValueTask Do();
+            }
+            """);
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+        var svc = Assert.Single(services);
+        Assert.True(svc.HasCallback);
+        Assert.Single(svc.CallbackMethods);
+        Assert.Empty(svc.CallbackMethods[0].Parameters);
+    }
+
+    [Fact]
+    public void CallbackInterface_InDifferentFile()
+    {
+        var dir = CreateTempContracts(
+            AttributeDefinitions,
+            """
+            using System;
+            using System.Threading.Tasks;
+
+            public interface IRpcService<TSelf, TCallback> { }
+
+            public interface IEvents
+            {
+                [RpcMethod(1)]
+                void OnEvent(int code);
+            }
+            """,
+            """
+            using System.Threading.Tasks;
+
+            [RpcService(3)]
+            public interface IMySvc : IRpcService<IMySvc, IEvents>
+            {
+                [RpcMethod(1)]
+                ValueTask Act();
+            }
+            """);
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+        var svc = Assert.Single(services);
+        Assert.True(svc.HasCallback);
+        Assert.Equal("IEvents", svc.CallbackInterfaceName);
+        Assert.Single(svc.CallbackMethods);
+    }
+
+    [Fact]
+    public void ServiceWithoutCallback_HasCallbackIsFalse()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+            [RpcService(1)]
+            public interface IPlainSvc
+            {
+                [RpcMethod(1)]
+                ValueTask Do();
+            }
+            """);
+
+        var svc = Assert.Single(ContractParser.FindRpcServicesFromSource(dir));
+        Assert.False(svc.HasCallback);
+        Assert.Empty(svc.CallbackMethods);
+    }
+
+    #endregion
+
+    #region Error cases
+
+    [Fact]
+    public void UnsupportedReturnType_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            [RpcService(1)]
+            public interface IBadSvc
+            {
+                [RpcMethod(1)]
+                Task<int> NotValueTask();
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("Unsupported return type", ex.Message);
+        Assert.Contains("NotValueTask", ex.Message);
+    }
+
+    [Fact]
+    public void VoidReturnType_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            [RpcService(1)]
+            public interface IBadSvc
+            {
+                [RpcMethod(1)]
+                void BadMethod();
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("Unsupported return type", ex.Message);
+    }
+
+    #endregion
+
+    #region Namespace collection
+
+    [Fact]
+    public void CollectsNamespacesFromParameterAndReturnTypes()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+            using System.Collections.Generic;
+
+            namespace MyGame.Models
+            {
+                public class PlayerInfo { }
+            }
+
+            namespace MyGame.Contracts
+            {
+                [RpcService(1)]
+                public interface IPlayerSvc
+                {
+                    [RpcMethod(1)]
+                    ValueTask<MyGame.Models.PlayerInfo> GetPlayer(int id);
+                }
+            }
+            """);
+
+        var svc = Assert.Single(ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("MyGame.Models", svc.UsingDirectives);
+        Assert.Contains("MyGame.Contracts", svc.UsingDirectives);
+    }
+
+    #endregion
 }

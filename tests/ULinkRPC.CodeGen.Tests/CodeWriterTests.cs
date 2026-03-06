@@ -22,6 +22,15 @@ public class CodeWriterTests
     }
 
     [Fact]
+    public void MultipleLines_WriteSequentially()
+    {
+        var w = new CodeWriter();
+        w.Line("a");
+        w.Line("b");
+        Assert.Equal("a\nb\n", w.ToString());
+    }
+
+    [Fact]
     public void OpenBlock_IndentsSubsequentLines()
     {
         var w = new CodeWriter();
@@ -29,8 +38,7 @@ public class CodeWriterTests
         w.Line("int x;");
         w.CloseBlock();
 
-        var expected = "class Foo\n{\n    int x;\n}\n";
-        Assert.Equal(expected, w.ToString());
+        Assert.Equal("class Foo\n{\n    int x;\n}\n", w.ToString());
     }
 
     [Fact]
@@ -43,8 +51,22 @@ public class CodeWriterTests
         w.CloseBlock();
         w.CloseBlock();
 
-        var expected = "namespace A\n{\n    class B\n    {\n        int x;\n    }\n}\n";
-        Assert.Equal(expected, w.ToString());
+        Assert.Equal("namespace A\n{\n    class B\n    {\n        int x;\n    }\n}\n", w.ToString());
+    }
+
+    [Fact]
+    public void TripleNestedBlocks_TripleIndent()
+    {
+        var w = new CodeWriter();
+        w.OpenBlock("namespace A");
+        w.OpenBlock("class B");
+        w.OpenBlock("void M()");
+        w.Line("return;");
+        w.CloseBlock();
+        w.CloseBlock();
+        w.CloseBlock();
+
+        Assert.Contains("            return;\n", w.ToString());
     }
 
     [Fact]
@@ -55,8 +77,17 @@ public class CodeWriterTests
         w.Line("return null;");
         w.CloseBlock(");");
 
-        var expected = "server.Register(1, async (req, ct) =>\n{\n    return null;\n});\n";
-        Assert.Equal(expected, w.ToString());
+        Assert.Equal("server.Register(1, async (req, ct) =>\n{\n    return null;\n});\n", w.ToString());
+    }
+
+    [Fact]
+    public void EmptyBlock_ProducesValidBraces()
+    {
+        var w = new CodeWriter();
+        w.OpenBlock("class Empty");
+        w.CloseBlock();
+
+        Assert.Equal("class Empty\n{\n}\n", w.ToString());
     }
 
     [Fact]
@@ -64,7 +95,6 @@ public class CodeWriterTests
     {
         var w = new CodeWriter();
         w.WriteUsings(new[] { "System", "System.Linq" });
-
         Assert.Equal("using System;\nusing System.Linq;\n", w.ToString());
     }
 
@@ -73,7 +103,57 @@ public class CodeWriterTests
     {
         var w = new CodeWriter();
         w.WriteUsings("A", "B");
-
         Assert.Equal("using A;\nusing B;\n", w.ToString());
+    }
+
+    [Fact]
+    public void WriteUsings_EmptyEnumerable_WritesNothing()
+    {
+        var w = new CodeWriter();
+        w.WriteUsings(Array.Empty<string>());
+        Assert.Equal("", w.ToString());
+    }
+
+    [Fact]
+    public void FluentChaining_Works()
+    {
+        var result = new CodeWriter()
+            .Line("using System;")
+            .Line()
+            .OpenBlock("namespace N")
+            .Line("// body")
+            .CloseBlock()
+            .ToString();
+
+        Assert.Contains("using System;", result);
+        Assert.Contains("namespace N", result);
+        Assert.Contains("    // body", result);
+    }
+
+    [Fact]
+    public void RealisticClass_ProducesValidStructure()
+    {
+        var w = new CodeWriter();
+        w.WriteUsings("System");
+        w.Line();
+        w.OpenBlock("namespace MyApp");
+        w.OpenBlock("public sealed class MyService");
+        w.Line("private readonly int _id;");
+        w.Line();
+        w.OpenBlock("public MyService(int id)");
+        w.Line("_id = id;");
+        w.CloseBlock();
+        w.Line();
+        w.OpenBlock("public int GetId()");
+        w.Line("return _id;");
+        w.CloseBlock();
+        w.CloseBlock();
+        w.CloseBlock();
+
+        var code = w.ToString();
+        Assert.Contains("using System;\n", code);
+        Assert.Contains("    public sealed class MyService\n", code);
+        Assert.Contains("        private readonly int _id;\n", code);
+        Assert.Contains("            _id = id;\n", code);
     }
 }
