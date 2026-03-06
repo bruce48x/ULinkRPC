@@ -16,7 +16,6 @@ ulinkrpc-codegen [options]
 
 ### Modes
 
-- `auto` (default): detect project type and generate outputs accordingly.
 - `unity`: generate Unity client + binder code.
 - `server`: generate server binders + `AllServicesBinder`.
 
@@ -30,17 +29,19 @@ Generated binders reference `ULinkRPC.Core` + `ULinkRPC.Server` and include both
 
 ### Options
 
-- `--contracts <path>` Path to contract sources.
-- `--output <path>` Output directory for generated clients (Unity).
-- `--binder-output <path>` Output directory for generated binders (Unity).
+- `--contracts <path>` Path to contract sources (required).
+- `--mode <unity|server>` Generation mode (required).
+- `--output <path>` Output directory for generated files.
+- `--namespace <ns>` Namespace for generated Unity code.
 - `--server-output <path>` Output directory for server binders.
 - `--server-namespace <ns>` Namespace for server binders.
-- `--mode <auto|unity|server>` Force output mode.
 
 ## Default Behavior
 
-- Unity project: by default generates to `samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated` (or matching `RpcCall.MemoryPack` path when detected).
-- Unity project outside repo layouts: by default generates to `Assets/Scripts/Rpc/RpcGenerated` under detected Unity project root.
-- Server project: by default generates to `samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated` (or matching `RpcCall.MemoryPack` path when detected).
+- Unity mode defaults output to `Assets/Scripts/Rpc/RpcGenerated` under detected Unity project root.
+- If Unity project root cannot be detected, pass `--output` explicitly.
+- Unity namespace defaults to value derived from output path unless `--namespace` is provided.
+- Server mode defaults output to `./Generated`.
+- Server namespace defaults to `<contracts namespace>.Server.Generated` unless `--server-namespace` is provided.
 
 Paths can be overridden via options.

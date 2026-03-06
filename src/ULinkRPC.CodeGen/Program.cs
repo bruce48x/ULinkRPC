@@ -5,10 +5,6 @@ namespace ULinkRPC.CodeGen;
 
 internal static class Program
 {
-    private const string ContractsRelativePath = "samples/RpcCall.Json/RpcCall.Json.Unity/Packages/com.samples.contracts";
-    private const string UnityOutputRelativePath = "samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated";
-    private const string ServerOutputRelativePath = "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated";
-    private const string DefaultOutputDirName = "RpcGenerated";
     private const string DefaultUnityOutputRelativePath = "Assets/Scripts/Rpc/RpcGenerated";
     private const string DefaultUnityRuntimeNamespace = "Rpc.Generated";
     private const string DefaultCoreRuntimeUsing = "ULinkRPC.Core";
@@ -22,100 +18,94 @@ internal static class Program
             return 0;
         }
 
-        if (!TryResolvePaths(
-                args,
-                out var contractsPath,
-                out var outputPath,
-                out var binderOutputPath,
-                out var serverOutputPath,
-                out var serverNamespace,
-                out var mode,
-                out var outputSpecified,
-                out var serverOutputSpecified,
-                out var error))
+        if (!TryParseCliArguments(args, out var rawOptions, out var error))
         {
             Console.Error.WriteLine(error);
             PrintUsage();
             return 1;
         }
 
-        var unityRuntimeNamespace = DeriveNamespaceFromOutputPath(outputPath);
+        if (!TryResolveGenerationOptions(rawOptions, out var options, out error))
+        {
+            Console.Error.WriteLine(error);
+            PrintUsage();
+            return 1;
+        }
 
-        var services = FindRpcServicesFromSource(contractsPath);
+        var services = FindRpcServicesFromSource(options.ContractsPath);
         if (services.Count == 0)
         {
             Console.Error.WriteLine("No [RpcService] interfaces found.");
             return 1;
         }
 
-        if (mode == OutputMode.Unity || outputSpecified)
+        if (options.Mode == OutputMode.Unity)
         {
-            Directory.CreateDirectory(outputPath);
-            Directory.CreateDirectory(binderOutputPath);
+            Directory.CreateDirectory(options.OutputPath);
         }
 
-        if (mode == OutputMode.Server || serverOutputSpecified)
+        if (options.Mode == OutputMode.Server)
         {
-            if (string.IsNullOrWhiteSpace(serverNamespace))
-                serverNamespace = GetDefaultServerNamespace(services);
+            if (string.IsNullOrWhiteSpace(options.ServerNamespace))
+                options = options with { ServerNamespace = GetDefaultServerNamespace(services) };
 
-            Directory.CreateDirectory(serverOutputPath);
+            Directory.CreateDirectory(options.ServerOutputPath);
         }
 
         var generated = 0;
         foreach (var svc in services)
         {
-            if (mode == OutputMode.Unity || outputSpecified)
+            if (options.Mode == OutputMode.Unity)
             {
-                var (client, _) = GenerateCode(svc, unityRuntimeNamespace, DefaultCoreRuntimeUsing,
+                var (client, _) = GenerateCode(svc, options.UnityNamespace, DefaultCoreRuntimeUsing,
                     DefaultServerRuntimeUsing);
                 if (client != null)
                 {
                     var clientTypeName = GetClientTypeName(svc.InterfaceName);
-                    File.WriteAllText(Path.Combine(outputPath, $"{clientTypeName}.cs"), client, Encoding.UTF8);
+                    File.WriteAllText(Path.Combine(options.OutputPath, $"{clientTypeName}.cs"), client, Encoding.UTF8);
                     generated++;
                 }
 
                 if (svc.HasCallback)
                 {
-                    var cbBinder = GenerateCallbackBinderCode(svc, unityRuntimeNamespace,
+                    var cbBinder = GenerateCallbackBinderCode(svc, options.UnityNamespace,
                         DefaultCoreRuntimeUsing, DefaultCoreRuntimeUsing);
                     var cbBinderTypeName = GetCallbackBinderTypeName(svc.CallbackInterfaceName!);
-                    File.WriteAllText(Path.Combine(outputPath, $"{cbBinderTypeName}.cs"), cbBinder, Encoding.UTF8);
+                    File.WriteAllText(Path.Combine(options.OutputPath, $"{cbBinderTypeName}.cs"), cbBinder, Encoding.UTF8);
                     generated++;
                 }
             }
 
-            if (mode == OutputMode.Server || serverOutputSpecified)
+            if (options.Mode == OutputMode.Server)
             {
-                var serverBinder = GenerateBinderCode(svc, serverNamespace, DefaultCoreRuntimeUsing,
+                var serverBinder = GenerateBinderCode(svc, options.ServerNamespace, DefaultCoreRuntimeUsing,
                     DefaultServerRuntimeUsing);
                 var binderTypeName = GetBinderTypeName(svc.InterfaceName);
-                File.WriteAllText(Path.Combine(serverOutputPath, $"{binderTypeName}.cs"), serverBinder, Encoding.UTF8);
+                File.WriteAllText(Path.Combine(options.ServerOutputPath, $"{binderTypeName}.cs"), serverBinder, Encoding.UTF8);
                 generated++;
 
                 if (svc.HasCallback)
                 {
-                    var cbProxy = GenerateCallbackProxyCode(svc, serverNamespace, DefaultCoreRuntimeUsing,
+                    var cbProxy = GenerateCallbackProxyCode(svc, options.ServerNamespace, DefaultCoreRuntimeUsing,
                         DefaultServerRuntimeUsing);
                     var cbProxyTypeName = GetCallbackProxyTypeName(svc.CallbackInterfaceName!);
-                    File.WriteAllText(Path.Combine(serverOutputPath, $"{cbProxyTypeName}.cs"), cbProxy, Encoding.UTF8);
+                    File.WriteAllText(Path.Combine(options.ServerOutputPath, $"{cbProxyTypeName}.cs"), cbProxy, Encoding.UTF8);
                     generated++;
                 }
             }
         }
 
-        if (mode == OutputMode.Unity || outputSpecified)
+        if (options.Mode == OutputMode.Unity)
         {
-            var facade = GenerateClientFacadeCode(services, unityRuntimeNamespace, DefaultCoreRuntimeUsing);
-            File.WriteAllText(Path.Combine(outputPath, "RpcApi.cs"), facade, Encoding.UTF8);
+            var facade = GenerateClientFacadeCode(services, options.UnityNamespace, DefaultCoreRuntimeUsing);
+            File.WriteAllText(Path.Combine(options.OutputPath, "RpcApi.cs"), facade, Encoding.UTF8);
             generated++;
         }
 
-        if (mode == OutputMode.Server || serverOutputSpecified)
+        if (options.Mode == OutputMode.Server)
         {
-            var allBinder = GenerateAllServicesBinder(services, serverNamespace, DefaultServerRuntimeUsing);
-            File.WriteAllText(Path.Combine(serverOutputPath, "AllServicesBinder.cs"), allBinder, Encoding.UTF8);
+            var allBinder = GenerateAllServicesBinder(services, options.ServerNamespace, DefaultServerRuntimeUsing);
+            File.WriteAllText(Path.Combine(options.ServerOutputPath, "AllServicesBinder.cs"), allBinder, Encoding.UTF8);
             generated++;
         }
 
@@ -130,37 +120,27 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --contracts <path>      Path to contract sources");
-        Console.WriteLine("  --output <path>         Output directory for generated clients (Unity)");
-        Console.WriteLine("  --binder-output <path>  Output directory for generated binders (Unity)");
+        Console.WriteLine("  --output <path>         Output directory for generated files");
+        Console.WriteLine("  --namespace <ns>        Namespace for generated Unity code");
         Console.WriteLine("  --server-output <path>  Output directory for server binders");
         Console.WriteLine("  --server-namespace <ns> Namespace for server binders");
-        Console.WriteLine("  --mode <auto|unity|server>  Force output mode");
+        Console.WriteLine("  --mode <unity|server>   Generation mode (required)");
         Console.WriteLine();
         Console.WriteLine("Defaults:");
-        Console.WriteLine("  auto: Unity project generates Unity output; Server project generates server binders.");
-        Console.WriteLine("  Paths can be overridden via options.");
+        Console.WriteLine("  unity: output defaults to Assets/Scripts/Rpc/RpcGenerated under Unity project root.");
+        Console.WriteLine("  unity: namespace defaults to value derived from output path.");
+        Console.WriteLine("  server: output defaults to ./Generated");
     }
 
-    private static bool TryResolvePaths(
-        string[] args,
-        out string contractsPath,
-        out string outputPath,
-        out string binderOutputPath,
-        out string serverOutputPath,
-        out string serverNamespace,
-        out OutputMode mode,
-        out bool outputSpecified,
-        out bool serverOutputSpecified,
-        out string error)
+    private static bool TryParseCliArguments(string[] args, out RawOptions options, out string error)
     {
-        contractsPath = string.Empty;
-        outputPath = string.Empty;
-        binderOutputPath = string.Empty;
-        serverOutputPath = string.Empty;
-        serverNamespace = string.Empty;
-        mode = OutputMode.Auto;
-        outputSpecified = false;
-        serverOutputSpecified = false;
+        options = RawOptions.Empty;
+        var contractsPath = string.Empty;
+        var outputPath = string.Empty;
+        var unityNamespace = string.Empty;
+        var serverOutputPath = string.Empty;
+        var serverNamespace = string.Empty;
+        var mode = OutputMode.Unknown;
         error = string.Empty;
 
         for (var i = 0; i < args.Length; i++)
@@ -173,17 +153,14 @@ internal static class Program
             else if (arg == "--output" && i + 1 < args.Length)
             {
                 outputPath = args[++i];
-                outputSpecified = true;
             }
-            else if (arg == "--binder-output" && i + 1 < args.Length)
+            else if (arg == "--namespace" && i + 1 < args.Length)
             {
-                binderOutputPath = args[++i];
-                outputSpecified = true;
+                unityNamespace = args[++i];
             }
             else if (arg == "--server-output" && i + 1 < args.Length)
             {
                 serverOutputPath = args[++i];
-                serverOutputSpecified = true;
             }
             else if (arg == "--server-namespace" && i + 1 < args.Length)
             {
@@ -192,11 +169,13 @@ internal static class Program
             else if (arg == "--mode" && i + 1 < args.Length)
             {
                 var value = args[++i];
-                if (!TryParseMode(value, out mode))
+                if (!TryParseMode(value, out var parsedMode))
                 {
                     error = $"Unknown mode: {value}";
                     return false;
                 }
+
+                mode = parsedMode;
             }
             else
             {
@@ -205,79 +184,76 @@ internal static class Program
             }
         }
 
+        options = new RawOptions(
+            contractsPath,
+            outputPath,
+            unityNamespace,
+            serverOutputPath,
+            serverNamespace,
+            mode);
+
+        return true;
+    }
+
+    private static bool TryResolveGenerationOptions(RawOptions raw, out ResolvedOptions options, out string error)
+    {
+        options = ResolvedOptions.Empty;
+        error = string.Empty;
+
         var cwd = Directory.GetCurrentDirectory();
-        var repoRoot = FindRepoRoot(cwd);
-        var isInRepo = repoRoot != null;
-        var layout = isInRepo ? DetectSampleLayout(repoRoot!, cwd, contractsPath) : null;
 
-        if (string.IsNullOrWhiteSpace(contractsPath))
+        if (string.IsNullOrWhiteSpace(raw.ContractsPath))
         {
-            if (!isInRepo)
+            error = "Missing required option: --contracts <path>";
+            return false;
+        }
+
+        if (raw.Mode == OutputMode.Unknown)
+        {
+            error = "Missing required option: --mode <unity|server>";
+            return false;
+        }
+
+        var mode = raw.Mode;
+        var contractsPath = Path.GetFullPath(raw.ContractsPath);
+        var outputPath = string.Empty;
+        var unityNamespace = string.Empty;
+        var serverOutputPath = string.Empty;
+        var serverNamespace = string.Empty;
+
+        if (mode == OutputMode.Unity)
+        {
+            if (string.IsNullOrWhiteSpace(raw.OutputPath))
             {
-                error = "Contracts path not provided and repo root not found. Use --contracts <path>.";
-                return false;
-            }
-            contractsPath = Path.Combine(repoRoot!, layout?.ContractsRelativePath ?? ContractsRelativePath);
-        }
-        else
-        {
-            contractsPath = Path.GetFullPath(contractsPath);
-        }
-
-        if (mode == OutputMode.Auto)
-        {
-            mode = DetectMode(repoRoot, contractsPath);
-        }
-
-        if (mode == OutputMode.Unity || outputSpecified)
-        {
-            if (string.IsNullOrWhiteSpace(outputPath))
-            {
-                if (isInRepo)
+                var unityRoot = FindUnityProjectRoot(cwd);
+                if (unityRoot == null)
                 {
-                    outputPath = Path.Combine(repoRoot!, layout?.UnityOutputRelativePath ?? UnityOutputRelativePath);
+                    error = "Unity mode requires --output when current directory is not inside a Unity project.";
+                    return false;
                 }
-                else
-                {
-                    var unityRoot = FindUnityProjectRoot(cwd);
-                    outputPath = unityRoot != null
-                        ? Path.Combine(unityRoot, DefaultUnityOutputRelativePath)
-                        : Path.Combine(cwd, DefaultOutputDirName);
-                }
+
+                outputPath = Path.Combine(unityRoot, DefaultUnityOutputRelativePath);
             }
             else
             {
-                outputPath = Path.GetFullPath(outputPath);
+                outputPath = Path.GetFullPath(raw.OutputPath);
             }
 
-            if (string.IsNullOrWhiteSpace(binderOutputPath))
-            {
-                binderOutputPath = outputPath;
-            }
-            else
-            {
-                binderOutputPath = Path.GetFullPath(binderOutputPath);
-            }
-
-            if (!string.Equals(outputPath, binderOutputPath, StringComparison.OrdinalIgnoreCase))
-            {
-                error = "--binder-output must match --output (single output directory).";
-                return false;
-            }
+            unityNamespace = string.IsNullOrWhiteSpace(raw.UnityNamespace)
+                ? DeriveNamespaceFromOutputPath(outputPath)
+                : raw.UnityNamespace;
         }
 
-        if (mode == OutputMode.Server || serverOutputSpecified)
+        if (mode == OutputMode.Server)
         {
-            if (string.IsNullOrWhiteSpace(serverOutputPath))
+            serverNamespace = raw.ServerNamespace;
+            if (string.IsNullOrWhiteSpace(raw.ServerOutputPath))
             {
-                if (isInRepo)
-                    serverOutputPath = Path.Combine(repoRoot!, layout?.ServerOutputRelativePath ?? ServerOutputRelativePath);
-                else
-                    serverOutputPath = Path.Combine(cwd, "Generated");
+                serverOutputPath = Path.Combine(cwd, "Generated");
             }
             else
             {
-                serverOutputPath = Path.GetFullPath(serverOutputPath);
+                serverOutputPath = Path.GetFullPath(raw.ServerOutputPath);
             }
         }
 
@@ -287,63 +263,21 @@ internal static class Program
             return false;
         }
 
+        options = new ResolvedOptions(
+            contractsPath,
+            outputPath,
+            unityNamespace,
+            serverOutputPath,
+            serverNamespace,
+            mode);
+
         return true;
-    }
-
-    private static string? FindRepoRoot(string startPath)
-    {
-        var dir = new DirectoryInfo(startPath);
-        while (dir != null)
-        {
-            var codeGenProjectPath = Path.Combine(dir.FullName, "src", "ULinkRPC.CodeGen", "ULinkRPC.CodeGen.csproj");
-            if (File.Exists(codeGenProjectPath))
-                return dir.FullName;
-
-            dir = dir.Parent;
-        }
-
-        return null;
-    }
-
-    private static OutputMode DetectMode(string? repoRoot, string contractsPath)
-    {
-        if (IsUnityProject(Directory.GetCurrentDirectory()))
-            return OutputMode.Unity;
-
-        if (IsServerProject(Directory.GetCurrentDirectory()))
-            return OutputMode.Server;
-
-        if (!string.IsNullOrWhiteSpace(repoRoot))
-        {
-            foreach (var layout in GetKnownLayouts())
-            {
-                if (IsUnityProject(Path.Combine(repoRoot, layout.UnityProjectRelativePath)))
-                    return OutputMode.Unity;
-
-                if (IsServerProject(Path.Combine(repoRoot, layout.ServerProjectRelativePath)))
-                    return OutputMode.Server;
-            }
-        }
-
-        var dir = new DirectoryInfo(contractsPath);
-        while (dir != null)
-        {
-            if (IsUnityProject(dir.FullName))
-                return OutputMode.Unity;
-
-            dir = dir.Parent;
-        }
-
-        return OutputMode.Server;
     }
 
     private static bool TryParseMode(string value, out OutputMode mode)
     {
         switch (value.ToLowerInvariant())
         {
-            case "auto":
-                mode = OutputMode.Auto;
-                return true;
             case "unity":
                 mode = OutputMode.Unity;
                 return true;
@@ -351,7 +285,7 @@ internal static class Program
                 mode = OutputMode.Server;
                 return true;
             default:
-                mode = OutputMode.Auto;
+                mode = OutputMode.Unknown;
                 return false;
         }
     }
@@ -1703,79 +1637,6 @@ internal static class Program
         }
     }
 
-    private sealed class SampleLayout
-    {
-        public string ContractsRelativePath { get; }
-        public string UnityOutputRelativePath { get; }
-        public string ServerOutputRelativePath { get; }
-        public string UnityProjectRelativePath { get; }
-        public string ServerProjectRelativePath { get; }
-
-        public SampleLayout(
-            string contractsRelativePath,
-            string unityOutputRelativePath,
-            string serverOutputRelativePath,
-            string unityProjectRelativePath,
-            string serverProjectRelativePath)
-        {
-            ContractsRelativePath = contractsRelativePath;
-            UnityOutputRelativePath = unityOutputRelativePath;
-            ServerOutputRelativePath = serverOutputRelativePath;
-            UnityProjectRelativePath = unityProjectRelativePath;
-            ServerProjectRelativePath = serverProjectRelativePath;
-        }
-    }
-
-    private static SampleLayout? DetectSampleLayout(string repoRoot, string cwd, string contractsPathArg)
-    {
-        var normalizedCwd = Path.GetFullPath(cwd).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var normalizedContractsArg = string.IsNullOrWhiteSpace(contractsPathArg)
-            ? string.Empty
-            : Path.GetFullPath(contractsPathArg).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-        foreach (var layout in GetKnownLayouts())
-        {
-            var unityRoot = Path.GetFullPath(Path.Combine(repoRoot, layout.UnityProjectRelativePath))
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var contracts = Path.GetFullPath(Path.Combine(repoRoot, layout.ContractsRelativePath))
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (normalizedCwd.StartsWith(unityRoot, StringComparison.OrdinalIgnoreCase))
-                return layout;
-
-            if (!string.IsNullOrWhiteSpace(normalizedContractsArg) &&
-                normalizedContractsArg.StartsWith(contracts, StringComparison.OrdinalIgnoreCase))
-                return layout;
-        }
-
-        return GetKnownLayouts().FirstOrDefault(layout =>
-            Directory.Exists(Path.Combine(repoRoot, layout.ContractsRelativePath)));
-    }
-
-    private static IReadOnlyList<SampleLayout> GetKnownLayouts()
-    {
-        return new[]
-        {
-            new SampleLayout(
-                "samples/RpcCall.Json/RpcCall.Json.Unity/Packages/com.samples.contracts",
-                "samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated",
-                "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated",
-                "samples/RpcCall.Json/RpcCall.Json.Unity",
-                "samples/RpcCall.Json/RpcCall.Json.Server"),
-            new SampleLayout(
-                "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Packages/com.samples.contracts",
-                "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Assets/Scripts/Rpc/RpcGenerated",
-                "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server/Generated",
-                "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity",
-                "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server"),
-            new SampleLayout(
-                "samples/RpcCall/RpcCall.Unity/Packages/com.samples.contracts",
-                "samples/RpcCall/RpcCall.Unity/Assets/Scripts/Rpc/RpcGenerated",
-                "samples/RpcCall/RpcCall.Server/Generated",
-                "samples/RpcCall/RpcCall.Unity",
-                "samples/RpcCall/RpcCall.Server")
-        };
-    }
-
     private static bool IsUnityProject(string path)
     {
         return Directory.Exists(Path.Combine(path, "Assets")) && Directory.Exists(Path.Combine(path, "Packages"));
@@ -1864,21 +1725,43 @@ internal static class Program
         return null;
     }
 
-    private static bool IsServerProject(string path)
+    private sealed record RawOptions(
+        string ContractsPath,
+        string OutputPath,
+        string UnityNamespace,
+        string ServerOutputPath,
+        string ServerNamespace,
+        OutputMode Mode)
     {
-        if (!Directory.Exists(path))
-            return false;
+        public static RawOptions Empty { get; } = new(
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            OutputMode.Unknown);
+    }
 
-        if (Directory.GetFiles(path, "*.csproj", SearchOption.TopDirectoryOnly).Any())
-            return true;
-
-        return Directory.GetDirectories(path)
-            .Any(sub => Directory.GetFiles(sub, "*.csproj", SearchOption.TopDirectoryOnly).Any());
+    private sealed record ResolvedOptions(
+        string ContractsPath,
+        string OutputPath,
+        string UnityNamespace,
+        string ServerOutputPath,
+        string ServerNamespace,
+        OutputMode Mode)
+    {
+        public static ResolvedOptions Empty { get; } = new(
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            OutputMode.Unknown);
     }
 
     private enum OutputMode
     {
-        Auto,
+        Unknown,
         Unity,
         Server
     }
