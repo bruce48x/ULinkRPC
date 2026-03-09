@@ -13,8 +13,8 @@ namespace ULinkRPC.Transport.Tcp
 
         private readonly string _host;
         private readonly int _port;
-        private readonly SemaphoreSlim _sendGate = new(1, 1);
         private TcpClient? _client;
+        private TcpPipeFraming? _framing;
         private NetworkStream? _stream;
         private bool _connected;
 
@@ -35,50 +35,38 @@ namespace ULinkRPC.Transport.Tcp
             await _client.ConnectAsync(_host, _port).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             _stream = _client.GetStream();
+            _framing = new TcpPipeFraming(_stream, MaxFrameSize);
             _connected = true;
         }
 
         public async ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
         {
-            await _sendGate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (_stream is null)
-                    throw new InvalidOperationException("Not connected.");
+            if (_framing is null)
+                throw new InvalidOperationException("Not connected.");
 
-                var packed = LengthPrefix.Pack(frame.Span);
-                await _stream.WriteAsync(packed, ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                _sendGate.Release();
-            }
+            await _framing.SendFrameAsync(frame, ct).ConfigureAwait(false);
         }
 
         public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
         {
-            if (_stream is null)
+            if (_framing is null)
                 throw new InvalidOperationException("Not connected.");
 
-            var lenBuf = new byte[4];
-            await ReadExactlyAsync(lenBuf, ct).ConfigureAwait(false);
-
-            var len = ((uint)lenBuf[0] << 24) | ((uint)lenBuf[1] << 16) | ((uint)lenBuf[2] << 8) | lenBuf[3];
-
-            if (len > MaxFrameSize)
-                throw new InvalidOperationException($"Frame too large: {len} bytes");
-
-            if (len == 0)
-                return Array.Empty<byte>();
-
-            var payload = new byte[len];
-            await ReadExactlyAsync(payload, ct).ConfigureAwait(false);
-            return payload;
+            return await _framing.ReceiveFrameAsync(ct).ConfigureAwait(false);
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             _connected = false;
+            try
+            {
+                if (_framing is not null)
+                    await _framing.DisposeAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+
             try
             {
                 _stream?.Dispose();
@@ -95,28 +83,9 @@ namespace ULinkRPC.Transport.Tcp
             {
             }
 
+            _framing = null;
             _stream = null;
             _client = null;
-            return default;
-        }
-
-        private async ValueTask ReadExactlyAsync(byte[] buffer, CancellationToken ct)
-        {
-            if (_stream is null)
-                throw new InvalidOperationException("Not connected.");
-
-            var offset = 0;
-            var count = buffer.Length;
-
-            while (count > 0)
-            {
-                var n = await _stream.ReadAsync(buffer.AsMemory(offset, count), ct).ConfigureAwait(false);
-                if (n == 0)
-                    throw new IOException("Remote closed the connection.");
-
-                offset += n;
-                count -= n;
-            }
         }
     }
 }
