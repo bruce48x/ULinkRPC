@@ -23,3 +23,11 @@ Pass `ITransport` and `IRpcSerializer` explicitly:
 ```csharp
 var server = new RpcServer(transport, serializer);
 ```
+
+Optional transport ownership:
+
+```csharp
+await using var server = new RpcServer(transport, serializer, ownsTransport: true);
+```
+
+When `ownsTransport` is `true`, disposing the server also disposes the transport.

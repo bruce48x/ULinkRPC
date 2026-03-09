@@ -1,10 +1,11 @@
 using System;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace ULinkRPC.Core
 {
-    public sealed class TransformingTransport : ITransport
+    public sealed class TransformingTransport : ITransport, IRemoteEndPointProvider
     {
         private readonly ITransport _inner;
         private readonly TransportFrameCodec _codec;
@@ -14,6 +15,8 @@ namespace ULinkRPC.Core
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
             _codec = new TransportFrameCodec(config ?? throw new ArgumentNullException(nameof(config)));
         }
+
+        public EndPoint? RemoteEndPoint => (_inner as IRemoteEndPointProvider)?.RemoteEndPoint;
 
         public bool IsConnected => _inner.IsConnected;
 

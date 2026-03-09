@@ -11,7 +11,7 @@ namespace ULinkRPC.Transport.Kcp
     ///     ITransport implementation over KCP (UDP).
     ///     Uses the same length-prefix framing (4-byte big-endian + payload) as other transports.
     /// </summary>
-    public sealed class KcpServerTransport : ITransport, IKcpCallback, IRentable
+    public sealed class KcpServerTransport : ITransport, IKcpCallback, IRentable, IRemoteEndPointProvider
     {
         private const int MaxFrameSize = 64 * 1024 * 1024;
         private const int UpdateIntervalMs = 10;
@@ -61,6 +61,8 @@ namespace ULinkRPC.Transport.Kcp
         {
             return MemoryPool<byte>.Shared.Rent(size);
         }
+
+        public EndPoint? RemoteEndPoint => _remote;
 
         public bool IsConnected { get; private set; }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ULinkRPC.Core;
 using ULinkRPC.Server;
 using ULinkRPC.Serializer.Json;
@@ -261,5 +262,187 @@ public class RpcServerTests
     {
         LoopbackTransport.CreatePair(out var client, out var server);
         Assert.Throws<ArgumentNullException>(() => new RpcServer(client, null!));
+    }
+
+    [Fact]
+    public async Task ConcurrentRequests_FastHandlerNotBlockedBySlowHandler()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var server = new RpcServer(serverTransport, serializer);
+
+        server.Register(1, 1, async (req, ct) =>
+        {
+            await Task.Delay(300, ct);
+            return new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = Array.Empty<byte>()
+            };
+        });
+
+        server.Register(1, 2, (req, ct) =>
+            ValueTask.FromResult(new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = Array.Empty<byte>()
+            }));
+
+        await server.StartAsync();
+        await clientTransport.ConnectAsync();
+
+        var slowReq = new RpcRequestEnvelope { RequestId = 1, ServiceId = 1, MethodId = 1, Payload = Array.Empty<byte>() };
+        var fastReq = new RpcRequestEnvelope { RequestId = 2, ServiceId = 1, MethodId = 2, Payload = Array.Empty<byte>() };
+
+        var sw = Stopwatch.StartNew();
+        await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(slowReq));
+        await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(fastReq));
+
+        var firstResp = RpcEnvelopeCodec.DecodeResponse((await clientTransport.ReceiveFrameAsync()).Span);
+        var fastResponseElapsed = sw.ElapsedMilliseconds;
+        var secondResp = RpcEnvelopeCodec.DecodeResponse((await clientTransport.ReceiveFrameAsync()).Span);
+
+        Assert.Equal(2u, firstResp.RequestId);
+        Assert.Equal(1u, secondResp.RequestId);
+        Assert.True(fastResponseElapsed < 250, $"Fast response was delayed: {fastResponseElapsed}ms");
+
+        await server.StopAsync();
+        await clientTransport.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task PushAsync_ConcurrentCalls_AreSerializedOnTransport()
+    {
+        var transport = new ConcurrentSendDetectTransport();
+        var server = new RpcServer(transport, new JsonRpcSerializer());
+
+        var sends = Enumerable.Range(0, 24)
+            .Select(i => server.PushAsync(1, 1, i).AsTask())
+            .ToArray();
+
+        await Task.WhenAll(sends);
+
+        Assert.Equal(1, transport.MaxConcurrentSends);
+        await server.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task RemoteClose_ResetsServerStateAndRaisesDisconnected()
+    {
+        var transport = new ReconnectableEmptyFrameTransport();
+        var server = new RpcServer(transport, new JsonRpcSerializer());
+
+        var disconnectedCount = 0;
+        server.Disconnected += ex =>
+        {
+            Assert.Null(ex);
+            Interlocked.Increment(ref disconnectedCount);
+        };
+
+        await server.StartAsync();
+        await server.WaitForCompletionAsync();
+
+        await server.StartAsync();
+        await server.WaitForCompletionAsync();
+
+        Assert.Equal(2, transport.ConnectCount);
+        Assert.Equal(2, disconnectedCount);
+
+        await server.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenOwningTransport_DisposesTransportOnce()
+    {
+        var transport = new ConcurrentSendDetectTransport();
+        var server = new RpcServer(transport, new JsonRpcSerializer(), ownsTransport: true);
+
+        await server.DisposeAsync();
+        await server.DisposeAsync();
+
+        Assert.Equal(1, transport.DisposeCount);
+    }
+
+    private sealed class ConcurrentSendDetectTransport : ITransport
+    {
+        private int _currentSends;
+        private int _disposeCount;
+        private int _maxConcurrentSends;
+
+        public int MaxConcurrentSends => Volatile.Read(ref _maxConcurrentSends);
+        public int DisposeCount => Volatile.Read(ref _disposeCount);
+        public bool IsConnected { get; private set; }
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            IsConnected = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public async ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+        {
+            var current = Interlocked.Increment(ref _currentSends);
+            UpdateMaxConcurrentSends(current);
+
+            await Task.Delay(5, ct);
+            Interlocked.Decrement(ref _currentSends);
+        }
+
+        public ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        {
+            return ValueTask.FromResult<ReadOnlyMemory<byte>>(ReadOnlyMemory<byte>.Empty);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsConnected = false;
+            Interlocked.Increment(ref _disposeCount);
+            return ValueTask.CompletedTask;
+        }
+
+        private void UpdateMaxConcurrentSends(int value)
+        {
+            while (true)
+            {
+                var snapshot = MaxConcurrentSends;
+                if (value <= snapshot)
+                    return;
+
+                if (Interlocked.CompareExchange(ref _maxConcurrentSends, value, snapshot) == snapshot)
+                    return;
+            }
+        }
+    }
+
+    private sealed class ReconnectableEmptyFrameTransport : ITransport
+    {
+        public int ConnectCount { get; private set; }
+        public bool IsConnected { get; private set; }
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            ConnectCount++;
+            IsConnected = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        {
+            IsConnected = false;
+            return ValueTask.FromResult<ReadOnlyMemory<byte>>(ReadOnlyMemory<byte>.Empty);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsConnected = false;
+            return ValueTask.CompletedTask;
+        }
     }
 }

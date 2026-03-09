@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Net;
 using System.Net.WebSockets;
 using ULinkRPC.Core;
 using NetWebSocket = System.Net.WebSockets.WebSocket;
@@ -9,16 +10,19 @@ namespace ULinkRPC.Transport.WebSocket
     ///     ITransport implementation that wraps an accepted WebSocket (server side).
     ///     Uses the same length-prefix framing (4-byte big-endian + payload) as the Unity WebSocketTransport.
     /// </summary>
-    public sealed class WebSocketServerTransport : ITransport
+    public sealed class WebSocketServerTransport : ITransport, IRemoteEndPointProvider
     {
         private const int MaxBufferedBytes = 64 * 1024 * 1024;
         private readonly NetWebSocket _ws;
         private byte[] _accum = Array.Empty<byte>();
 
-        public WebSocketServerTransport(NetWebSocket ws)
+        public WebSocketServerTransport(NetWebSocket ws, EndPoint? remoteEndPoint = null)
         {
             _ws = ws ?? throw new ArgumentNullException(nameof(ws));
+            RemoteEndPoint = remoteEndPoint;
         }
+
+        public EndPoint? RemoteEndPoint { get; }
 
         public bool IsConnected => _ws.State == WebSocketState.Open;
 

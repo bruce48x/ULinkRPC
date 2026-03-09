@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Sockets;
 using ULinkRPC.Core;
 
@@ -7,7 +8,7 @@ namespace ULinkRPC.Transport.Tcp
     ///     ITransport implementation that wraps an accepted TcpClient (server side).
     ///     Uses the same length-prefix framing (4-byte big-endian + payload) as the Unity TcpTransport.
     /// </summary>
-    public sealed class TcpServerTransport : ITransport
+    public sealed class TcpServerTransport : ITransport, IRemoteEndPointProvider
     {
         private const int MaxFrameSize = 64 * 1024 * 1024;
 
@@ -20,6 +21,8 @@ namespace ULinkRPC.Transport.Tcp
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
         }
+
+        public EndPoint? RemoteEndPoint => _client.Client.RemoteEndPoint;
 
         public bool IsConnected => _connected && _client.Connected;
 
