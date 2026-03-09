@@ -17,6 +17,24 @@ dotnet build
 dotnet run --project RpcCall.Json.Server
 ```
 
+也可以在仓库根目录直接执行，默认会先生成代码再构建：
+
+```powershell
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json
+```
+
+直接启动服务端：
+
+```powershell
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
+```
+
+重新生成客户端/服务端代码：
+
+```powershell
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -SkipBuild
+```
+
 2. 打开 Unity 项目
 
 打开 `samples/RpcCall.Json/RpcCall.Json.Unity`，进入场景 `Assets/Scenes/TcpConnectionTest.unity`，点击 Play。

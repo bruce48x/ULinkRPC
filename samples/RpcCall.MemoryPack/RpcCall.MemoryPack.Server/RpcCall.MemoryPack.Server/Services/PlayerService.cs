@@ -5,6 +5,7 @@ namespace RpcCall.MemoryPack.Server.Services;
 public class PlayerService: IPlayerService
 {
     private readonly IPlayerCallback _callback;
+    private int _step;
 
     public PlayerService(IPlayerCallback callback)
     {
@@ -24,17 +25,10 @@ public class PlayerService: IPlayerService
         });
     }
 
-    public ValueTask PingAsync()
+    public ValueTask<int> IncrStep()
     {
-        _callback.OnNotify("Ping received by server.");
-        return default;
-    }
-
-    public ValueTask<string> ComposeGreetingAsync(string name, int level, bool vip)
-    {
-        var tag = vip ? "VIP" : "NORMAL";
-        var greeting = $"Hello {name}, Lv.{level} [{tag}]";
-        _callback.OnNotify($"ComposeGreeting generated: {greeting}");
-        return new ValueTask<string>(greeting);
+        _step++;
+        _callback.OnNotify($"IncrStep => {_step}");
+        return new ValueTask<int>(_step);
     }
 }
