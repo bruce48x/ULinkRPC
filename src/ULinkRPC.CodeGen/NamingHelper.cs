@@ -51,6 +51,9 @@ internal static class NamingHelper
         return baseName.Length == 0 ? "service" : char.ToLowerInvariant(baseName[0]) + baseName[1..];
     }
 
+    public static string GetServiceFactoryParamName(string ifaceName) =>
+        $"{GetServiceParamName(ifaceName)}Factory";
+
     public static string ToCamelCase(string value) =>
         string.IsNullOrEmpty(value) ? "method" : char.ToLowerInvariant(value[0]) + value[1..];
 

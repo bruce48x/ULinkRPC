@@ -270,6 +270,16 @@ public class GeneratedCodeCompilationTests
         AssertCompilesCleanly([binderCode, proxyCode], CallbackContracts, includeServer: true);
     }
 
+    [Fact]
+    public void AllServicesBinder_WithCallbackFactory_CompilesCleanly()
+    {
+        var svc = CallbackService();
+        var binderCode = ServerEmitter.GenerateBinder(svc, "MyGame.Server", "ULinkRPC.Core", "ULinkRPC.Server");
+        var proxyCode = ServerEmitter.GenerateCallbackProxy(svc, "MyGame.Server", "ULinkRPC.Core", "ULinkRPC.Server");
+        var allBinderCode = ServerEmitter.GenerateAllServicesBinder([svc], "MyGame.Server", "ULinkRPC.Server");
+        AssertCompilesCleanly([binderCode, proxyCode, allBinderCode], CallbackContracts, includeServer: true);
+    }
+
     #endregion
 
     #region Multiple services

@@ -253,6 +253,17 @@ public class ServerEmitterTests
         Assert.Contains("ChatServiceBinder.Bind(server, chatService);", code);
     }
 
+    [Fact]
+    public void AllServicesBinder_CallbackService_UsesFactoryBinding()
+    {
+        var svc = MakeServiceWithCallback();
+        var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
+
+        Assert.Contains("using System;", code);
+        Assert.Contains("public static void BindAll(RpcServer server, Func<IGameCallback, IGameSvc> gameSvcFactory)", code);
+        Assert.Contains("GameSvcBinder.Bind(server, gameSvcFactory);", code);
+    }
+
     #endregion
 
     private static RpcServiceInfo MakeServiceWithCallback(params RpcCallbackMethodInfo[] cbMethods)
