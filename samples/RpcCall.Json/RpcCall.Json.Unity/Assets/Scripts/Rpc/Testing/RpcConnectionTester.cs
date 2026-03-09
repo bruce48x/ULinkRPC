@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Game.Rpc.Contracts;
-using Game.Rpc.Runtime.Generated;
+using Rpc.Generated;
 using ULinkRPC.Client;
 using ULinkRPC.Serializer.Json;
 using ULinkRPC.Transport.Tcp;
