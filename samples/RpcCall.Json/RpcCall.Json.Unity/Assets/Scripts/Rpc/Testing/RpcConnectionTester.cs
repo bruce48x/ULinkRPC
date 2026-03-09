@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Game.Rpc.Contracts;
@@ -32,10 +33,16 @@ namespace Rpc.Testing
         [Header("Multi Connection")] public int ConnectionCount = 3;
         public float RequestIntervalSeconds = 1f;
 
+        [Header("Debug UI")] public bool ShowDebugPanel = true;
+
         public bool AutoConnect = true;
 
+        private const int MaxLogEntries = 24;
+        private readonly Dictionary<int, SessionSnapshot> _sessionSnapshots = new();
         private readonly List<ConnectionSession> _sessions = new();
+        private readonly List<string> _logEntries = new();
         private ConnectionState _state = ConnectionState.Idle;
+        private Vector2 _logScroll;
 
         private async void Start()
         {
@@ -89,7 +96,7 @@ namespace Rpc.Testing
 
         public void OnNotify(string message)
         {
-            Debug.Log($"Server push: {message}");
+            AppendLog($"Server push: {message}");
         }
 
         private async Task CleanupAsync(bool notifyDisconnected)
@@ -118,9 +125,16 @@ namespace Rpc.Testing
             _sessions.Remove(session);
 
             if (ex is null)
-                Debug.LogWarning($"Session[{session.Index}] disconnected.");
+                AppendLog($"Session[{session.Index}] disconnected.");
             else
-                Debug.LogError($"Session[{session.Index}] disconnected: {ex.Message}");
+                AppendLog($"Session[{session.Index}] disconnected: {ex.Message}");
+
+            UpdateSession(session.Index, snapshot =>
+            {
+                snapshot.State = ex is null ? "Disconnected" : "Error";
+                if (ex is not null)
+                    snapshot.LastMessage = ex.Message;
+            });
 
             if (_state == ConnectionState.Connecting)
             {
@@ -136,11 +150,86 @@ namespace Rpc.Testing
         {
             _state = state;
             StatusChanged?.Invoke(state, message);
+            if (!string.IsNullOrWhiteSpace(message))
+                AppendLog($"State => {state}: {message}");
         }
 
         private ULinkRPC.Core.ITransport CreateTransport()
         {
             return new WsTransport(ServerUrl);
+        }
+
+        private void OnGUI()
+        {
+            if (!ShowDebugPanel)
+                return;
+
+            var area = new Rect(16f, 16f, Mathf.Min(Screen.width - 32f, 720f), Mathf.Min(Screen.height - 32f, 520f));
+            GUILayout.BeginArea(area, GUI.skin.box);
+            GUILayout.Label("RpcCall.Json Runtime");
+            GUILayout.Label($"State: {_state}");
+            GUILayout.Label($"Server: {ServerUrl}");
+            GUILayout.Label($"Connections: {_sessions.Count}/{Mathf.Max(1, ConnectionCount)}");
+            GUILayout.Label($"Interval: {RequestIntervalSeconds:0.##}s");
+
+            if ((_state == ConnectionState.Idle || _state == ConnectionState.Disconnected || _state == ConnectionState.Error) &&
+                GUILayout.Button("Connect"))
+            {
+                ConnectFromUi();
+            }
+
+            GUILayout.Space(8f);
+            GUILayout.Label("Sessions");
+            foreach (var pair in _sessionSnapshots)
+            {
+                var snapshot = pair.Value;
+                var line = new StringBuilder()
+                    .Append('[').Append(snapshot.Index).Append("] ")
+                    .Append(snapshot.Account ?? "?")
+                    .Append(" | ").Append(snapshot.State ?? "Idle")
+                    .Append(" | step=").Append(snapshot.LastStep);
+
+                if (!string.IsNullOrWhiteSpace(snapshot.LastMessage))
+                    line.Append(" | ").Append(snapshot.LastMessage);
+
+                GUILayout.Label(line.ToString());
+            }
+
+            GUILayout.Space(8f);
+            GUILayout.Label("Recent Logs");
+            _logScroll = GUILayout.BeginScrollView(_logScroll, GUILayout.Height(220f));
+            foreach (var entry in _logEntries)
+                GUILayout.Label(entry);
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+        }
+
+        private void UpdateSession(int index, Action<SessionSnapshot> update)
+        {
+            if (!_sessionSnapshots.TryGetValue(index, out var snapshot))
+            {
+                snapshot = new SessionSnapshot { Index = index };
+                _sessionSnapshots[index] = snapshot;
+            }
+
+            update(snapshot);
+        }
+
+        private void AppendLog(string message)
+        {
+            Debug.Log(message);
+            _logEntries.Add(message);
+            if (_logEntries.Count > MaxLogEntries)
+                _logEntries.RemoveAt(0);
+        }
+
+        private sealed class SessionSnapshot
+        {
+            public string? Account;
+            public int Index;
+            public string? LastMessage;
+            public int LastStep;
+            public string? State;
         }
 
         private sealed class ConnectionSession : IPlayerCallback, IAsyncDisposable
@@ -180,13 +269,20 @@ namespace Rpc.Testing
                     Password = _owner.Password
                 });
 
-                Debug.Log($"Session[{Index}] login ok: code={reply.Code}, token={reply.Token}");
+                _owner.UpdateSession(Index, snapshot =>
+                {
+                    snapshot.Account = account;
+                    snapshot.State = "Connected";
+                    snapshot.LastMessage = $"token={reply.Token}";
+                });
+                _owner.AppendLog($"Session[{Index}] login ok: code={reply.Code}, token={reply.Token}");
                 _pollingTask = RunPollingAsync(account);
             }
 
             public void OnNotify(string message)
             {
-                Debug.Log($"Session[{Index}] server push: {message}");
+                _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
+                _owner.AppendLog($"Session[{Index}] server push: {message}");
             }
 
             public async ValueTask DisposeAsync()
@@ -225,7 +321,13 @@ namespace Rpc.Testing
                 while (!_cts.IsCancellationRequested)
                 {
                     var step = await _proxy!.IncrStep();
-                    Debug.Log($"Session[{Index}] {account} step={step}");
+                    _owner.UpdateSession(Index, snapshot =>
+                    {
+                        snapshot.Account = account;
+                        snapshot.LastStep = step;
+                        snapshot.State = "Polling";
+                    });
+                    _owner.AppendLog($"Session[{Index}] {account} step={step}");
                     await Task.Delay(TimeSpan.FromSeconds(interval), _cts.Token);
                 }
             }
