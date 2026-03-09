@@ -8,6 +8,8 @@ using ULinkRPC.Transport.Tcp;
 
 const int defaultTcpPort = 20000;
 var tcpPort = defaultTcpPort;
+var serviceRegistry = new RpcServiceRegistry();
+AllServicesBinder.BindAll(serviceRegistry);
 if (args.Length > 0 && int.TryParse(args[0], out var p))
     tcpPort = p;
 using var cts = new CancellationTokenSource();
@@ -61,15 +63,13 @@ async Task RunTcpListenerAsync(int port, CancellationToken hostCt)
 
 async Task RunConnectionAsync(ITransport transport, string remote, CancellationToken hostCt)
 {
-    RpcServer? server = null;
+    RpcSession? session = null;
 
     try
     {
-        server = new RpcServer(transport, new JsonRpcSerializer());
-
-        AllServicesBinder.BindAll(server);
-        await server.StartAsync(hostCt).ConfigureAwait(false);
-        await server.WaitForCompletionAsync().ConfigureAwait(false);
+        session = new RpcSession(transport, new JsonRpcSerializer(), serviceRegistry);
+        await session.StartAsync(hostCt).ConfigureAwait(false);
+        await session.WaitForCompletionAsync().ConfigureAwait(false);
     }
     catch (OperationCanceledException)
     {
@@ -81,8 +81,8 @@ async Task RunConnectionAsync(ITransport transport, string remote, CancellationT
     }
     finally
     {
-        if (server is not null)
-            await server.StopAsync().ConfigureAwait(false);
+        if (session is not null)
+            await session.StopAsync().ConfigureAwait(false);
 
         await transport.DisposeAsync().ConfigureAwait(false);
     }

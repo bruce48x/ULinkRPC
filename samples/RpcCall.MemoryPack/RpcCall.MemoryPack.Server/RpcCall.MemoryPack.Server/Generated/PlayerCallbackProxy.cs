@@ -12,13 +12,13 @@ namespace Game.Rpc.Server.Generated
     public sealed class PlayerCallbackProxy : IPlayerCallback
     {
         private const int ServiceId = 1;
-        private readonly RpcServer _server;
+        private readonly RpcSession _session;
 
-        public PlayerCallbackProxy(RpcServer server) { _server = server; }
+        public PlayerCallbackProxy(RpcSession session) { _session = session; }
 
         public void OnNotify(string message)
         {
-            _ = _server.PushAsync<string>(ServiceId, 1, message).AsTask();
+            _ = _session.PushAsync<string>(ServiceId, 1, message).AsTask();
         }
 
     }

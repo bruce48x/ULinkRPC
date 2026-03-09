@@ -14,9 +14,9 @@ namespace Game.Rpc.Server.Generated
     {
         private const int ServiceId = 1;
 
-        public static void Bind(RpcServer server, Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask<int>> incrStepHandler)
+        public static void Bind(RpcServiceRegistry registry, Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask<int>> incrStepHandler)
         {
-            Bind(server, new DelegateImpl(loginAsyncHandler, incrStepHandler));
+            BindFactory(registry, _ => new DelegateImpl(loginAsyncHandler, incrStepHandler));
         }
 
         private sealed class DelegateImpl : IPlayerService
@@ -42,25 +42,35 @@ namespace Game.Rpc.Server.Generated
 
         }
 
-        public static void Bind(RpcServer server, Func<IPlayerCallback, IPlayerService> implFactory)
+        public static void Bind(RpcServiceRegistry registry, Func<IPlayerCallback, IPlayerService> implFactory)
         {
+            if (registry is null) throw new ArgumentNullException(nameof(registry));
             if (implFactory is null) throw new ArgumentNullException(nameof(implFactory));
-            var callback = new PlayerCallbackProxy(server);
-            var impl = implFactory(callback) ?? throw new InvalidOperationException("Service implementation factory returned null.");
-            Bind(server, impl);
+            BindFactory(registry, session => implFactory(new PlayerCallbackProxy(session)) ?? throw new InvalidOperationException("Service implementation factory returned null."));
         }
 
-        public static void Bind(RpcServer server, IPlayerService impl)
+        public static void Bind(RpcServiceRegistry registry, IPlayerService impl)
         {
-            server.Register(ServiceId, 1, async (req, ct) =>
+            if (registry is null) throw new ArgumentNullException(nameof(registry));
+            if (impl is null) throw new ArgumentNullException(nameof(impl));
+            BindFactory(registry, _ => impl);
+        }
+
+        public static void BindFactory(RpcServiceRegistry registry, Func<RpcSession, IPlayerService> implFactory)
+        {
+            if (registry is null) throw new ArgumentNullException(nameof(registry));
+            if (implFactory is null) throw new ArgumentNullException(nameof(implFactory));
+            registry.Register(ServiceId, 1, async (server, req, ct) =>
             {
+                var impl = server.GetOrAddScopedService(ServiceId, implFactory);
                 var arg1 = server.Serializer.Deserialize<LoginRequest>(req.Payload.AsSpan())!;
                 var resp = await impl.LoginAsync(arg1);
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 
-            server.Register(ServiceId, 2, async (req, ct) =>
+            registry.Register(ServiceId, 2, async (server, req, ct) =>
             {
+                var impl = server.GetOrAddScopedService(ServiceId, implFactory);
                 var resp = await impl.IncrStep();
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });

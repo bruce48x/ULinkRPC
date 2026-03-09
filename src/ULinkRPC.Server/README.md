@@ -16,18 +16,19 @@ dotnet add package ULinkRPC.Server
 
 ## Includes
 
-- `RpcServer`
+- `RpcServiceRegistry`
+- `RpcSession`
 
 Pass `ITransport` and `IRpcSerializer` explicitly:
 
 ```csharp
-var server = new RpcServer(transport, serializer);
+var session = new RpcSession(transport, serializer);
 ```
 
 Optional transport ownership:
 
 ```csharp
-await using var server = new RpcServer(transport, serializer, ownsTransport: true);
+await using var session = new RpcSession(transport, serializer, ownsTransport: true);
 ```
 
-When `ownsTransport` is `true`, disposing the server also disposes the transport.
+When `ownsTransport` is `true`, disposing the session also disposes the transport.

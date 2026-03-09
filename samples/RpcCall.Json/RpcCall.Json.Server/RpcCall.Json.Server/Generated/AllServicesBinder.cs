@@ -12,17 +12,17 @@ namespace Game.Rpc.Server.Generated
 {
     public static class AllServicesBinder
     {
-        public static void BindAll(RpcServer server)
+        public static void BindAll(RpcServiceRegistry registry)
         {
-            PlayerServiceBinder.Bind(server, CreateServiceFactory<IPlayerService, IPlayerCallback>());
+            PlayerServiceBinder.Bind(registry, CreateCallbackServiceFactory<IPlayerService, IPlayerCallback>());
         }
 
-        public static void BindAll(RpcServer server, Func<IPlayerCallback, IPlayerService> playerServiceFactory)
+        public static void BindAll(RpcServiceRegistry registry, Func<IPlayerCallback, IPlayerService> playerServiceFactory)
         {
-            PlayerServiceBinder.Bind(server, playerServiceFactory);
+            PlayerServiceBinder.Bind(registry, playerServiceFactory);
         }
 
-        private static TService CreateService<TService>()
+        private static Func<RpcSession, TService> CreateServiceFactory<TService>()
         {
             var implType = ResolveImplementationType(typeof(TService));
             var ctor = implType.GetConstructor(Type.EmptyTypes);
@@ -30,10 +30,10 @@ namespace Game.Rpc.Server.Generated
             {
                 throw new InvalidOperationException($"No public parameterless constructor found for service implementation '{implType.FullName}'.");
             }
-            return (TService)ctor.Invoke(Array.Empty<object?>());
+            return _ => (TService)ctor.Invoke(Array.Empty<object?>());
         }
 
-        private static Func<TCallback, TService> CreateServiceFactory<TService, TCallback>()
+        private static Func<TCallback, TService> CreateCallbackServiceFactory<TService, TCallback>()
         {
             var implType = ResolveImplementationType(typeof(TService));
             var callbackType = typeof(TCallback);

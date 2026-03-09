@@ -52,11 +52,16 @@ public class GeneratedCodeCompilationTests
 
         namespace ULinkRPC.Server
         {
-            public class RpcServer
+            public sealed class RpcServiceRegistry
+            {
+                public void Register(int serviceId, int methodId,
+                    Func<RpcSession, RpcRequestEnvelope, CancellationToken, ValueTask<RpcResponseEnvelope>> handler) { }
+            }
+
+            public class RpcSession
             {
                 public IRpcSerializer Serializer => null!;
-                public void Register(int serviceId, int methodId,
-                    Func<RpcRequestEnvelope, CancellationToken, ValueTask<RpcResponseEnvelope>> handler) { }
+                public TService GetOrAddScopedService<TService>(int serviceId, Func<RpcSession, TService> factory) where TService : class => null!;
                 public ValueTask PushAsync<T>(int serviceId, int methodId, T value) => default;
             }
 

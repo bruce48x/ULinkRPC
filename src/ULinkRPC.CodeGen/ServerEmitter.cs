@@ -27,12 +27,22 @@ internal static class ServerEmitter
         if (svc.HasCallback)
             EmitCallbackFactoryBindOverload(w, svc);
 
-        w.OpenBlock($"public static void Bind(RpcServer server, {ifaceName} impl)");
+        w.OpenBlock($"public static void Bind(RpcServiceRegistry registry, {ifaceName} impl)");
+        w.Line("if (registry is null) throw new ArgumentNullException(nameof(registry));");
+        w.Line("if (impl is null) throw new ArgumentNullException(nameof(impl));");
+        w.Line("BindFactory(registry, _ => impl);");
+        w.CloseBlock();
+        w.Line();
+
+        w.OpenBlock($"public static void BindFactory(RpcServiceRegistry registry, Func<RpcSession, {ifaceName}> implFactory)");
+        w.Line("if (registry is null) throw new ArgumentNullException(nameof(registry));");
+        w.Line("if (implFactory is null) throw new ArgumentNullException(nameof(implFactory));");
 
         foreach (var m in svc.Methods)
         {
             var argType = NamingHelper.GetRequestPayloadType(m);
-            w.OpenBlock($"server.Register(ServiceId, {m.MethodId}, async (req, ct) =>");
+            w.OpenBlock($"registry.Register(ServiceId, {m.MethodId}, async (server, req, ct) =>");
+            w.Line($"var impl = server.GetOrAddScopedService(ServiceId, implFactory);");
 
             if (m.Parameters.Count == 1)
             {
@@ -90,14 +100,14 @@ internal static class ServerEmitter
         w.OpenBlock($"namespace {ns}");
         w.OpenBlock("public static class AllServicesBinder");
 
-        w.OpenBlock("public static void BindAll(RpcServer server)");
+        w.OpenBlock("public static void BindAll(RpcServiceRegistry registry)");
         foreach (var svc in services)
         {
             var binderTypeName = NamingHelper.GetBinderTypeName(svc.InterfaceName);
             if (svc.HasCallback)
-                w.Line($"{binderTypeName}.Bind(server, CreateServiceFactory<{svc.InterfaceName}, {svc.CallbackInterfaceName}>());");
+                w.Line($"{binderTypeName}.Bind(registry, CreateCallbackServiceFactory<{svc.InterfaceName}, {svc.CallbackInterfaceName}>());");
             else
-                w.Line($"{binderTypeName}.Bind(server, CreateService<{svc.InterfaceName}>());");
+                w.Line($"{binderTypeName}.BindFactory(registry, CreateServiceFactory<{svc.InterfaceName}>());");
         }
         w.CloseBlock();
         w.Line();
@@ -111,7 +121,7 @@ internal static class ServerEmitter
                 var factoryParamName = NamingHelper.GetServiceFactoryParamName(s.InterfaceName);
                 return $", Func<{s.CallbackInterfaceName}, {s.InterfaceName}> {factoryParamName}";
             }));
-        w.OpenBlock($"public static void BindAll(RpcServer server{paramList})");
+        w.OpenBlock($"public static void BindAll(RpcServiceRegistry registry{paramList})");
 
         foreach (var svc in services)
         {
@@ -119,7 +129,7 @@ internal static class ServerEmitter
             var paramName = svc.HasCallback
                 ? NamingHelper.GetServiceFactoryParamName(svc.InterfaceName)
                 : NamingHelper.GetServiceParamName(svc.InterfaceName);
-            w.Line($"{binderTypeName}.Bind(server, {paramName});");
+            w.Line($"{binderTypeName}.Bind(registry, {paramName});");
         }
 
         w.CloseBlock();
@@ -154,9 +164,9 @@ internal static class ServerEmitter
 
         w.OpenBlock($"public sealed class {proxyTypeName} : {cbName}");
         w.Line($"private const int ServiceId = {svc.ServiceId};");
-        w.Line("private readonly RpcServer _server;");
+        w.Line("private readonly RpcSession _session;");
         w.Line();
-        w.Line($"public {proxyTypeName}(RpcServer server) {{ _server = server; }}");
+        w.Line($"public {proxyTypeName}(RpcSession session) {{ _session = session; }}");
         w.Line();
 
         foreach (var m in svc.CallbackMethods)
@@ -166,7 +176,7 @@ internal static class ServerEmitter
             var argVal = NamingHelper.GetCallbackPayloadValue(m);
 
             w.OpenBlock($"public void {m.Name}({paramSig})");
-            w.Line($"_ = _server.PushAsync<{argType}>(ServiceId, {m.MethodId}, {argVal}).AsTask();");
+            w.Line($"_ = _session.PushAsync<{argType}>(ServiceId, {m.MethodId}, {argVal}).AsTask();");
             w.CloseBlock();
             w.Line();
         }
@@ -187,8 +197,8 @@ internal static class ServerEmitter
         var ctorArgs = string.Join(", ",
             svc.Methods.Select(m => NamingHelper.GetHandlerParameterName(m.Name)));
 
-        w.OpenBlock($"public static void Bind(RpcServer server{paramList})");
-        w.Line($"Bind(server, new DelegateImpl({ctorArgs}));");
+        w.OpenBlock($"public static void Bind(RpcServiceRegistry registry{paramList})");
+        w.Line($"BindFactory(registry, _ => new DelegateImpl({ctorArgs}));");
         w.CloseBlock();
         w.Line();
 
@@ -233,28 +243,27 @@ internal static class ServerEmitter
         var callbackInterfaceName = svc.CallbackInterfaceName!;
         var callbackProxyTypeName = NamingHelper.GetCallbackProxyTypeName(callbackInterfaceName);
 
-        w.OpenBlock($"public static void Bind(RpcServer server, Func<{callbackInterfaceName}, {svc.InterfaceName}> implFactory)");
+        w.OpenBlock($"public static void Bind(RpcServiceRegistry registry, Func<{callbackInterfaceName}, {svc.InterfaceName}> implFactory)");
+        w.Line("if (registry is null) throw new ArgumentNullException(nameof(registry));");
         w.Line("if (implFactory is null) throw new ArgumentNullException(nameof(implFactory));");
-        w.Line($"var callback = new {callbackProxyTypeName}(server);");
-        w.Line("var impl = implFactory(callback) ?? throw new InvalidOperationException(\"Service implementation factory returned null.\");");
-        w.Line("Bind(server, impl);");
+        w.Line($"BindFactory(registry, session => implFactory(new {callbackProxyTypeName}(session)) ?? throw new InvalidOperationException(\"Service implementation factory returned null.\"));");
         w.CloseBlock();
         w.Line();
     }
 
     private static void EmitReflectionHelpers(CodeWriter w)
     {
-        w.OpenBlock("private static TService CreateService<TService>()");
+        w.OpenBlock("private static Func<RpcSession, TService> CreateServiceFactory<TService>()");
         w.Line("var implType = ResolveImplementationType(typeof(TService));");
         w.Line("var ctor = implType.GetConstructor(Type.EmptyTypes);");
         w.OpenBlock("if (ctor is null)");
         w.Line("throw new InvalidOperationException($\"No public parameterless constructor found for service implementation '{implType.FullName}'.\");");
         w.CloseBlock();
-        w.Line("return (TService)ctor.Invoke(Array.Empty<object?>());");
+        w.Line("return _ => (TService)ctor.Invoke(Array.Empty<object?>());");
         w.CloseBlock();
         w.Line();
 
-        w.OpenBlock("private static Func<TCallback, TService> CreateServiceFactory<TService, TCallback>()");
+        w.OpenBlock("private static Func<TCallback, TService> CreateCallbackServiceFactory<TService, TCallback>()");
         w.Line("var implType = ResolveImplementationType(typeof(TService));");
         w.Line("var callbackType = typeof(TCallback);");
         w.Line("var callbackCtor = implType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)");

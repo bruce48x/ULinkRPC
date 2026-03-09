@@ -19,7 +19,7 @@ public class RpcClientTests
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
 
-        var server = new RpcServer(serverTransport, serializer);
+        var server = new RpcSession(serverTransport, serializer);
         server.Register(1, 1, (req, ct) =>
         {
             var arg = serializer.Deserialize<string>(req.Payload.AsSpan());
@@ -50,7 +50,7 @@ public class RpcClientTests
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
 
-        var server = new RpcServer(serverTransport, serializer);
+        var server = new RpcSession(serverTransport, serializer);
         server.Register(1, 1, (req, ct) => ValueTask.FromResult(new RpcResponseEnvelope
         {
             RequestId = req.RequestId,
@@ -76,7 +76,7 @@ public class RpcClientTests
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
 
-        var server = new RpcServer(serverTransport, serializer);
+        var server = new RpcSession(serverTransport, serializer);
         server.Register(1, 1, (req, ct) =>
             throw new InvalidOperationException("handler exploded"));
 
@@ -172,7 +172,7 @@ public class RpcClientTests
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
 
-        var server = new RpcServer(serverTransport, serializer);
+        var server = new RpcSession(serverTransport, serializer);
         await server.StartAsync();
 
         var client = new RpcClient(clientTransport, serializer);
@@ -230,7 +230,7 @@ public class RpcClientTests
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
 
-        var server = new RpcServer(serverTransport, serializer);
+        var server = new RpcSession(serverTransport, serializer);
         server.Register(1, 1, async (req, ct) =>
         {
             var arg = serializer.Deserialize<int>(req.Payload.AsSpan());

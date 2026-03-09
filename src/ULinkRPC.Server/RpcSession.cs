@@ -7,10 +7,12 @@ namespace ULinkRPC.Server
 {
     public delegate ValueTask<RpcResponseEnvelope> RpcHandler(RpcRequestEnvelope req, CancellationToken ct);
 
-    public sealed class RpcServer : IAsyncDisposable
+    public sealed class RpcSession : IAsyncDisposable
     {
         private readonly ConcurrentDictionary<(int serviceId, int methodId), RpcHandler> _handlers = new();
         private readonly ConcurrentDictionary<int, Task> _inflightRequests = new();
+        private readonly ConcurrentDictionary<int, object> _scopedServices = new();
+        private readonly RpcServiceRegistry? _registry;
         private readonly ITransport _transport;
         private readonly IRpcSerializer _serializer;
         private readonly bool _ownsTransport;
@@ -23,25 +25,46 @@ namespace ULinkRPC.Server
         private int _started;
         private int _transportDisposed;
 
-        public RpcServer(ITransport transport, IRpcSerializer serializer)
-            : this(transport, serializer, Guid.NewGuid().ToString("N"), false)
+        public RpcSession(ITransport transport, IRpcSerializer serializer)
+            : this(transport, serializer, registry: null, Guid.NewGuid().ToString("N"), false)
         {
         }
 
-        public RpcServer(ITransport transport, IRpcSerializer serializer, bool ownsTransport)
-            : this(transport, serializer, Guid.NewGuid().ToString("N"), ownsTransport)
+        public RpcSession(ITransport transport, IRpcSerializer serializer, bool ownsTransport)
+            : this(transport, serializer, registry: null, Guid.NewGuid().ToString("N"), ownsTransport)
         {
         }
 
-        public RpcServer(ITransport transport, IRpcSerializer serializer, string contextId)
-            : this(transport, serializer, contextId, false)
+        public RpcSession(ITransport transport, IRpcSerializer serializer, string contextId)
+            : this(transport, serializer, registry: null, contextId, false)
         {
         }
 
-        public RpcServer(ITransport transport, IRpcSerializer serializer, string contextId, bool ownsTransport)
+        public RpcSession(ITransport transport, IRpcSerializer serializer, string contextId, bool ownsTransport)
+            : this(transport, serializer, registry: null, contextId, ownsTransport)
+        {
+        }
+
+        public RpcSession(ITransport transport, IRpcSerializer serializer, RpcServiceRegistry registry)
+            : this(transport, serializer, registry, Guid.NewGuid().ToString("N"), false)
+        {
+        }
+
+        public RpcSession(ITransport transport, IRpcSerializer serializer, RpcServiceRegistry registry, bool ownsTransport)
+            : this(transport, serializer, registry, Guid.NewGuid().ToString("N"), ownsTransport)
+        {
+        }
+
+        public RpcSession(ITransport transport, IRpcSerializer serializer, RpcServiceRegistry registry, string contextId)
+            : this(transport, serializer, registry, contextId, false)
+        {
+        }
+
+        public RpcSession(ITransport transport, IRpcSerializer serializer, RpcServiceRegistry? registry, string contextId, bool ownsTransport)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            _registry = registry;
             _ownsTransport = ownsTransport;
             ContextId = contextId ?? throw new ArgumentNullException(nameof(contextId));
             RemoteEndPoint = ResolveRemoteEndPoint(_transport);
@@ -72,6 +95,18 @@ namespace ULinkRPC.Server
             _handlers[(serviceId, methodId)] = handler;
         }
 
+        public TService GetOrAddScopedService<TService>(int serviceId, Func<RpcSession, TService> factory)
+            where TService : class
+        {
+            ThrowIfDisposed();
+            if (factory is null) throw new ArgumentNullException(nameof(factory));
+
+            var service = _scopedServices.GetOrAdd(serviceId, _ =>
+                factory(this) ?? throw new InvalidOperationException($"Service factory returned null for service id {serviceId}."));
+
+            return (TService)service;
+        }
+
         public async ValueTask PushAsync<TArg>(int serviceId, int methodId, TArg arg, CancellationToken ct = default)
         {
             ThrowIfDisposed();
@@ -90,7 +125,7 @@ namespace ULinkRPC.Server
         {
             ThrowIfDisposed();
             if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
-                throw new InvalidOperationException("RpcServer already started.");
+                throw new InvalidOperationException("RpcSession already started.");
 
             try
             {
@@ -238,6 +273,37 @@ namespace ULinkRPC.Server
                     };
                 }
             }
+            else if (_registry is not null && _registry.TryGetHandler(req.ServiceId, req.MethodId, out var sessionHandler))
+            {
+                try
+                {
+                    resp = await sessionHandler(this, req, ct).ConfigureAwait(false);
+                    if (resp is null)
+                    {
+                        resp = new RpcResponseEnvelope
+                        {
+                            RequestId = req.RequestId,
+                            Status = RpcStatus.Exception,
+                            Payload = Array.Empty<byte>(),
+                            ErrorMessage = "RPC handler returned null response."
+                        };
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    resp = new RpcResponseEnvelope
+                    {
+                        RequestId = req.RequestId,
+                        Status = RpcStatus.Exception,
+                        Payload = Array.Empty<byte>(),
+                        ErrorMessage = ex.ToString()
+                    };
+                }
+            }
             else
             {
                 resp = new RpcResponseEnvelope
@@ -301,6 +367,8 @@ namespace ULinkRPC.Server
 
         private void ResetRuntimeState(CancellationTokenSource serverCts)
         {
+            _scopedServices.Clear();
+
             if (ReferenceEquals(_cts, serverCts))
             {
                 _cts = null;
@@ -359,6 +427,7 @@ namespace ULinkRPC.Server
 
             _loop = null;
             Interlocked.Exchange(ref _started, 0);
+            _scopedServices.Clear();
         }
 
         public async ValueTask DisposeAsync()
@@ -385,7 +454,7 @@ namespace ULinkRPC.Server
         private void ThrowIfDisposed()
         {
             if (Volatile.Read(ref _disposed) != 0)
-                throw new ObjectDisposedException(nameof(RpcServer));
+                throw new ObjectDisposedException(nameof(RpcSession));
         }
 
         private static IPEndPoint? ResolveRemoteEndPoint(ITransport transport)

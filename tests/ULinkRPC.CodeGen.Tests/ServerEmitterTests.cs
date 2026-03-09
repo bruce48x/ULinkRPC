@@ -54,7 +54,7 @@ public class ServerEmitterTests
 
         Assert.Contains("public static class PlayerServiceBinder", code);
         Assert.Contains("private const int ServiceId = 1;", code);
-        Assert.Contains("public static void Bind(RpcServer server, IPlayerService impl)", code);
+        Assert.Contains("public static void Bind(RpcServiceRegistry registry, IPlayerService impl)", code);
     }
 
     [Fact]
@@ -79,7 +79,8 @@ public class ServerEmitterTests
         var svc = MakeService(VoidMethod("Ping", 1));
         var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
 
-        Assert.Contains("server.Register(ServiceId, 1,", code);
+        Assert.Contains("registry.Register(ServiceId, 1,", code);
+        Assert.Contains("var impl = server.GetOrAddScopedService(ServiceId, implFactory);", code);
         Assert.DoesNotContain("Deserialize", code);
         Assert.Contains("await impl.Ping()", code);
     }
@@ -162,10 +163,8 @@ public class ServerEmitterTests
         var svc = MakeServiceWithCallback();
         var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
 
-        Assert.Contains("public static void Bind(RpcServer server, Func<IGameCallback, IGameSvc> implFactory)", code);
-        Assert.Contains("var callback = new GameCallbackProxy(server);", code);
-        Assert.Contains("var impl = implFactory(callback) ?? throw new InvalidOperationException", code);
-        Assert.Contains("Bind(server, impl);", code);
+        Assert.Contains("public static void Bind(RpcServiceRegistry registry, Func<IGameCallback, IGameSvc> implFactory)", code);
+        Assert.Contains("BindFactory(registry, session => implFactory(new GameCallbackProxy(session))", code);
     }
 
     [Fact]
@@ -174,7 +173,7 @@ public class ServerEmitterTests
         var svc = MakeService(VoidMethod("Ping", 1));
         var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
 
-        Assert.DoesNotContain("implFactory", code);
+        Assert.DoesNotContain("Func<IGameCallback, IGameSvc>", code);
     }
 
     #endregion
@@ -189,7 +188,7 @@ public class ServerEmitterTests
         var code = ServerEmitter.GenerateCallbackProxy(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
 
         Assert.Contains("public sealed class GameCallbackProxy : IGameCallback", code);
-        Assert.Contains("_ = _server.PushAsync<int>(ServiceId, 1, code).AsTask();", code);
+        Assert.Contains("_ = _session.PushAsync<int>(ServiceId, 1, code).AsTask();", code);
         Assert.DoesNotContain(".Wait()", code);
     }
 
@@ -199,7 +198,7 @@ public class ServerEmitterTests
         var svc = MakeServiceWithCallback(new RpcCallbackMethodInfo("OnPing", 1, []));
         var code = ServerEmitter.GenerateCallbackProxy(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
 
-        Assert.Contains("_ = _server.PushAsync<RpcVoid>(ServiceId, 1, default!).AsTask();", code);
+        Assert.Contains("_ = _session.PushAsync<RpcVoid>(ServiceId, 1, default!).AsTask();", code);
     }
 
     [Fact]
@@ -235,10 +234,10 @@ public class ServerEmitterTests
         var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
 
         Assert.Contains("public static class AllServicesBinder", code);
-        Assert.Contains("public static void BindAll(RpcServer server)", code);
-        Assert.Contains("PlayerServiceBinder.Bind(server, CreateService<IPlayerService>());", code);
-        Assert.Contains("public static void BindAll(RpcServer server, IPlayerService playerService)", code);
-        Assert.Contains("PlayerServiceBinder.Bind(server, playerService);", code);
+        Assert.Contains("public static void BindAll(RpcServiceRegistry registry)", code);
+        Assert.Contains("PlayerServiceBinder.BindFactory(registry, CreateServiceFactory<IPlayerService>());", code);
+        Assert.Contains("public static void BindAll(RpcServiceRegistry registry, IPlayerService playerService)", code);
+        Assert.Contains("PlayerServiceBinder.Bind(registry, playerService);", code);
     }
 
     [Fact]
@@ -251,10 +250,10 @@ public class ServerEmitterTests
 
         Assert.Contains("IPlayerService playerService", code);
         Assert.Contains("IChatService chatService", code);
-        Assert.Contains("PlayerServiceBinder.Bind(server, CreateService<IPlayerService>());", code);
-        Assert.Contains("ChatServiceBinder.Bind(server, CreateService<IChatService>());", code);
-        Assert.Contains("PlayerServiceBinder.Bind(server, playerService);", code);
-        Assert.Contains("ChatServiceBinder.Bind(server, chatService);", code);
+        Assert.Contains("PlayerServiceBinder.BindFactory(registry, CreateServiceFactory<IPlayerService>());", code);
+        Assert.Contains("ChatServiceBinder.BindFactory(registry, CreateServiceFactory<IChatService>());", code);
+        Assert.Contains("PlayerServiceBinder.Bind(registry, playerService);", code);
+        Assert.Contains("ChatServiceBinder.Bind(registry, chatService);", code);
     }
 
     [Fact]
@@ -264,10 +263,10 @@ public class ServerEmitterTests
         var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
 
         Assert.Contains("using System;", code);
-        Assert.Contains("public static void BindAll(RpcServer server)", code);
-        Assert.Contains("GameSvcBinder.Bind(server, CreateServiceFactory<IGameSvc, IGameCallback>());", code);
-        Assert.Contains("public static void BindAll(RpcServer server, Func<IGameCallback, IGameSvc> gameSvcFactory)", code);
-        Assert.Contains("GameSvcBinder.Bind(server, gameSvcFactory);", code);
+        Assert.Contains("public static void BindAll(RpcServiceRegistry registry)", code);
+        Assert.Contains("GameSvcBinder.Bind(registry, CreateCallbackServiceFactory<IGameSvc, IGameCallback>());", code);
+        Assert.Contains("public static void BindAll(RpcServiceRegistry registry, Func<IGameCallback, IGameSvc> gameSvcFactory)", code);
+        Assert.Contains("GameSvcBinder.Bind(registry, gameSvcFactory);", code);
     }
 
     #endregion
