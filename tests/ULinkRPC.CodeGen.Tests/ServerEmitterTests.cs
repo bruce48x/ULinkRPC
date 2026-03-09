@@ -235,6 +235,8 @@ public class ServerEmitterTests
         var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
 
         Assert.Contains("public static class AllServicesBinder", code);
+        Assert.Contains("public static void BindAll(RpcServer server)", code);
+        Assert.Contains("PlayerServiceBinder.Bind(server, CreateService<IPlayerService>());", code);
         Assert.Contains("public static void BindAll(RpcServer server, IPlayerService playerService)", code);
         Assert.Contains("PlayerServiceBinder.Bind(server, playerService);", code);
     }
@@ -249,17 +251,21 @@ public class ServerEmitterTests
 
         Assert.Contains("IPlayerService playerService", code);
         Assert.Contains("IChatService chatService", code);
+        Assert.Contains("PlayerServiceBinder.Bind(server, CreateService<IPlayerService>());", code);
+        Assert.Contains("ChatServiceBinder.Bind(server, CreateService<IChatService>());", code);
         Assert.Contains("PlayerServiceBinder.Bind(server, playerService);", code);
         Assert.Contains("ChatServiceBinder.Bind(server, chatService);", code);
     }
 
     [Fact]
-    public void AllServicesBinder_CallbackService_UsesFactoryBinding()
+    public void AllServicesBinder_CallbackService_GeneratesAutomaticAndExplicitFactoryBinding()
     {
         var svc = MakeServiceWithCallback();
         var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
 
         Assert.Contains("using System;", code);
+        Assert.Contains("public static void BindAll(RpcServer server)", code);
+        Assert.Contains("GameSvcBinder.Bind(server, CreateServiceFactory<IGameSvc, IGameCallback>());", code);
         Assert.Contains("public static void BindAll(RpcServer server, Func<IGameCallback, IGameSvc> gameSvcFactory)", code);
         Assert.Contains("GameSvcBinder.Bind(server, gameSvcFactory);", code);
     }

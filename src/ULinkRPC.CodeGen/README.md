@@ -26,7 +26,7 @@ Generated Unity client output includes a mandatory grouped facade `RpcApi`; busi
 Unity generated code namespace is derived from Unity output directory (for example `Assets/Scripts/Rpc/RpcGenerated` -> `Rpc.Generated`).
 Generated files now inherit `using` directives declared by contract sources so referenced types resolve correctly.
 Contract parsing is implemented via Roslyn syntax trees for better correctness across C# language forms.
-Generated binders reference `ULinkRPC.Core` + `ULinkRPC.Server` and include both `Bind(RpcServer, IYourService)` and delegate-based `Bind(...)` overloads. For `IRpcService<TSelf, TCallback>` services, server binder also emits `Bind(RpcServer, Func<TCallback, TSelf>)` to wire callback proxy and implementation together, and generated `AllServicesBinder` will call that callback-aware overload automatically.
+Generated binders reference `ULinkRPC.Core` + `ULinkRPC.Server` and include both `Bind(RpcServer, IYourService)` and delegate-based `Bind(...)` overloads. For `IRpcService<TSelf, TCallback>` services, server binder also emits `Bind(RpcServer, Func<TCallback, TSelf>)` to wire callback proxy and implementation together. Generated `AllServicesBinder` includes a convenience overload `BindAll(RpcServer server)` that reflects over the current assembly to locate concrete service implementations automatically; callback services prefer a single-parameter constructor accepting `TCallback`, and fall back to a public parameterless constructor.
 
 ### Options
 

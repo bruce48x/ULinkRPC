@@ -3,6 +3,8 @@
 #pragma warning disable
 
 using System;
+using System.Linq;
+using System.Reflection;
 using Game.Rpc.Contracts;
 using ULinkRPC.Server;
 
@@ -10,9 +12,66 @@ namespace Game.Rpc.Server.Generated
 {
     public static class AllServicesBinder
     {
+        public static void BindAll(RpcServer server)
+        {
+            PlayerServiceBinder.Bind(server, CreateServiceFactory<IPlayerService, IPlayerCallback>());
+        }
+
         public static void BindAll(RpcServer server, Func<IPlayerCallback, IPlayerService> playerServiceFactory)
         {
             PlayerServiceBinder.Bind(server, playerServiceFactory);
+        }
+
+        private static TService CreateService<TService>()
+        {
+            var implType = ResolveImplementationType(typeof(TService));
+            var ctor = implType.GetConstructor(Type.EmptyTypes);
+            if (ctor is null)
+            {
+                throw new InvalidOperationException($"No public parameterless constructor found for service implementation '{implType.FullName}'.");
+            }
+            return (TService)ctor.Invoke(Array.Empty<object?>());
+        }
+
+        private static Func<TCallback, TService> CreateServiceFactory<TService, TCallback>()
+        {
+            var implType = ResolveImplementationType(typeof(TService));
+            var callbackType = typeof(TCallback);
+            var callbackCtor = implType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+                .SingleOrDefault(static ctor =>
+                {
+                    var parameters = ctor.GetParameters();
+                    return parameters.Length == 1 && parameters[0].ParameterType.IsAssignableFrom(typeof(TCallback));
+                });
+            if (callbackCtor is not null)
+            {
+                return callback => (TService)callbackCtor.Invoke([callback!]);
+            }
+
+            var defaultCtor = implType.GetConstructor(Type.EmptyTypes);
+            if (defaultCtor is not null)
+            {
+                return _ => (TService)defaultCtor.Invoke(Array.Empty<object?>());
+            }
+
+            throw new InvalidOperationException($"No suitable public constructor found for service implementation '{implType.FullName}'. Expected either a parameterless constructor or one accepting '{callbackType.FullName}'.");
+        }
+
+        private static Type ResolveImplementationType(Type serviceType)
+        {
+            var implementations = typeof(AllServicesBinder).Assembly.GetTypes()
+                .Where(type => !type.IsAbstract && !type.IsInterface && serviceType.IsAssignableFrom(type))
+                .ToArray();
+            if (implementations.Length == 1)
+            {
+                return implementations[0];
+            }
+            if (implementations.Length == 0)
+            {
+                throw new InvalidOperationException($"No service implementation found for '{serviceType.FullName}' in assembly '{typeof(AllServicesBinder).Assembly.GetName().Name}'.");
+            }
+            var names = string.Join(", ", implementations.Select(static type => type.FullName));
+            throw new InvalidOperationException($"Multiple service implementations found for '{serviceType.FullName}': {names}. Use the BindAll overload that accepts explicit service instances or factories instead.");
         }
     }
 }

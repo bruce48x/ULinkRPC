@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
 using Game.Rpc.Server.Generated;
-using RpcCall.MemoryPack.Server.Services;
 using ULinkRPC.Core;
 using ULinkRPC.Server;
 using ULinkRPC.Serializer.MemoryPack;
@@ -111,7 +110,7 @@ async Task RunConnectionAsync(ITransport transport, string remote, CancellationT
     {
         server = new RpcServer(transport, new MemoryPackRpcSerializer());
 
-        PlayerServiceBinder.Bind(server, callback => new PlayerService(callback));
+        AllServicesBinder.BindAll(server);
         await server.StartAsync(hostCt).ConfigureAwait(false);
         await server.WaitForCompletionAsync().ConfigureAwait(false);
     }
