@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Sockets.Kcp;
-using System.Net.WebSockets;
 using System.Text;
 using ULinkRPC.Core;
 using ULinkRPC.Server;
@@ -29,7 +28,7 @@ public class TransportModeTests
         {
             var ctx = await WithTimeout(listener.GetContextAsync(), cts.Token);
             var wsContext = await WithTimeout(ctx.AcceptWebSocketAsync(null), cts.Token);
-            await using var transport = new WebSocketServerTransport(wsContext.WebSocket);
+            await using var transport = new WsServerTransport(wsContext.WebSocket);
 
             var payload = await WithTimeout(transport.ReceiveFrameAsync(cts.Token), cts.Token);
             Assert.Equal("ping-ws", Encoding.UTF8.GetString(payload.Span));
@@ -41,32 +40,11 @@ public class TransportModeTests
 
         try
         {
-            using var client = new ClientWebSocket();
-            await WithTimeout(
-                client.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/rpc/"), cts.Token),
-                cts.Token);
-
-            await WithTimeout(
-                client.SendAsync(
-                    LengthPrefix.Pack(Encoding.UTF8.GetBytes("ping-ws")),
-                    WebSocketMessageType.Binary,
-                    true,
-                    cts.Token),
-                cts.Token);
-
-            var response = await WithTimeout(ReceiveWebSocketFrameAsync(client, cts.Token), cts.Token);
+            await using var client = new WsTransport($"ws://127.0.0.1:{port}/rpc/");
+            await WithTimeout(client.ConnectAsync(cts.Token), cts.Token);
+            await WithTimeout(client.SendFrameAsync(Encoding.UTF8.GetBytes("ping-ws"), cts.Token), cts.Token);
+            var response = await WithTimeout(client.ReceiveFrameAsync(cts.Token), cts.Token);
             Assert.Equal("pong-ws", Encoding.UTF8.GetString(response.Span));
-
-            try
-            {
-                if (client.State == WebSocketState.Open || client.State == WebSocketState.CloseReceived)
-                    await WithTimeout(
-                        client.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", cts.Token),
-                        cts.Token);
-            }
-            catch
-            {
-            }
 
             await WithTimeout(serverTask, cts.Token);
         }
@@ -133,38 +111,6 @@ public class TransportModeTests
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
-    }
-
-    private static async Task<ReadOnlyMemory<byte>> ReceiveWebSocketFrameAsync(ClientWebSocket ws, CancellationToken ct)
-    {
-        var accum = Array.Empty<byte>();
-
-        while (true)
-        {
-            var buffer = ArrayPool<byte>.Shared.Rent(8 * 1024);
-            try
-            {
-                var res = await ws.ReceiveAsync(buffer, ct);
-                if (res.MessageType == WebSocketMessageType.Close)
-                    throw new IOException("WebSocket closed.");
-
-                var oldLen = accum.Length;
-                Array.Resize(ref accum, oldLen + res.Count);
-                Array.Copy(buffer, 0, accum, oldLen, res.Count);
-
-                var seq = new ReadOnlySequence<byte>(accum);
-                if (LengthPrefix.TryUnpack(ref seq, out var payloadSeq))
-                {
-                    var payload = payloadSeq.ToArray();
-                    accum = seq.ToArray();
-                    return payload;
-                }
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-        }
     }
 
     private static async Task WithTimeout(Task task, CancellationToken ct)
@@ -405,4 +351,3 @@ public class TransportModeTests
         }
     }
 }
-

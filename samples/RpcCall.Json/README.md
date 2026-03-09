@@ -1,6 +1,6 @@
 # RpcCall.Json (Minimal Tutorial)
 
-最简 RPC 示例，基于 TCP 传输 + JSON 序列化
+最简 RPC 示例，基于 WebSocket 传输 + JSON 序列化
 
 ## 结构
 
@@ -39,4 +39,4 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -SkipBuild
 
 打开 `samples/RpcCall.Json/RpcCall.Json.Unity`，进入场景 `Assets/Scenes/TcpConnectionTest.unity`，点击 Play。
 
-默认会自动连接 `127.0.0.1:20000` 并执行 `Login` + `Ping`，同时接收服务端通过 `IPlayerCallback.OnNotify` 推送的回调消息。
+默认会自动连接 `ws://127.0.0.1:20000/ws` 并执行 `Login` + `Ping`，同时接收服务端通过 `IPlayerCallback.OnNotify` 推送的回调消息。

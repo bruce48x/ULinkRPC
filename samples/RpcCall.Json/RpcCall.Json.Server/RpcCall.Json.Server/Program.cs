@@ -1,17 +1,20 @@
 using System.Net;
-using System.Net.Sockets;
+using System.Net.WebSockets;
 using Game.Rpc.Server.Generated;
-using ULinkRPC.Core;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
 using ULinkRPC.Server;
 using ULinkRPC.Serializer.Json;
-using ULinkRPC.Transport.Tcp;
+using ULinkRPC.Transport.WebSocket;
 
-const int defaultTcpPort = 20000;
-var tcpPort = defaultTcpPort;
+const int defaultPort = 20000;
+const string webSocketPath = "/ws";
+var port = defaultPort;
 var serviceRegistry = new RpcServiceRegistry();
 AllServicesBinder.BindAll(serviceRegistry);
 if (args.Length > 0 && int.TryParse(args[0], out var p))
-    tcpPort = p;
+    port = p;
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
 {
@@ -19,50 +22,48 @@ Console.CancelKeyPress += (_, e) =>
     cts.Cancel();
 };
 
-Console.WriteLine($"RpcCall Server TCP listening on 0.0.0.0:{tcpPort}. Press Ctrl+C to stop.");
+var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
-var tcpTask = RunTcpListenerAsync(tcpPort, cts.Token);
+var app = builder.Build();
+app.UseWebSockets();
+app.Map(webSocketPath, wsApp =>
+{
+    wsApp.Run(context => HandleWebSocketAsync(context, cts.Token));
+});
+app.MapGet("/", () => Results.Text($"RpcCall.Json WebSocket endpoint: ws://127.0.0.1:{port}{webSocketPath}"));
 
 try
 {
-    await tcpTask.ConfigureAwait(false);
+    Console.WriteLine($"RpcCall Server WebSocket listening on ws://0.0.0.0:{port}{webSocketPath}. Press Ctrl+C to stop.");
+    await app.StartAsync(cts.Token).ConfigureAwait(false);
+    await Task.Delay(Timeout.InfiniteTimeSpan, cts.Token).ConfigureAwait(false);
+}
+catch (OperationCanceledException)
+{
+    // Ctrl+C
 }
 finally
 {
+    await app.StopAsync(CancellationToken.None).ConfigureAwait(false);
     Console.WriteLine("Server stopped.");
 }
 
-async Task RunTcpListenerAsync(int port, CancellationToken hostCt)
+async Task HandleWebSocketAsync(HttpContext context, CancellationToken hostCt)
 {
-    var listener = new TcpListener(IPAddress.Any, port);
-    listener.Start();
-
-    try
+    if (!context.WebSockets.IsWebSocketRequest)
     {
-        while (!hostCt.IsCancellationRequested)
-        {
-            TcpClient client;
-            try
-            {
-                client = await listener.AcceptTcpClientAsync(hostCt).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-
-            var transport = new TcpServerTransport(client);
-            _ = RunConnectionAsync(transport, client.Client.RemoteEndPoint?.ToString() ?? "?", hostCt);
-        }
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await context.Response.WriteAsync("Expected a WebSocket upgrade request.", hostCt).ConfigureAwait(false);
+        return;
     }
-    finally
-    {
-        listener.Stop();
-    }
-}
 
-async Task RunConnectionAsync(ITransport transport, string remote, CancellationToken hostCt)
-{
+    using var webSocket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
+    var remoteEndPoint = context.Connection.RemoteIpAddress is null
+        ? null
+        : new IPEndPoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort);
+    var remote = remoteEndPoint?.ToString() ?? "?";
+    var transport = new WsServerTransport(webSocket, remoteEndPoint);
     RpcSession? session = null;
 
     try

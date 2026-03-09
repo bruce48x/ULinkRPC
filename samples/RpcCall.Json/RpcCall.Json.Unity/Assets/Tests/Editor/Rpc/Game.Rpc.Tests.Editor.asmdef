@@ -16,7 +16,6 @@
     "nunit.framework.dll",
     "ULinkRPC.Core.dll",
     "ULinkRPC.Client.dll",
-    "ULinkRPC.Transport.Tcp.dll",
     "ULinkRPC.Serializer.Json.dll",
     "System.Text.Json.dll",
     "System.Text.Encodings.Web.dll",

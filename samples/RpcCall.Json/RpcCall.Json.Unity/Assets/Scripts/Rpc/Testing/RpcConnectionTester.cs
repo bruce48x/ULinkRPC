@@ -5,7 +5,7 @@ using Game.Rpc.Contracts;
 using Rpc.Generated;
 using ULinkRPC.Client;
 using ULinkRPC.Serializer.Json;
-using ULinkRPC.Transport.Tcp;
+using ULinkRPC.Transport.WebSocket;
 using UnityEngine;
 
 namespace Rpc.Testing
@@ -22,8 +22,7 @@ namespace Rpc.Testing
         }
 
         [Header("Transport")]
-        public string Host = "127.0.0.1";
-        public int Port = 20000;
+        public string ServerUrl = "ws://127.0.0.1:20000/ws";
 
         [Header("Login")] public string Account = "a";
 
@@ -164,7 +163,7 @@ namespace Rpc.Testing
 
         private ULinkRPC.Core.ITransport CreateTransport()
         {
-            return new TcpTransport(Host, Port);
+            return new WsTransport(ServerUrl);
         }
     }
 }

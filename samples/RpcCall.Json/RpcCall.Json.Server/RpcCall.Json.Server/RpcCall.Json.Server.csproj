@@ -13,12 +13,16 @@
         <Compile Include="..\..\RpcCall.Json.Unity\Packages\com.samples.contracts\**\*.cs"/>
         <ProjectReference Include="..\..\..\..\src\ULinkRPC.Server\ULinkRPC.Server.csproj" />
         <ProjectReference Include="..\..\..\..\src\ULinkRPC.Serializer.Json\ULinkRPC.Serializer.Json.csproj" />
-        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.Tcp\ULinkRPC.Transport.Tcp.csproj" />
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.WebSocket\ULinkRPC.Transport.WebSocket.csproj" />
     </ItemGroup>
 
     <ItemGroup>
         <Compile Remove="Runtime\**\*.cs" />
         <Compile Remove="Transports\**\*.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
     </ItemGroup>
 
 </Project>
