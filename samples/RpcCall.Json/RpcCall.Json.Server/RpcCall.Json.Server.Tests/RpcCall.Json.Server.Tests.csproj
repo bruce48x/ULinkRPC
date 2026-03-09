@@ -26,10 +26,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RpcCall.MemoryPack.Server\RpcCall.MemoryPack.Server.csproj" />
-    <ProjectReference Include="..\..\..\..\src\ULinkRPC.Serializer.Json\ULinkRPC.Serializer.Json.csproj" />
-    <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.Kcp\ULinkRPC.Transport.Kcp.csproj" />
+    <ProjectReference Include="..\RpcCall.Json.Server\RpcCall.Json.Server.csproj" />
+    <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.WebSocket\ULinkRPC.Transport.WebSocket.csproj" />
   </ItemGroup>
 
 </Project>
-

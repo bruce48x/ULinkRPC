@@ -25,7 +25,6 @@ namespace Rpc.Testing
         public enum TransportMode
         {
             Tcp,
-            WebSocket,
             Kcp
         }
 
@@ -33,8 +32,6 @@ namespace Rpc.Testing
 
         public string Host = "127.0.0.1";
         public int Port = 20000;
-        public string WsUrl = "ws://127.0.0.1:20001/rpc";
-
         [Header("Login")] public string Account = "a";
 
         public string Password = "b";
@@ -153,7 +150,6 @@ namespace Rpc.Testing
             return Kind switch
             {
                 TransportMode.Tcp => new TcpTransport(Host, Port),
-                TransportMode.WebSocket => throw new NotSupportedException("WebSocket client transport not implemented yet."),
                 TransportMode.Kcp => throw new NotSupportedException("KCP client transport not implemented yet."),
                 _ => throw new ArgumentOutOfRangeException()
             };

@@ -10,7 +10,7 @@ namespace Game.Rpc.Contracts
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
         [RpcMethod(2)]
-        ValueTask PingAsync();
+        ValueTask<int> IncrStep();
     }
 
     public interface IPlayerCallback

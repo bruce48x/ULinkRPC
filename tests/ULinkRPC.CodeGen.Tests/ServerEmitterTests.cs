@@ -269,6 +269,15 @@ public class ServerEmitterTests
         Assert.Contains("GameSvcBinder.Bind(registry, gameSvcFactory);", code);
     }
 
+    [Fact]
+    public void AllServicesBinder_AutoDiscovery_IgnoresNestedImplementationTypes()
+    {
+        var svc = MakeServiceWithCallback();
+        var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
+
+        Assert.Contains("!type.IsNested", code);
+    }
+
     #endregion
 
     private static RpcServiceInfo MakeServiceWithCallback(params RpcCallbackMethodInfo[] cbMethods)

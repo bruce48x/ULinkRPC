@@ -14,20 +14,20 @@ namespace Game.Rpc.Server.Generated
     {
         private const int ServiceId = 1;
 
-        public static void Bind(RpcServiceRegistry registry, Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask> pingAsyncHandler)
+        public static void Bind(RpcServiceRegistry registry, Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask<int>> incrStepHandler)
         {
-            BindFactory(registry, _ => new DelegateImpl(loginAsyncHandler, pingAsyncHandler));
+            BindFactory(registry, _ => new DelegateImpl(loginAsyncHandler, incrStepHandler));
         }
 
         private sealed class DelegateImpl : IPlayerService
         {
             private readonly Func<LoginRequest, ValueTask<LoginReply>> _loginAsyncHandler;
-            private readonly Func<ValueTask> _pingAsyncHandler;
+            private readonly Func<ValueTask<int>> _incrStepHandler;
 
-            public DelegateImpl(Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask> pingAsyncHandler)
+            public DelegateImpl(Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask<int>> incrStepHandler)
             {
                 _loginAsyncHandler = loginAsyncHandler ?? throw new ArgumentNullException(nameof(loginAsyncHandler));
-                _pingAsyncHandler = pingAsyncHandler ?? throw new ArgumentNullException(nameof(pingAsyncHandler));
+                _incrStepHandler = incrStepHandler ?? throw new ArgumentNullException(nameof(incrStepHandler));
             }
 
             public ValueTask<LoginReply> LoginAsync(LoginRequest req)
@@ -35,9 +35,9 @@ namespace Game.Rpc.Server.Generated
                 return _loginAsyncHandler(req);
             }
 
-            public ValueTask PingAsync()
+            public ValueTask<int> IncrStep()
             {
-                return _pingAsyncHandler();
+                return _incrStepHandler();
             }
 
         }
@@ -71,8 +71,8 @@ namespace Game.Rpc.Server.Generated
             registry.Register(ServiceId, 2, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                await impl.PingAsync();
-                return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = Array.Empty<byte>() };
+                var resp = await impl.IncrStep();
+                return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 
         }

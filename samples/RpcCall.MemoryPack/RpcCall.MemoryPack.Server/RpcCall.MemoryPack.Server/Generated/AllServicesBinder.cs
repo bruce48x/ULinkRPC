@@ -60,7 +60,7 @@ namespace Game.Rpc.Server.Generated
         private static Type ResolveImplementationType(Type serviceType)
         {
             var implementations = typeof(AllServicesBinder).Assembly.GetTypes()
-                .Where(type => !type.IsAbstract && !type.IsInterface && serviceType.IsAssignableFrom(type))
+                .Where(type => !type.IsAbstract && !type.IsInterface && !type.IsNested && serviceType.IsAssignableFrom(type))
                 .ToArray();
             if (implementations.Length == 1)
             {

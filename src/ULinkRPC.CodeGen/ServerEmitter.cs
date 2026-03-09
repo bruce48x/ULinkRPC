@@ -287,7 +287,7 @@ internal static class ServerEmitter
 
         w.OpenBlock("private static Type ResolveImplementationType(Type serviceType)");
         w.Line("var implementations = typeof(AllServicesBinder).Assembly.GetTypes()");
-        w.Line("    .Where(type => !type.IsAbstract && !type.IsInterface && serviceType.IsAssignableFrom(type))");
+        w.Line("    .Where(type => !type.IsAbstract && !type.IsInterface && !type.IsNested && serviceType.IsAssignableFrom(type))");
         w.Line("    .ToArray();");
         w.OpenBlock("if (implementations.Length == 1)");
         w.Line("return implementations[0];");

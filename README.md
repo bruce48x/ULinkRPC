@@ -1,4 +1,4 @@
-# ULinkRPC (Unity 2022 LTS)
+# ULinkRPC
 
 This repository is a starter skeleton for a **strongly-typed RPC** framework for **Unity + .NET**, designed to work with:
 - iOS (IL2CPP) and HybridCLR (hot-update)
