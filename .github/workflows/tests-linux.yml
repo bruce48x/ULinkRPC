@@ -28,6 +28,9 @@ jobs:
           ls
           find tests -maxdepth 2 -name "*.csproj" -print
 
+      - name: Ensure local NuGet feed path exists
+        run: mkdir -p artifacts
+
       - name: Restore test projects
         run: |
           for project in $(find tests -maxdepth 2 -name "*.csproj" -print); do
