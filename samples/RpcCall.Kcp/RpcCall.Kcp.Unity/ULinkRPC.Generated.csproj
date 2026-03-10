@@ -231,14 +231,14 @@
     <Reference Include="ULinkRPC.Core">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Core.0.4.0\lib\netstandard2.1\ULinkRPC.Core.dll</HintPath>
     </Reference>
-    <Reference Include="ULinkRPC.Client">
-      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Client.0.5.0\lib\netstandard2.1\ULinkRPC.Client.dll</HintPath>
-    </Reference>
     <Reference Include="NuGetForUnity.PluginAPI">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Library\PackageCache\com.github-glitchenzo.nugetforunity@4.5.0\Editor\PluginAPI\NuGetForUnity.PluginAPI.dll</HintPath>
     </Reference>
     <Reference Include="MemoryPack.Core">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="ULinkRPC.Client">
+      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Client.0.5.0\lib\netstandard2.1\ULinkRPC.Client.dll</HintPath>
     </Reference>
     <Reference Include="ULinkRPC.Transport.Kcp">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Transport.Kcp.0.7.0\lib\netstandard2.1\ULinkRPC.Transport.Kcp.dll</HintPath>

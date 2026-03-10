@@ -13,6 +13,12 @@
       "source": "embedded",
       "dependencies": {}
     },
+    "com.ulinkrpc.samples.testing": {
+      "version": "file:../../../Shared/com.ulinkrpc.samples.testing",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {}
+    },
     "com.unity.ext.nunit": {
       "version": "1.0.6",
       "depth": 1,

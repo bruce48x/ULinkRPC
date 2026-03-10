@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/ULinkRPC.Client/ULinkRPC.Client.csproj" />
+    <ProjectReference Include="../../src/ULinkRPC.Client.Unity/ULinkRPC.Client.Unity.csproj" />
     <ProjectReference Include="../../src/ULinkRPC.Core/ULinkRPC.Core.csproj" />
     <ProjectReference Include="../../src/ULinkRPC.Server/ULinkRPC.Server.csproj" />
     <ProjectReference Include="../../src/ULinkRPC.Serializer.Json/ULinkRPC.Serializer.Json.csproj" />

@@ -80,6 +80,16 @@ public class GeneratedCodeCompilationTests
         }
         """;
 
+    private const string UnityClientRuntimeStubs = """
+        namespace ULinkRPC.Client.Unity
+        {
+            public sealed class RpcUnityClientOptions
+            {
+                public ULinkRPC.Client.RpcClientBuilder CreateBuilder() => null!;
+            }
+        }
+        """;
+
     private const string ServerRuntimeStubs = """
         using System;
         using System.Threading;
@@ -139,6 +149,7 @@ public class GeneratedCodeCompilationTests
             CSharpSyntaxTree.ParseText(CoreRuntimeStubs, path: "CoreStubs.cs"),
             CSharpSyntaxTree.ParseText(contractCode, path: "Contracts.cs"),
             CSharpSyntaxTree.ParseText(ClientRuntimeStubs, path: "ClientStubs.cs"),
+            CSharpSyntaxTree.ParseText(UnityClientRuntimeStubs, path: "UnityClientStubs.cs"),
         };
         for (var i = 0; i < generatedCodeFiles.Length; i++)
             trees.Add(CSharpSyntaxTree.ParseText(generatedCodeFiles[i], path: $"Generated{i}.cs"));

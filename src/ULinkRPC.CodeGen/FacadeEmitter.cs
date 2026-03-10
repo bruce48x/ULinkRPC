@@ -27,6 +27,7 @@ internal static class FacadeEmitter
         w.WriteUsings(contractUsings);
         w.Line($"using {clientRuntimeUsing};");
         w.Line($"using {coreRuntimeUsing};");
+        w.Line("using ULinkRPC.Client.Unity;");
         w.Line();
         w.OpenBlock($"namespace {ns}");
 
@@ -83,6 +84,23 @@ internal static class FacadeEmitter
         {
             var forwardedArgs = string.Join(", ", callbacks.Select(static binding => binding.ParameterName));
             w.Line($"return builder.ConnectTypedAsync(static client => new {connectionTypeName}(client), client => BindCallbacks(client, {forwardedArgs}), ct);");
+        }
+        w.CloseBlock();
+        w.Line();
+
+        var unityConnectSignature = callbacks.Count == 0
+            ? $"public static ValueTask<{connectionTypeName}> ConnectAsync(RpcUnityClientOptions options, CancellationToken ct = default)"
+            : $"public static ValueTask<{connectionTypeName}> ConnectAsync(RpcUnityClientOptions options, {GetConnectParameterSignature(callbacks)}, CancellationToken ct = default)";
+        w.OpenBlock(unityConnectSignature);
+        w.Line("if (options is null) throw new ArgumentNullException(nameof(options));");
+        if (callbacks.Count == 0)
+        {
+            w.Line("return ConnectAsync(options.CreateBuilder(), ct);");
+        }
+        else
+        {
+            var forwardedArgs = string.Join(", ", callbacks.Select(static binding => $"{binding.ParameterName}: {binding.ParameterName}"));
+            w.Line($"return ConnectAsync(options.CreateBuilder(), {forwardedArgs}, ct);");
         }
         w.CloseBlock();
         w.Line();

@@ -1,0 +1,7 @@
+{
+  "name": "com.ulinkrpc.samples.testing",
+  "displayName": "ULinkRPC Sample Testing",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "description": "Shared runtime testing utilities used by the ULinkRPC Unity samples."
+}

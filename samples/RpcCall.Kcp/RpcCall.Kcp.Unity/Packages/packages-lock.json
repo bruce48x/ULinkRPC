@@ -1,17 +1,23 @@
 {
   "dependencies": {
-    "com.samples.contracts": {
-      "version": "file:com.samples.contracts",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
-    },
     "com.github-glitchenzo.nugetforunity": {
       "version": "4.5.0",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://package.openupm.com"
+    },
+    "com.samples.contracts": {
+      "version": "file:com.samples.contracts",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.ulinkrpc.samples.testing": {
+      "version": "file:../../../Shared/com.ulinkrpc.samples.testing",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {}
     },
     "com.unity.ext.nunit": {
       "version": "1.0.6",

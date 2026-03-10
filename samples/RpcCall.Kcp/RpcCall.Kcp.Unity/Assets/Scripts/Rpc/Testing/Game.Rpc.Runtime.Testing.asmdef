@@ -1,10 +1,8 @@
 {
   "name": "ULinkRPC.Testing",
   "references": [
-    "Game.Rpc.Contracts",
-    "ULinkRPC.Core",
+    "ULinkRPC.SampleTesting",
     "ULinkRPC.Client",
-    "ULinkRPC.Generated"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -49,6 +49,7 @@ public class FacadeEmitterTests
 
         Assert.Contains("public sealed class RpcConnection : IAsyncDisposable", code);
         Assert.Contains("public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, IPlayerCallback? playerCallback = null, CancellationToken ct = default)", code);
+        Assert.Contains("public static ValueTask<RpcConnection> ConnectAsync(RpcUnityClientOptions options, IPlayerCallback? playerCallback = null, CancellationToken ct = default)", code);
         Assert.Contains("PlayerCallbackBinder.Bind(client, playerCallback);", code);
     }
 
