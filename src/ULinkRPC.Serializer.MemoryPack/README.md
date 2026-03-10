@@ -15,3 +15,12 @@ using ULinkRPC.Serializer.MemoryPack;
 
 var serializer = new MemoryPackRpcSerializer();
 ```
+
+On `net10.0`, `ULinkRPC.Server` integration also adds:
+
+```csharp
+await RpcServerHostBuilder.Create()
+    .UseMemoryPack()
+    .UseTcp()
+    .RunAsync();
+```

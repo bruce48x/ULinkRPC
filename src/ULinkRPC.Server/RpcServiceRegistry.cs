@@ -9,6 +9,8 @@ public sealed class RpcServiceRegistry
 {
     private readonly ConcurrentDictionary<(int serviceId, int methodId), RpcSessionHandler> _handlers = new();
 
+    public bool IsEmpty => _handlers.IsEmpty;
+
     public void Register(int serviceId, int methodId, RpcSessionHandler handler)
     {
         if (handler is null) throw new ArgumentNullException(nameof(handler));

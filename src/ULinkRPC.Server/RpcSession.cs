@@ -167,6 +167,20 @@ namespace ULinkRPC.Server
             await WaitForInFlightRequestsAsync().ConfigureAwait(false);
         }
 
+        public async ValueTask RunAsync(CancellationToken ct = default)
+        {
+            await StartAsync(ct).ConfigureAwait(false);
+
+            try
+            {
+                await WaitForCompletionAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await StopAsync().ConfigureAwait(false);
+            }
+        }
+
         private async Task LoopAsync(CancellationTokenSource? serverCts)
         {
             if (serverCts is null) return;

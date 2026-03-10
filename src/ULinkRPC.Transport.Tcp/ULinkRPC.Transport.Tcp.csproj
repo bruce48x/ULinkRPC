@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Transport.Tcp</PackageId>
-    <Version>0.4.2</Version>
+    <Version>0.5.0</Version>
     <Authors>ULinkRPC</Authors>
     <Description>TCP client/server transport implementations for ULinkRPC.</Description>
     <PackageTags>rpc;unity;transport;tcp</PackageTags>
@@ -15,6 +15,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ULinkRPC.Core\ULinkRPC.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <ProjectReference Include="..\ULinkRPC.Server\ULinkRPC.Server.csproj" />
   </ItemGroup>
 
   <ItemGroup>

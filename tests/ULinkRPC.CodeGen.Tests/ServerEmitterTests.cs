@@ -233,6 +233,7 @@ public class ServerEmitterTests
         var svc = MakeService(VoidMethod("Ping", 1));
         var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
 
+        Assert.Contains("[assembly: RpcGeneratedServicesBinder(typeof(S.AllServicesBinder))]", code);
         Assert.Contains("public static class AllServicesBinder", code);
         Assert.Contains("public static void BindAll(RpcServiceRegistry registry)", code);
         Assert.Contains("PlayerServiceBinder.BindFactory(registry, CreateServiceFactory<IPlayerService>());", code);

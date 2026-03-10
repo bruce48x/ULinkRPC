@@ -18,8 +18,27 @@ dotnet add package ULinkRPC.Server
 
 - `RpcServiceRegistry`
 - `RpcSession`
+- `RpcServerHostBuilder`
+- `RpcServerHost`
+- `RpcGeneratedServiceBinder`
 
-Pass `ITransport` and `IRpcSerializer` explicitly:
+## Recommended Usage
+
+Use `RpcServerHostBuilder` to compose serializer, transport, generated binders, and security in one place:
+
+```csharp
+await RpcServerHostBuilder.Create()
+    .UseCommandLine(args)
+    .UseMemoryPack()
+    .UseTcp(defaultPort: 20000)
+    .RunAsync();
+```
+
+When the entry assembly contains code-generated `AllServicesBinder`, the builder binds it automatically.
+
+## Low-Level Usage
+
+Pass `ITransport` and `IRpcSerializer` explicitly when you need a manually managed per-connection session:
 
 ```csharp
 var session = new RpcSession(transport, serializer);

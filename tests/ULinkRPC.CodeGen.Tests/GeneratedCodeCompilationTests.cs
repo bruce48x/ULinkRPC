@@ -52,6 +52,12 @@ public class GeneratedCodeCompilationTests
 
         namespace ULinkRPC.Server
         {
+            [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+            public sealed class RpcGeneratedServicesBinderAttribute : Attribute
+            {
+                public RpcGeneratedServicesBinderAttribute(Type binderType) { }
+            }
+
             public sealed class RpcServiceRegistry
             {
                 public void Register(int serviceId, int methodId,

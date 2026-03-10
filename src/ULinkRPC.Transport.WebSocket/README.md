@@ -12,3 +12,14 @@ dotnet add package ULinkRPC.Transport.WebSocket
 
 - `WsTransport`
 - `WsServerTransport`
+- `UseWebSocket()` for `RpcServerHostBuilder` on `net10.0`
+
+## Server Usage
+
+```csharp
+await RpcServerHostBuilder.Create()
+    .UseCommandLine(args)
+    .UseJson()
+    .UseWebSocket(defaultPort: 20000, path: "/ws")
+    .RunAsync();
+```

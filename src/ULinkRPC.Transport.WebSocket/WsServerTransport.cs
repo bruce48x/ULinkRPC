@@ -6,13 +6,15 @@ namespace ULinkRPC.Transport.WebSocket;
 
 public sealed class WsServerTransport : ITransport, IRemoteEndPointProvider
 {
+    private readonly Action? _onDispose;
     private readonly NetWebSocket _webSocket;
     private byte[] _accum = Array.Empty<byte>();
 
-    public WsServerTransport(NetWebSocket webSocket, EndPoint? remoteEndPoint = null)
+    public WsServerTransport(NetWebSocket webSocket, EndPoint? remoteEndPoint = null, Action? onDispose = null)
     {
         _webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
         RemoteEndPoint = remoteEndPoint;
+        _onDispose = onDispose;
     }
 
     public EndPoint? RemoteEndPoint { get; }
@@ -36,6 +38,18 @@ public sealed class WsServerTransport : ITransport, IRemoteEndPointProvider
 
     public ValueTask DisposeAsync()
     {
-        return WsTransportFraming.DisposeAsync(_webSocket);
+        return DisposeCoreAsync();
+    }
+
+    private async ValueTask DisposeCoreAsync()
+    {
+        try
+        {
+            await WsTransportFraming.DisposeAsync(_webSocket).ConfigureAwait(false);
+        }
+        finally
+        {
+            _onDispose?.Invoke();
+        }
     }
 }

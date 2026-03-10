@@ -97,6 +97,8 @@ internal static class ServerEmitter
         w.WriteUsings(contractUsings);
         w.Line($"using {runtimeUsing};");
         w.Line();
+        w.Line($"[assembly: RpcGeneratedServicesBinder(typeof({ns}.AllServicesBinder))]");
+        w.Line();
         w.OpenBlock($"namespace {ns}");
         w.OpenBlock("public static class AllServicesBinder");
 

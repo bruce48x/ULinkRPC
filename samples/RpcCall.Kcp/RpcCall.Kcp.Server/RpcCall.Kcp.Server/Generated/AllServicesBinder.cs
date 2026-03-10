@@ -8,6 +8,8 @@ using System.Reflection;
 using Game.Rpc.Contracts;
 using ULinkRPC.Server;
 
+[assembly: RpcGeneratedServicesBinder(typeof(Game.Rpc.Server.Generated.AllServicesBinder))]
+
 namespace Game.Rpc.Server.Generated
 {
     public static class AllServicesBinder

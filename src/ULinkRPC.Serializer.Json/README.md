@@ -15,3 +15,12 @@ using ULinkRPC.Serializer.Json;
 
 var serializer = new JsonRpcSerializer();
 ```
+
+On `net10.0`, `ULinkRPC.Server` integration also adds:
+
+```csharp
+await RpcServerHostBuilder.Create()
+    .UseJson()
+    .UseWebSocket()
+    .RunAsync();
+```
