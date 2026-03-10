@@ -5,13 +5,11 @@ using System.Net.Sockets;
 using System.Net.Sockets.Kcp;
 using System.Text;
 using ULinkRPC.Core;
-using ULinkRPC.Server;
 using ULinkRPC.Transport.Kcp;
-using Xunit;
 
-namespace RpcCall.MemoryPack.Server.Tests;
+namespace ULinkRPC.Transport.Tests;
 
-public class TransportModeTests
+public class KcpTransportTests
 {
     [Fact]
     public async Task KcpTransport_Roundtrip()
@@ -66,11 +64,6 @@ public class TransportModeTests
             throw new TimeoutException("Operation timed out.");
 
         return await task;
-    }
-
-    private static async ValueTask WithTimeout(ValueTask task, CancellationToken ct)
-    {
-        await WithTimeout(task.AsTask(), ct);
     }
 
     private static async ValueTask<T> WithTimeout<T>(ValueTask<T> task, CancellationToken ct)
@@ -139,12 +132,7 @@ public class TransportModeTests
                 if (TryDequeueFrame(out var queued))
                     return queued;
 
-                SocketReceiveFromResult res;
-#if NET8_0_OR_GREATER
-                res = await _socket.ReceiveFromAsync(buffer, SocketFlags.None, any, ct);
-#else
-                res = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any);
-#endif
+                var res = await _socket.ReceiveFromAsync(buffer, SocketFlags.None, any, ct);
                 if (!EndPointEquals(res.RemoteEndPoint, _remote))
                     continue;
 
@@ -186,12 +174,7 @@ public class TransportModeTests
             try
             {
                 var mem = buffer.Memory.Slice(0, avalidLength);
-#if NET8_0_OR_GREATER
                 _socket.SendTo(mem.Span, SocketFlags.None, _remote);
-#else
-                var tmp = mem.ToArray();
-                _socket.SendTo(tmp, 0, tmp.Length, SocketFlags.None, _remote);
-#endif
             }
             finally
             {
@@ -244,7 +227,7 @@ public class TransportModeTests
 
                 var frame = payloadSeq.ToArray();
                 if (frame.Length > 0)
-                    EnqueueFrame(frame);
+                    _frames.Enqueue(frame);
 
                 _accum = seq.ToArray();
             }
@@ -253,11 +236,6 @@ public class TransportModeTests
         private bool TryDequeueFrame(out ReadOnlyMemory<byte> frame)
         {
             return _frames.TryDequeue(out frame);
-        }
-
-        private void EnqueueFrame(ReadOnlyMemory<byte> frame)
-        {
-            _frames.Enqueue(frame);
         }
 
         private async Task UpdateLoopAsync()

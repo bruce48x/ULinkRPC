@@ -133,6 +133,20 @@ InitTestScene*.unity*
 /samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/*.sln
 /samples/RpcCall.Json/RpcCall.Json.Unity/*.csproj
 /samples/RpcCall.Json/RpcCall.Json.Unity/*.sln
+/samples/RpcCall.Kcp/RpcCall.Kcp.Unity/*.csproj
+/samples/RpcCall.Kcp/RpcCall.Kcp.Unity/*.sln
+/samples/**/*.Unity/*.csproj
+/samples/**/*.Unity/*.sln
+/samples/**/*.Unity/*.suo
+/samples/**/*.Unity/*.user
+/samples/**/*.Unity/*.userprefs
+/samples/**/*.Unity/*.pidb
+/samples/**/*.Unity/*.booproj
+/samples/**/*.Unity/*.svd
+/samples/**/*.Unity/*.pdb
+/samples/**/*.Unity/*.mdb
+/samples/**/*.Unity/*.opendb
+/samples/**/*.Unity/*.VC.db
 
 # Keep src NuGet projects
 !/src/**/*.csproj
@@ -148,6 +162,18 @@ InitTestScene*.unity*
 /tests/**/bin/
 /tests/**/obj/
 
+# Rider / Visual Studio / generated folders anywhere in repo
+**/.vs/
+**/.idea/
+**/bin/
+**/obj/
+
+# Unity generated folders anywhere in repo
+**/[Ll]ibrary/
+**/[Tt]emp/
+**/[Ll]ogs/
+**/[Uu]ser[Ss]ettings/
+
 # NuGet artifacts
 /artifacts/
 # Local release helpers
@@ -156,4 +182,3 @@ pack.cmd
 .dotnet/
 # Local NuGet cache
 .nuget/
-

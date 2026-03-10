@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using ULinkRPC.Transport.WebSocket;
-using Xunit;
 
-namespace RpcCall.Json.Server.Tests;
+namespace ULinkRPC.Transport.Tests;
 
 public class WebSocketTransportTests
 {
@@ -12,25 +15,37 @@ public class WebSocketTransportTests
     public async Task WebSocketTransport_Roundtrip()
     {
         var port = GetFreePort();
-        using var listener = new HttpListener();
-        listener.Prefixes.Add($"http://127.0.0.1:{port}/ws/");
-        listener.Start();
-
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
 
-        var serverTask = Task.Run(async () =>
+        await using var app = builder.Build();
+        app.UseWebSockets();
+
+        var serverReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        app.Map("/ws", async context =>
         {
-            var ctx = await WithTimeout(listener.GetContextAsync(), cts.Token);
-            var wsContext = await WithTimeout(ctx.AcceptWebSocketAsync(null), cts.Token);
-            await using var transport = new WsServerTransport(wsContext.WebSocket);
+            if (!context.WebSockets.IsWebSocketRequest)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
 
-            var payload = await WithTimeout(transport.ReceiveFrameAsync(cts.Token), cts.Token);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, context.RequestAborted);
+            var wsContext = await context.WebSockets.AcceptWebSocketAsync();
+            await using var transport = new WsServerTransport(wsContext);
+
+            var payload = await WithTimeout(transport.ReceiveFrameAsync(linkedCts.Token), linkedCts.Token);
             Assert.Equal("ping-ws", Encoding.UTF8.GetString(payload.Span));
 
             await WithTimeout(
-                transport.SendFrameAsync(Encoding.UTF8.GetBytes("pong-ws"), cts.Token),
-                cts.Token);
-        }, cts.Token);
+                transport.SendFrameAsync(Encoding.UTF8.GetBytes("pong-ws"), linkedCts.Token),
+                linkedCts.Token);
+
+            serverReceived.TrySetResult();
+        });
+
+        await app.StartAsync(cts.Token);
 
         try
         {
@@ -40,26 +55,11 @@ public class WebSocketTransportTests
             var response = await WithTimeout(client.ReceiveFrameAsync(cts.Token), cts.Token);
             Assert.Equal("pong-ws", Encoding.UTF8.GetString(response.Span));
 
-            await WithTimeout(serverTask, cts.Token);
+            await WithTimeout(serverReceived.Task, cts.Token);
         }
         finally
         {
-            try
-            {
-                listener.Stop();
-            }
-            catch
-            {
-            }
-
-            if (!serverTask.IsCompleted)
-                try
-                {
-                    await WithTimeout(serverTask, cts.Token);
-                }
-                catch
-                {
-                }
+            await app.StopAsync(CancellationToken.None);
         }
     }
 

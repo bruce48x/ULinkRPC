@@ -4,6 +4,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="RpcCall.Kcp.Server.Tests/RpcCall.Kcp.Server.Tests.csproj" />
   <Project Path="RpcCall.Kcp.Server/RpcCall.Kcp.Server.csproj" />
 </Solution>

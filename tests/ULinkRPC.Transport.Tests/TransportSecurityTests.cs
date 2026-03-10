@@ -1,9 +1,8 @@
 using System.Linq;
 using System.Text;
 using ULinkRPC.Core;
-using Xunit;
 
-namespace RpcCall.Kcp.Server.Tests;
+namespace ULinkRPC.Transport.Tests;
 
 public class TransportSecurityTests
 {
