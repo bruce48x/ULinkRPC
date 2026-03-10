@@ -23,7 +23,7 @@ Generated client stubs now depend on `ULinkRPC.Core.IRpcClient`.
 Generated client calls use typed descriptors (`RpcMethod<TArg, TResult>` / `RpcPushMethod<TArg>`) instead of passing raw service/method ids.
 Generated Unity client output also includes `IRpcClient` extension factories (for example `client.CreatePlayerService()`) so business code does not instantiate generated client types directly.
 Generated Unity client output includes a mandatory grouped facade `RpcApi`; business code should enter via `client.CreateRpcApi()` and access services through named groups (for example `rpcApi.Game.Player`).
-Generated Unity client output now also includes a typed `RpcConnection` host with `ConnectAsync(RpcClientBuilder builder, ...)` and `ConnectAsync(RpcUnityClientOptions options, ...)`, so callers no longer need to manually create `RpcClient`, bind callback receivers, and then call `CreateRpcApi()`.
+Generated Unity client output now also includes a typed `RpcConnection` host with `ConnectAsync(RpcClientBuilder builder, ...)`, so callers no longer need to manually create `RpcClient`, bind callback receivers, and then call `CreateRpcApi()`.
 Unity generated code namespace is derived from Unity output directory (for example `Assets/Scripts/Rpc/RpcGenerated` -> `Rpc.Generated`).
 Generated files now inherit `using` directives declared by contract sources so referenced types resolve correctly.
 Contract parsing is implemented via Roslyn syntax trees for better correctness across C# language forms.
@@ -40,17 +40,6 @@ await using var connection = await RpcConnection.ConnectAsync(
     ct);
 
 var player = connection.Api.Game.Player;
-```
-
-With `ULinkRPC.Client.Unity`, the same entry can be reduced to:
-
-```csharp
-await using var connection = await RpcConnection.ConnectAsync(
-    RpcUnityClientOptions.Create()
-        .UseMemoryPack()
-        .UseTcp("127.0.0.1", 20000),
-    playerCallback: this,
-    ct);
 ```
 
 ### Options

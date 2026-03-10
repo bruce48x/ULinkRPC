@@ -47,5 +47,3 @@ var builder = RpcClientBuilder.Create()
     .UseMemoryPack()
     .UseTcp("127.0.0.1", 20000);
 ```
-
-For Unity projects, prefer [`ULinkRPC.Client.Unity`](../ULinkRPC.Client.Unity/README.md), which exposes `RpcUnityClientOptions` so application code can connect without manually assembling a builder.

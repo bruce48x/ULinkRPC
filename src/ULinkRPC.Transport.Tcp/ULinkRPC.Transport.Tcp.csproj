@@ -15,7 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ULinkRPC.Client\ULinkRPC.Client.csproj" />
-    <ProjectReference Include="..\ULinkRPC.Client.Unity\ULinkRPC.Client.Unity.csproj" />
     <ProjectReference Include="..\ULinkRPC.Core\ULinkRPC.Core.csproj" />
   </ItemGroup>
 
