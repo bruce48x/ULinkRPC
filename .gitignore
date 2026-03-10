@@ -159,6 +159,7 @@ InitTestScene*.unity*
 /src/ULinkRPC.CodeGen/obj/
 
 # Test projects
+!/tests/**/*.csproj
 /tests/**/bin/
 /tests/**/obj/
 
