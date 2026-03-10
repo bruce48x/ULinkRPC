@@ -3,7 +3,10 @@
 #pragma warning disable
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Game.Rpc.Contracts;
+using ULinkRPC.Client;
 using ULinkRPC.Core;
 
 namespace Rpc.Generated
@@ -28,6 +31,37 @@ namespace Rpc.Generated
         }
 
         public IPlayerService Player { get; }
+    }
+
+    public sealed class RpcConnection : IAsyncDisposable
+    {
+        public RpcConnection(RpcClient client)
+        {
+            Client = client ?? throw new ArgumentNullException(nameof(client));
+            Api = new RpcApi(client);
+        }
+
+        public RpcApi Api { get; }
+        public RpcClient Client { get; }
+
+        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, IPlayerCallback? playerCallback = null, CancellationToken ct = default)
+        {
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+            return builder.ConnectTypedAsync(static client => new RpcConnection(client), client => BindCallbacks(client, playerCallback), ct);
+        }
+
+        private static void BindCallbacks(IRpcClient client, IPlayerCallback? playerCallback)
+        {
+            if (playerCallback is not null)
+            {
+                PlayerCallbackBinder.Bind(client, playerCallback);
+            }
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return Client.DisposeAsync();
+        }
     }
 
     public static class RpcApiExtensions

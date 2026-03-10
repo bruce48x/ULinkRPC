@@ -24,3 +24,18 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Kcp -Run
 Open `samples/RpcCall.Kcp/RpcCall.Kcp.Unity`, load `Assets/Scenes/KcpConnectionTest.unity`, and press Play.
 
 The Unity client opens multiple KCP sessions, logs in, and calls `IncrStep()` on each connection at a fixed interval. The server creates one `PlayerService` per `RpcSession`, so every connection maintains its own counter.
+
+The Unity client entry is now aligned with the TCP and WebSocket samples:
+
+- endpoint settings use the same `RpcEndpointSettings` model
+- connection startup uses `RpcClientBuilder`
+- generated code exposes `RpcConnection.ConnectAsync(...)`
+- polling, callbacks, and the in-game status panel live in `RpcConnectionTesterBase`
+
+This sample-specific script only selects MemoryPack + KCP:
+
+```csharp
+return RpcClientBuilder.Create()
+    .UseMemoryPack()
+    .UseKcp(_endpoint.Host, _endpoint.Port);
+```

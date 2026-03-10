@@ -38,9 +38,45 @@ public class GeneratedCodeCompilationTests
                 public RpcPushMethod(int serviceId, int methodId) { }
             }
 
+            public interface ITransport { }
+
+            public interface IRpcSerializer
+            {
+                byte[] Serialize<T>(T value);
+                T Deserialize<T>(ReadOnlySpan<byte> data);
+                T Deserialize<T>(ReadOnlyMemory<byte> data);
+            }
+
             public struct RpcVoid { }
 
             public enum RpcStatus { Ok = 0, Error = 1 }
+        }
+        """;
+
+    private const string ClientRuntimeStubs = """
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using ULinkRPC.Core;
+
+        namespace ULinkRPC.Client
+        {
+            public sealed class RpcClient : IRpcClient, IAsyncDisposable
+            {
+                public event Action<Exception?>? Disconnected;
+
+                public ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg arg, CancellationToken ct) => default;
+                public void RegisterPushHandler<TArg>(RpcPushMethod<TArg> method, Action<TArg> handler) { }
+                public ValueTask DisposeAsync() => default;
+            }
+
+            public sealed class RpcClientBuilder
+            {
+                public ValueTask<TConnection> ConnectTypedAsync<TConnection>(
+                    Func<RpcClient, TConnection> connectionFactory,
+                    Action<IRpcClient>? configureClient = null,
+                    CancellationToken ct = default) => default;
+            }
         }
         """;
 
@@ -102,6 +138,7 @@ public class GeneratedCodeCompilationTests
         {
             CSharpSyntaxTree.ParseText(CoreRuntimeStubs, path: "CoreStubs.cs"),
             CSharpSyntaxTree.ParseText(contractCode, path: "Contracts.cs"),
+            CSharpSyntaxTree.ParseText(ClientRuntimeStubs, path: "ClientStubs.cs"),
         };
         for (var i = 0; i < generatedCodeFiles.Length; i++)
             trees.Add(CSharpSyntaxTree.ParseText(generatedCodeFiles[i], path: $"Generated{i}.cs"));
@@ -195,7 +232,7 @@ public class GeneratedCodeCompilationTests
     {
         var clientCode = ClientEmitter.GenerateClient(SimpleService(), "MyGame.Generated", "ULinkRPC.Core");
         var facadeCode = FacadeEmitter.GenerateClientFacade(
-            [SimpleService()], "MyGame.Generated", "ULinkRPC.Core");
+            [SimpleService()], "MyGame.Generated", "ULinkRPC.Core", "ULinkRPC.Client");
         AssertCompilesCleanly([clientCode, facadeCode], SimpleContracts);
     }
 
@@ -311,7 +348,7 @@ public class GeneratedCodeCompilationTests
 
         var client1 = ClientEmitter.GenerateClient(svc1, "Gen", "ULinkRPC.Core");
         var client2 = ClientEmitter.GenerateClient(svc2, "Gen", "ULinkRPC.Core");
-        var facade = FacadeEmitter.GenerateClientFacade([svc1, svc2], "Gen", "ULinkRPC.Core");
+        var facade = FacadeEmitter.GenerateClientFacade([svc1, svc2], "Gen", "ULinkRPC.Core", "ULinkRPC.Client");
 
         AssertCompilesCleanly([client1, client2, facade], contracts);
     }
@@ -368,7 +405,7 @@ public class GeneratedCodeCompilationTests
             Assert.Equal(3, svc.Methods.Count);
 
             var clientCode = ClientEmitter.GenerateClient(svc, "Demo.Generated", "ULinkRPC.Core");
-            var facadeCode = FacadeEmitter.GenerateClientFacade([svc], "Demo.Generated", "ULinkRPC.Core");
+            var facadeCode = FacadeEmitter.GenerateClientFacade([svc], "Demo.Generated", "ULinkRPC.Core", "ULinkRPC.Client");
 
             var runtimeContracts = """
                 using System.Threading.Tasks;

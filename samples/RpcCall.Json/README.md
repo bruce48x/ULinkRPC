@@ -41,3 +41,18 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -SkipBuild
 打开 `samples/RpcCall.Json/RpcCall.Json.Unity`，进入场景 `Assets/Scenes/TcpConnectionTest.unity`，点击 Play。
 
 默认会自动建立多个 WebSocket 连接到 `ws://127.0.0.1:20000/ws`。每个连接会先执行 `Login`，然后按固定间隔持续调用 `IncrStep()`；服务端会为每个连接分别累加计数，并通过 `IPlayerCallback.OnNotify` 推送当前步数。
+
+Unity 客户端接入方式已与其它 sample 对齐：
+
+- 统一使用 `RpcEndpointSettings` 描述地址
+- 统一使用 `RpcClientBuilder` 建立客户端
+- 统一使用 codegen 生成的 `RpcConnection.ConnectAsync(...)`
+- 共用 `RpcConnectionTesterBase` 处理多连接、回调日志和 Game 视图面板
+
+当前 sample 只需要指定 WebSocket + JSON：
+
+```csharp
+return RpcClientBuilder.Create()
+    .UseJson()
+    .UseWebSocket(_endpoint.GetWebSocketUrl());
+```

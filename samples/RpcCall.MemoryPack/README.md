@@ -41,6 +41,21 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.MemoryPack -SkipBuild
 
 默认会自动连接 `127.0.0.1:20000`，完成 `Login` 后持续调用 `IncrStep()`，同时接收服务端通过 `IPlayerCallback.OnNotify` 推送的回调消息。
 
+Unity 客户端入口现在和其它 sample 一致：
+
+- 传输地址统一由 `RpcEndpointSettings` 表示
+- 连接入口统一走 `RpcClientBuilder`
+- 生成代码统一提供 `RpcConnection.ConnectAsync(...)`
+- 多连接轮询和 Game 视图调试面板集中在 `RpcConnectionTesterBase`
+
+`RpcConnectionTester` 本身只保留当前 sample 的 transport / serializer 选择：
+
+```csharp
+return RpcClientBuilder.Create()
+    .UseMemoryPack()
+    .UseTcp(_endpoint.Host, _endpoint.Port);
+```
+
 ## 多连接示例
 
 `RpcConnectionTester` 现在会在一个场景里管理多个独立连接，并让每个连接按固定间隔持续调用 `IPlayerService.IncrStep()`。

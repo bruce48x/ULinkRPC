@@ -5,6 +5,7 @@ namespace ULinkRPC.CodeGen;
 internal static class Program
 {
     private const string CoreRuntimeUsing = "ULinkRPC.Core";
+    private const string ClientRuntimeUsing = "ULinkRPC.Client";
     private const string ServerRuntimeUsing = "ULinkRPC.Server";
 
     private static int Main(string[] args)
@@ -114,7 +115,11 @@ internal static class Program
 
         if (options.Mode == OutputMode.Unity)
         {
-            var facade = FacadeEmitter.GenerateClientFacade(services, options.UnityNamespace, CoreRuntimeUsing);
+            var facade = FacadeEmitter.GenerateClientFacade(
+                services,
+                options.UnityNamespace,
+                CoreRuntimeUsing,
+                ClientRuntimeUsing);
             File.WriteAllText(Path.Combine(options.OutputPath, "RpcApi.cs"), facade, Encoding.UTF8);
             generated++;
         }

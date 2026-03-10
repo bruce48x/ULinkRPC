@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Transport.Tcp</PackageId>
-    <Version>0.5.0</Version>
+    <Version>0.6.0</Version>
     <Authors>ULinkRPC</Authors>
     <Description>TCP client/server transport implementations for ULinkRPC.</Description>
     <PackageTags>rpc;unity;transport;tcp</PackageTags>
@@ -14,6 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ULinkRPC.Client\ULinkRPC.Client.csproj" />
     <ProjectReference Include="..\ULinkRPC.Core\ULinkRPC.Core.csproj" />
   </ItemGroup>
 

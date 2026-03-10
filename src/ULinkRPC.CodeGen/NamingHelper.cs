@@ -33,6 +33,11 @@ internal static class NamingHelper
     public static string GetClientFactoryMethodName(string ifaceName) =>
         $"Create{GetServiceTypeName(ifaceName)}";
 
+    public static string GetClientConnectionTypeName() => "RpcConnection";
+
+    public static string GetCallbackReceiverParamName(string callbackInterfaceName) =>
+        ToCamelCase(GetServiceTypeName(callbackInterfaceName));
+
     public static string GetClientMethodFieldName(string methodName) =>
         $"{ToCamelCase(methodName)}RpcMethod";
 
