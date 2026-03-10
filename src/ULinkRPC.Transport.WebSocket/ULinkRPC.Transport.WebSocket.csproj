@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Transport.WebSocket</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.7.1</Version>
     <Authors>ULinkRPC</Authors>
     <Description>WebSocket client/server transport implementations for ULinkRPC.</Description>
     <PackageTags>rpc;transport;websocket</PackageTags>
@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ULinkRPC.Client\ULinkRPC.Client.csproj" />
+    <ProjectReference Include="..\ULinkRPC.Client.Unity\ULinkRPC.Client.Unity.csproj" />
     <ProjectReference Include="..\ULinkRPC.Core\ULinkRPC.Core.csproj" />
   </ItemGroup>
 

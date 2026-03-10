@@ -46,7 +46,9 @@ With `ULinkRPC.Client.Unity`, the same entry can be reduced to:
 
 ```csharp
 await using var connection = await RpcConnection.ConnectAsync(
-    RpcUnityClientOptions.MemoryPackTcp("127.0.0.1", 20000),
+    RpcUnityClientOptions.Create()
+        .UseMemoryPack()
+        .UseTcp("127.0.0.1", 20000),
     playerCallback: this,
     ct);
 ```

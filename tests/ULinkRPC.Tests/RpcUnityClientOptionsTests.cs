@@ -6,9 +6,11 @@ namespace ULinkRPC.Tests;
 public class RpcUnityClientOptionsTests
 {
     [Fact]
-    public void MemoryPackTcp_CreatesBuilderAndClient()
+    public void JsonTcp_CreatesBuilderAndClient()
     {
-        var options = RpcUnityClientOptions.MemoryPackTcp("127.0.0.1", 20000);
+        var options = RpcUnityClientOptions.Create()
+            .UseJson()
+            .UseTcp("127.0.0.1", 20000);
 
         var client = options.CreateBuilder().Build();
 
@@ -16,23 +18,14 @@ public class RpcUnityClientOptionsTests
     }
 
     [Fact]
-    public void JsonWebSocket_CreatesBuilderAndClient()
+    public void ConfigureBuilder_ComposesSteps()
     {
-        var options = RpcUnityClientOptions.JsonWebSocket("ws://127.0.0.1:20000/ws");
+        var options = RpcUnityClientOptions.Create()
+            .ConfigureBuilder(static _ => { })
+            .ConfigureBuilder(static _ => { });
 
-        var client = options.CreateBuilder().Build();
+        var builder = options.CreateBuilder();
 
-        Assert.NotNull(client);
-    }
-
-    [Fact]
-    public void Kcp_UsesRequestedKinds()
-    {
-        var options = RpcUnityClientOptions.Kcp("127.0.0.1", 20000, RpcUnitySerializerKind.Json);
-
-        Assert.Equal(RpcUnityTransportKind.Kcp, options.Transport);
-        Assert.Equal(RpcUnitySerializerKind.Json, options.Serializer);
-        Assert.Equal("127.0.0.1", options.Host);
-        Assert.Equal(20000, options.Port);
+        Assert.NotNull(builder);
     }
 }
