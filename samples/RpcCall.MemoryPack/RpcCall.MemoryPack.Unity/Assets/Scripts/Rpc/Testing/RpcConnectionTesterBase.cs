@@ -2,13 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Game.Rpc.Contracts;
 using Rpc.Generated;
 using ULinkRPC.Client;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Rpc.Testing
 {
@@ -72,6 +72,8 @@ namespace Rpc.Testing
 
     public abstract class RpcConnectionTesterBase : MonoBehaviour
     {
+        private const int MaxLogEntries = 24;
+
         protected abstract RpcEndpointSettings Endpoint { get; }
         protected abstract string RuntimeTitle { get; }
         protected abstract RpcTransportKind TransportKind { get; }
@@ -85,13 +87,27 @@ namespace Rpc.Testing
 
         [Header("Debug UI")] public bool ShowDebugPanel = true;
         public bool AutoConnect = true;
+        [SerializeField] private UIDocument? _debugDocument;
 
-        private const int MaxLogEntries = 24;
         private readonly Dictionary<int, SessionSnapshot> _sessionSnapshots = new();
         private readonly List<ConnectionSession> _sessions = new();
         private readonly List<string> _logEntries = new();
         private ConnectionState _state = ConnectionState.Idle;
-        private Vector2 _logScroll;
+
+        private Label? _titleLabel;
+        private Label? _stateLabel;
+        private Label? _transportLabel;
+        private Label? _endpointLabel;
+        private Label? _connectionsLabel;
+        private Label? _intervalLabel;
+        private Button? _connectButton;
+        private ScrollView? _sessionsScroll;
+        private ScrollView? _logsScroll;
+        private bool _cleanupStarted;
+        private bool _debugUiBound;
+        private bool _isShuttingDown;
+        private bool _uiDirty = true;
+        private bool _uiToolkitReady;
 
         public event Action<ConnectionState, string?>? StatusChanged;
 
@@ -104,6 +120,24 @@ namespace Rpc.Testing
             Error
         }
 
+        private void Awake()
+        {
+            EnsureDebugUi();
+            MarkUiDirty();
+        }
+
+        private void OnEnable()
+        {
+            EnsureDebugUi();
+            MarkUiDirty();
+        }
+
+        private void Update()
+        {
+            if (_uiDirty)
+                RefreshDebugUi();
+        }
+
         private async void Start()
         {
             if (!AutoConnect)
@@ -112,13 +146,27 @@ namespace Rpc.Testing
             await ConnectAndTestAsync();
         }
 
-        private async void OnDestroy()
+        private void OnDisable()
         {
-            await CleanupAsync(true);
+            BeginShutdown();
+        }
+
+        private void OnDestroy()
+        {
+            BeginShutdown();
+            TeardownDebugUi();
+        }
+
+        private void OnValidate()
+        {
+            MarkUiDirty();
         }
 
         public async Task ConnectAndTestAsync()
         {
+            if (_isShuttingDown)
+                return;
+
             if (_sessions.Count > 0)
             {
                 Debug.LogWarning("RpcConnectionTester already connected.");
@@ -134,6 +182,7 @@ namespace Rpc.Testing
                 {
                     var session = new ConnectionSession(this, i);
                     _sessions.Add(session);
+                    MarkUiDirty();
                     await session.StartAsync();
                 }
 
@@ -161,20 +210,40 @@ namespace Rpc.Testing
             }
 
             update(snapshot);
+            MarkUiDirty();
         }
 
         protected void AppendLog(string message)
         {
+            if (_isShuttingDown)
+                return;
+
             Debug.Log(message);
             _logEntries.Add(message);
             if (_logEntries.Count > MaxLogEntries)
                 _logEntries.RemoveAt(0);
+            MarkUiDirty();
+        }
+
+        private void BeginShutdown()
+        {
+            if (_cleanupStarted)
+                return;
+
+            _cleanupStarted = true;
+            _isShuttingDown = true;
+
+            foreach (var session in _sessions.ToArray())
+                session.BeginShutdown();
+
+            _ = CleanupAsync(true);
         }
 
         private async Task CleanupAsync(bool notifyDisconnected)
         {
             var sessions = _sessions.ToArray();
             _sessions.Clear();
+            MarkUiDirty();
 
             foreach (var session in sessions)
             {
@@ -195,6 +264,9 @@ namespace Rpc.Testing
         private void OnSessionDisconnected(ConnectionSession session, Exception? ex)
         {
             _sessions.Remove(session);
+
+            if (_isShuttingDown)
+                return;
 
             if (ex is null)
                 AppendLog($"Session[{session.Index}] disconnected.");
@@ -224,52 +296,187 @@ namespace Rpc.Testing
             StatusChanged?.Invoke(state, message);
             if (!string.IsNullOrWhiteSpace(message))
                 AppendLog($"State => {state}: {message}");
+            MarkUiDirty();
         }
 
-        private void OnGUI()
+        private void EnsureDebugUi()
         {
+            if (_debugUiBound && _debugDocument is not null)
+                return;
+
+            if (_debugDocument is null)
+            {
+                var documents = GetComponentsInChildren<UIDocument>(true);
+                if (documents.Length > 0)
+                {
+                    _debugDocument = documents[0];
+
+                    for (var i = 1; i < documents.Length; i++)
+                    {
+                        if (documents[i] is null)
+                            continue;
+
+                        documents[i].enabled = false;
+                    }
+
+                    if (documents.Length > 1)
+                        Debug.LogWarning($"RpcConnectionTester found {documents.Length} UIDocuments under the same hierarchy. Extra documents were disabled.");
+                }
+            }
+
+            if (_debugDocument is null)
+            {
+                if (!_isShuttingDown)
+                    Debug.LogWarning("RpcConnectionTester requires a UIDocument in the scene hierarchy.");
+                return;
+            }
+
+            var root = _debugDocument.rootVisualElement;
+
+            _titleLabel = root.Q<Label>("titleLabel");
+            _stateLabel = root.Q<Label>("stateLabel");
+            _transportLabel = root.Q<Label>("transportLabel");
+            _endpointLabel = root.Q<Label>("endpointLabel");
+            _connectionsLabel = root.Q<Label>("connectionsLabel");
+            _intervalLabel = root.Q<Label>("intervalLabel");
+            _connectButton = root.Q<Button>("connectButton");
+            _sessionsScroll = root.Q<ScrollView>("sessionsScroll");
+            _logsScroll = root.Q<ScrollView>("logsScroll");
+
+            if (_connectButton is not null)
+            {
+                _connectButton.clicked -= ConnectFromUi;
+                _connectButton.clicked += ConnectFromUi;
+            }
+
+            _uiToolkitReady = root.panel is not null &&
+                              _titleLabel is not null &&
+                              _connectButton is not null &&
+                              _sessionsScroll is not null &&
+                              _logsScroll is not null;
+            _debugUiBound = true;
+        }
+
+        private void RefreshDebugUi()
+        {
+            _uiDirty = false;
+            EnsureDebugUi();
+
+            if (_debugDocument is null)
+                return;
+
+            var root = _debugDocument.rootVisualElement;
+            _uiToolkitReady = root.panel is not null &&
+                              _titleLabel is not null &&
+                              _connectButton is not null &&
+                              _sessionsScroll is not null &&
+                              _logsScroll is not null;
+            root.style.display = ShowDebugPanel ? DisplayStyle.Flex : DisplayStyle.None;
+
             if (!ShowDebugPanel)
                 return;
 
-            var area = new Rect(16f, 16f, Mathf.Min(Screen.width - 32f, 720f), Mathf.Min(Screen.height - 32f, 520f));
-            GUILayout.BeginArea(area, GUI.skin.box);
-            GUILayout.Label(RuntimeTitle);
-            GUILayout.Label($"State: {_state}");
-            GUILayout.Label($"Transport: {TransportKind}");
-            GUILayout.Label($"Endpoint: {Endpoint.GetDisplayAddress(TransportKind)}");
-            GUILayout.Label($"Connections: {_sessions.Count}/{Mathf.Max(1, ConnectionCount)}");
-            GUILayout.Label($"Interval: {RequestIntervalSeconds:0.##}s");
+            if (_titleLabel is not null)
+                _titleLabel.text = RuntimeTitle;
+            if (_stateLabel is not null)
+                _stateLabel.text = $"State\n{_state}";
+            if (_transportLabel is not null)
+                _transportLabel.text = $"Transport\n{TransportKind}";
+            if (_endpointLabel is not null)
+                _endpointLabel.text = $"Endpoint\n{Endpoint.GetDisplayAddress(TransportKind)}";
+            if (_connectionsLabel is not null)
+                _connectionsLabel.text = $"Connections\n{_sessions.Count}/{Mathf.Max(1, ConnectionCount)}";
+            if (_intervalLabel is not null)
+                _intervalLabel.text = $"Interval\n{RequestIntervalSeconds:0.##}s";
 
-            if ((_state == ConnectionState.Idle || _state == ConnectionState.Disconnected || _state == ConnectionState.Error) &&
-                GUILayout.Button("Connect"))
+            if (_connectButton is not null)
             {
-                ConnectFromUi();
+                var canConnect = _state == ConnectionState.Idle ||
+                                 _state == ConnectionState.Disconnected ||
+                                 _state == ConnectionState.Error;
+                _connectButton.SetEnabled(canConnect);
             }
 
-            GUILayout.Space(8f);
-            GUILayout.Label("Sessions");
-            foreach (var pair in _sessionSnapshots)
+            RebuildSessions();
+            RebuildLogs();
+        }
+
+        private void RebuildSessions()
+        {
+            if (_sessionsScroll is null)
+                return;
+
+            _sessionsScroll.contentContainer.Clear();
+
+            foreach (var entry in GetOrderedSessionSnapshots())
             {
-                var snapshot = pair.Value;
-                var line = new StringBuilder()
-                    .Append('[').Append(snapshot.Index).Append("] ")
-                    .Append(snapshot.Account ?? "?")
-                    .Append(" | ").Append(snapshot.State ?? "Idle")
-                    .Append(" | step=").Append(snapshot.LastStep);
+                var snapshot = entry.Value;
+                var sessionCard = new VisualElement();
+                sessionCard.AddToClassList("rpc-session-card");
+
+                var title = new Label($"Session {snapshot.Index + 1}");
+                title.AddToClassList("rpc-session-title");
+                sessionCard.Add(title);
+
+                sessionCard.Add(CreateValueLabel(snapshot.Account ?? "?", "rpc-session-account"));
+                sessionCard.Add(CreateValueLabel(snapshot.State ?? "Idle", "rpc-session-state"));
+                sessionCard.Add(CreateValueLabel($"step={snapshot.LastStep}", "rpc-session-step"));
 
                 if (!string.IsNullOrWhiteSpace(snapshot.LastMessage))
-                    line.Append(" | ").Append(snapshot.LastMessage);
+                    sessionCard.Add(CreateValueLabel(snapshot.LastMessage!, "rpc-session-message"));
 
-                GUILayout.Label(line.ToString());
+                _sessionsScroll.contentContainer.Add(sessionCard);
             }
+        }
 
-            GUILayout.Space(8f);
-            GUILayout.Label("Recent Logs");
-            _logScroll = GUILayout.BeginScrollView(_logScroll, GUILayout.Height(220f));
+        private void RebuildLogs()
+        {
+            if (_logsScroll is null)
+                return;
+
+            _logsScroll.contentContainer.Clear();
+
             foreach (var entry in _logEntries)
-                GUILayout.Label(entry);
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
+            {
+                var label = CreateValueLabel(entry, "rpc-log-entry");
+                _logsScroll.contentContainer.Add(label);
+            }
+        }
+
+        private static Label CreateValueLabel(string text, string className)
+        {
+            var label = new Label(text);
+            label.AddToClassList(className);
+            return label;
+        }
+
+        private IEnumerable<KeyValuePair<int, SessionSnapshot>> GetOrderedSessionSnapshots()
+        {
+            var keys = new List<int>(_sessionSnapshots.Keys);
+            keys.Sort();
+
+            foreach (var key in keys)
+                yield return new KeyValuePair<int, SessionSnapshot>(key, _sessionSnapshots[key]);
+        }
+
+        private void MarkUiDirty()
+        {
+            _uiDirty = true;
+        }
+
+        private void TeardownDebugUi()
+        {
+            _titleLabel = null;
+            _stateLabel = null;
+            _transportLabel = null;
+            _endpointLabel = null;
+            _connectionsLabel = null;
+            _intervalLabel = null;
+            _connectButton = null;
+            _sessionsScroll = null;
+            _logsScroll = null;
+            _uiToolkitReady = false;
+            _debugUiBound = false;
         }
 
         protected sealed class SessionSnapshot
@@ -324,8 +531,23 @@ namespace Rpc.Testing
 
             public void OnNotify(string message)
             {
+                if (_stopped || _owner._isShuttingDown)
+                    return;
+
                 _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
                 _owner.AppendLog($"Session[{Index}] server push: {message}");
+            }
+
+            public void BeginShutdown()
+            {
+                if (_stopped)
+                    return;
+
+                _stopped = true;
+                _cts.Cancel();
+
+                if (_connection is not null)
+                    _connection.Client.Disconnected -= OnDisconnected;
             }
 
             public async ValueTask DisposeAsync()
@@ -334,11 +556,7 @@ namespace Rpc.Testing
                     return;
 
                 _disposed = true;
-                _cts.Cancel();
-                _stopped = true;
-
-                if (_connection is not null)
-                    _connection.Client.Disconnected -= OnDisconnected;
+                BeginShutdown();
 
                 if (_pollingTask is not null)
                 {
@@ -361,17 +579,27 @@ namespace Rpc.Testing
             {
                 var interval = Mathf.Max(0.1f, _owner.RequestIntervalSeconds);
 
-                while (!_cts.IsCancellationRequested)
+                while (!_cts.IsCancellationRequested && !_stopped)
                 {
-                    var step = await _proxy!.IncrStep();
-                    _owner.UpdateSession(Index, snapshot =>
+                    try
                     {
-                        snapshot.Account = account;
-                        snapshot.LastStep = step;
-                        snapshot.State = "Polling";
-                    });
-                    _owner.AppendLog($"Session[{Index}] {account} step={step}");
-                    await Task.Delay(TimeSpan.FromSeconds(interval), _cts.Token);
+                        var step = await _proxy!.IncrStep();
+                        if (_cts.IsCancellationRequested || _stopped || _owner._isShuttingDown)
+                            return;
+
+                        _owner.UpdateSession(Index, snapshot =>
+                        {
+                            snapshot.Account = account;
+                            snapshot.LastStep = step;
+                            snapshot.State = "Polling";
+                        });
+                        _owner.AppendLog($"Session[{Index}] {account} step={step}");
+                        await Task.Delay(TimeSpan.FromSeconds(interval), _cts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
                 }
             }
 

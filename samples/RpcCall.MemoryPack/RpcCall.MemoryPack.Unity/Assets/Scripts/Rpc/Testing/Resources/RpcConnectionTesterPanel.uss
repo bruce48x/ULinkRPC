@@ -1,0 +1,115 @@
+.rpc-panel {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    width: 720px;
+    max-width: 92%;
+    max-height: 92%;
+    padding: 16px;
+    background-color: rgba(18, 24, 33, 0.94);
+    border-left-width: 4px;
+    border-left-color: rgb(81, 145, 255);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.rpc-title {
+    color: rgb(244, 247, 252);
+    font-size: 24px;
+    -unity-font-style: bold;
+    margin-bottom: 12px;
+}
+
+.rpc-summary-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.rpc-summary-item {
+    min-width: 160px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    color: rgb(224, 230, 240);
+    background-color: rgba(255, 255, 255, 0.06);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    white-space: normal;
+}
+
+.rpc-summary-wide {
+    min-width: 328px;
+}
+
+.rpc-connect-button {
+    height: 36px;
+    margin-bottom: 12px;
+}
+
+.rpc-section {
+    margin-top: 8px;
+}
+
+.rpc-section-title {
+    color: rgb(244, 247, 252);
+    font-size: 15px;
+    -unity-font-style: bold;
+    margin-bottom: 6px;
+}
+
+.rpc-scroll {
+    flex-grow: 0;
+    background-color: rgba(7, 11, 18, 0.45);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    padding: 8px;
+}
+
+.rpc-sessions-scroll {
+    height: 150px;
+}
+
+.rpc-logs-scroll {
+    height: 200px;
+}
+
+.rpc-session-card {
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-left-width: 3px;
+    border-left-color: rgb(81, 145, 255);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.rpc-session-title {
+    color: rgb(247, 250, 255);
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+
+.rpc-session-account,
+.rpc-session-state,
+.rpc-session-step,
+.rpc-session-message,
+.rpc-log-entry {
+    color: rgb(214, 220, 228);
+    white-space: normal;
+    margin-bottom: 2px;
+}

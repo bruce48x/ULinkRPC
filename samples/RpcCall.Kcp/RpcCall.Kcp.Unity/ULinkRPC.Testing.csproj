@@ -49,7 +49,9 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\Rpc\Testing\RpcConnectionTesterBase.cs" />
     <Compile Include="Assets\Scripts\Rpc\Testing\RpcConnectionTester.cs" />
+    <None Include="Assets\Scripts\Rpc\Testing\Resources\RpcConnectionTesterPanel.uss" />
     <None Include="Assets\Scripts\Rpc\Testing\Game.Rpc.Runtime.Testing.asmdef" />
+    <None Include="Assets\Scripts\Rpc\Testing\Resources\RpcConnectionTesterPanel.uxml" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
     </Reference>
@@ -145,6 +147,9 @@
     </Reference>
     <Reference Include="UnityEngine.UIModule">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\Managed\UnityEngine\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UIElementsModule">
+      <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\Managed\UnityEngine\UnityEngine.UIElementsModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UnityAnalyticsCommonModule">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\Managed\UnityEngine\UnityEngine.UnityAnalyticsCommonModule.dll</HintPath>

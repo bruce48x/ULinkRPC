@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="panel" class="rpc-panel">
+        <ui:Label name="titleLabel" class="rpc-title" />
+        <ui:VisualElement class="rpc-summary-grid">
+            <ui:Label name="stateLabel" class="rpc-summary-item" />
+            <ui:Label name="transportLabel" class="rpc-summary-item" />
+            <ui:Label name="endpointLabel" class="rpc-summary-item rpc-summary-wide" />
+            <ui:Label name="connectionsLabel" class="rpc-summary-item" />
+            <ui:Label name="intervalLabel" class="rpc-summary-item" />
+        </ui:VisualElement>
+        <ui:Button name="connectButton" text="Connect" class="rpc-connect-button" />
+        <ui:VisualElement class="rpc-section">
+            <ui:Label text="Sessions" class="rpc-section-title" />
+            <ui:ScrollView name="sessionsScroll" class="rpc-scroll rpc-sessions-scroll" />
+        </ui:VisualElement>
+        <ui:VisualElement class="rpc-section">
+            <ui:Label text="Recent Logs" class="rpc-section-title" />
+            <ui:ScrollView name="logsScroll" class="rpc-scroll rpc-logs-scroll" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
