@@ -35,18 +35,21 @@ $toolProject = Join-Path $repoRoot "src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj
 $sampleConfig = @{
     "RpcCall.MemoryPack" = @{
         Project = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server.csproj"
+        AssemblyName = "RpcCall.MemoryPack.Server"
         Contracts = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Packages/com.samples.contracts"
         UnityOutput = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Assets/Scripts/Rpc/RpcGenerated"
         ServerOutput = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server/Generated"
     }
     "RpcCall.Json" = @{
         Project = "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/RpcCall.Json.Server.csproj"
+        AssemblyName = "RpcCall.Json.Server"
         Contracts = "samples/RpcCall.Json/RpcCall.Json.Unity/Packages/com.samples.contracts"
         UnityOutput = "samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated"
         ServerOutput = "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated"
     }
     "RpcCall.Kcp" = @{
         Project = "samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/RpcCall.Kcp.Server.csproj"
+        AssemblyName = "RpcCall.Kcp.Server"
         Contracts = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Packages/com.samples.contracts"
         UnityOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Assets/Scripts/Rpc/RpcGenerated"
         ServerOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/Generated"
@@ -59,9 +62,12 @@ if ($null -eq $config) {
 }
 
 $projectPath = Join-Path $repoRoot $config.Project
+$projectDir = Split-Path -Parent $projectPath
+$assemblyName = $config.AssemblyName
 $contractsPath = Join-Path $repoRoot $config.Contracts
 $unityOutputPath = Join-Path $repoRoot $config.UnityOutput
 $serverOutputPath = Join-Path $repoRoot $config.ServerOutput
+$targetDllPath = Join-Path $projectDir ("bin/{0}/net10.0/{1}.dll" -f $Configuration, $assemblyName)
 
 foreach ($path in @($projectPath, $contractsPath)) {
     if (-not (Test-Path $path)) {
@@ -111,6 +117,40 @@ function Remove-GeneratedFiles {
     }
 
     Get-ChildItem -Path $Path -File | Remove-Item
+}
+
+function Stop-SampleProcesses {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$MatchTerms
+    )
+
+    $processes = @(Get-CimInstance Win32_Process | Where-Object {
+        if ([string]::IsNullOrWhiteSpace($_.CommandLine)) {
+            return $false
+        }
+
+        foreach ($term in $MatchTerms) {
+            if (-not [string]::IsNullOrWhiteSpace($term) -and $_.CommandLine.IndexOf($term, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                return $true
+            }
+        }
+
+        return $false
+    })
+
+    foreach ($process in $processes) {
+        if ($process.ProcessId -eq $PID) {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
+            Write-Host "==> stopped existing process $($process.ProcessId) for $Sample" -ForegroundColor Yellow
+        } catch {
+            Write-Warning "Failed to stop process $($process.ProcessId): $($_.Exception.Message)"
+        }
+    }
 }
 
 if (-not $SkipGen) {
@@ -172,6 +212,8 @@ if (-not $SkipGen) {
 }
 
 if (-not $SkipBuild) {
+    Stop-SampleProcesses -MatchTerms @($projectPath, $targetDllPath, "$assemblyName.dll", "$assemblyName.exe")
+
     $buildArgs = @($projectPath, "-c", $Configuration, "-v", $Verbosity) + (Get-MsBuildArgs)
     if ($DisableBuildServer) {
         $buildArgs += "--disable-build-servers"
@@ -191,14 +233,15 @@ if (-not $SkipBuild) {
 }
 
 if ($Run) {
-    $runArgs = @("run", "--project", $projectPath, "-c", $Configuration, "--no-launch-profile")
-    if (-not $SkipBuild) {
-        $runArgs += "--no-build"
+    if ($SkipBuild) {
+        Stop-SampleProcesses -MatchTerms @($projectPath, $targetDllPath, "$assemblyName.dll", "$assemblyName.exe")
     }
-    if ($NoRestore) {
-        $runArgs += "--no-restore"
+
+    if (-not (Test-Path $targetDllPath)) {
+        throw "Built server assembly not found: $targetDllPath"
     }
-    $runArgs += "--"
+
+    $runArgs = @($targetDllPath)
 
     if ($PSBoundParameters.ContainsKey("Port")) {
         $runArgs += $Port.ToString()

@@ -42,7 +42,6 @@
     <ImplicitlyExpandDesignTimeFacades>false</ImplicitlyExpandDesignTimeFacades>
   </PropertyGroup>
   <ItemGroup>
-    <Analyzer Include="D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll" />
     <Analyzer Include="D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\MemoryPack.Generator.1.21.4\analyzers\dotnet\cs\MemoryPack.Generator.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\Tools\Unity.SourceGenerators\Unity.SourceGenerators.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\Tools\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
@@ -234,7 +233,7 @@
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Library\PackageCache\com.github-glitchenzo.nugetforunity@4.5.0\Editor\PluginAPI\NuGetForUnity.PluginAPI.dll</HintPath>
     </Reference>
     <Reference Include="ULinkRPC.Transport.Kcp">
-      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Transport.Kcp.0.4.0\lib\netstandard2.1\ULinkRPC.Transport.Kcp.dll</HintPath>
+      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Transport.Kcp.0.5.0\lib\netstandard2.1\ULinkRPC.Transport.Kcp.dll</HintPath>
     </Reference>
     <Reference Include="ULinkRPC.Serializer.Kcp">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Serializer.MemoryPack.0.4.0\lib\netstandard2.1\ULinkRPC.Serializer.Kcp.dll</HintPath>
