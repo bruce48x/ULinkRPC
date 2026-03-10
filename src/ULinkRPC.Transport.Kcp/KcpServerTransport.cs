@@ -20,6 +20,7 @@ namespace ULinkRPC.Transport.Kcp
         private readonly ReadOnlyMemory<byte> _initialPacket;
         private readonly SimpleSegManager.Kcp _kcp;
         private readonly object _kcpGate = new();
+        private readonly Action? _onDispose;
         private readonly bool _ownsSocket;
         private readonly EndPoint _remote;
 
@@ -29,12 +30,13 @@ namespace ULinkRPC.Transport.Kcp
         private Task? _updateLoop;
 
         public KcpServerTransport(Socket socket, EndPoint remote, uint conv, ReadOnlyMemory<byte> initialPacket,
-            bool ownsSocket = false)
+            bool ownsSocket = false, Action? onDispose = null)
         {
             _socket = socket ?? throw new ArgumentNullException(nameof(socket));
             _remote = remote ?? throw new ArgumentNullException(nameof(remote));
             _initialPacket = initialPacket;
             _ownsSocket = ownsSocket;
+            _onDispose = onDispose;
 
             _kcp = new SimpleSegManager.Kcp(conv, this, this);
         }
@@ -151,6 +153,8 @@ namespace ULinkRPC.Transport.Kcp
                 catch
                 {
                 }
+
+            _onDispose?.Invoke();
         }
 
         private void ProcessInput(ReadOnlySpan<byte> data)

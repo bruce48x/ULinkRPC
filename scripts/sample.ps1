@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("RpcCall.MemoryPack", "RpcCall.Json")]
+    [ValidateSet("RpcCall.MemoryPack", "RpcCall.Json", "RpcCall.Kcp")]
     [string]$Sample = "RpcCall.MemoryPack",
 
     [ValidateSet("Debug", "Release")]
@@ -44,6 +44,12 @@ $sampleConfig = @{
         Contracts = "samples/RpcCall.Json/RpcCall.Json.Unity/Packages/com.samples.contracts"
         UnityOutput = "samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated"
         ServerOutput = "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated"
+    }
+    "RpcCall.Kcp" = @{
+        Project = "samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/RpcCall.Kcp.Server.csproj"
+        Contracts = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Packages/com.samples.contracts"
+        UnityOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Assets/Scripts/Rpc/RpcGenerated"
+        ServerOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/Generated"
     }
 }
 
