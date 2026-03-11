@@ -11,6 +11,11 @@ internal static class PathHelper
         Directory.Exists(Path.Combine(path, "Assets")) &&
         Directory.Exists(Path.Combine(path, "Packages"));
 
+    public static bool IsServerProjectDirectory(string path) =>
+        !IsUnityProject(path) &&
+        Directory.Exists(path) &&
+        Directory.EnumerateFiles(path, "*.csproj", SearchOption.TopDirectoryOnly).Any();
+
     public static string? FindUnityProjectRoot(string startPath)
     {
         var dir = new DirectoryInfo(startPath);
@@ -20,6 +25,19 @@ internal static class PathHelper
                 return dir.FullName;
             dir = dir.Parent;
         }
+        return null;
+    }
+
+    public static string? FindServerProjectRoot(string startPath)
+    {
+        var dir = new DirectoryInfo(startPath);
+        while (dir != null)
+        {
+            if (IsServerProjectDirectory(dir.FullName))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+
         return null;
     }
 

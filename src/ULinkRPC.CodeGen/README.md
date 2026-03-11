@@ -45,7 +45,7 @@ var player = connection.Api.Game.Player;
 ### Options
 
 - `--contracts <path>` Path to contract sources (required).
-- `--mode <unity|server>` Generation mode (required).
+- `--mode <unity|server>` Generation mode. If omitted, the tool will try to infer it from the current directory.
 - `--output <path>` Output directory for generated files.
 - `--namespace <ns>` Namespace for generated Unity code.
 - `--server-output <path>` Output directory for server binders.
@@ -56,7 +56,8 @@ var player = connection.Api.Game.Player;
 - Unity mode defaults output to `Assets/Scripts/Rpc/RpcGenerated` under detected Unity project root.
 - If Unity project root cannot be detected, pass `--output` explicitly.
 - Unity namespace defaults to value derived from output path unless `--namespace` is provided.
-- Server mode defaults output to `./Generated`.
+- Server mode defaults output to `Generated` under the detected server project root. If no server project root can be detected, it falls back to `./Generated`.
 - Server namespace defaults to `<contracts namespace>.Server.Generated` unless `--server-namespace` is provided.
+- If `--mode` is omitted, the tool auto-detects `unity` when the current directory is inside a Unity project, and `server` when the current directory is inside a directory tree that contains a `.csproj` server project.
 
 Paths can be overridden via options.

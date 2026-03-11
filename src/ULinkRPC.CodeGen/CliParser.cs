@@ -13,7 +13,7 @@ internal static class CliParser
         Console.WriteLine("  --namespace <ns>        Namespace for generated Unity code");
         Console.WriteLine("  --server-output <path>  Output directory for server binders");
         Console.WriteLine("  --server-namespace <ns> Namespace for server binders");
-        Console.WriteLine("  --mode <unity|server>   Generation mode (required)");
+        Console.WriteLine("  --mode <unity|server>   Generation mode (optional if current directory can be auto-detected)");
         Console.WriteLine();
         Console.WriteLine("Defaults:");
         Console.WriteLine("  unity: output defaults to Assets/Scripts/Rpc/RpcGenerated under Unity project root.");
@@ -66,25 +66,35 @@ internal static class CliParser
         return true;
     }
 
-    public static bool TryResolveGenerationOptions(RawOptions raw, out ResolvedOptions options, out string error)
+    public static bool TryResolveGenerationOptions(
+        RawOptions raw,
+        out ResolvedOptions options,
+        out string error,
+        string? currentDirectory = null)
     {
         options = ResolvedOptions.Empty;
         error = string.Empty;
 
-        var cwd = Directory.GetCurrentDirectory();
+        var cwd = string.IsNullOrWhiteSpace(currentDirectory)
+            ? Directory.GetCurrentDirectory()
+            : Path.GetFullPath(currentDirectory);
         if (string.IsNullOrWhiteSpace(raw.ContractsPath))
         {
             error = "Missing required option: --contracts <path>";
             return false;
         }
 
-        if (raw.Mode == OutputMode.Unknown)
+        var mode = raw.Mode;
+        if (mode == OutputMode.Unknown)
         {
-            error = "Missing required option: --mode <unity|server>";
-            return false;
+            mode = DetectModeFromCurrentDirectory(cwd);
+            if (mode == OutputMode.Unknown)
+            {
+                error = "Missing option: --mode <unity|server>. Auto-detection only works inside a Unity project or a server project directory.";
+                return false;
+            }
         }
 
-        var mode = raw.Mode;
         var contractsPath = Path.GetFullPath(raw.ContractsPath);
         var outputPath = string.Empty;
         var unityNamespace = string.Empty;
@@ -121,9 +131,10 @@ internal static class CliParser
 
         if (mode == OutputMode.Server)
         {
+            var serverRoot = PathHelper.FindServerProjectRoot(cwd) ?? cwd;
             serverNamespace = raw.ServerNamespace;
             serverOutputPath = string.IsNullOrWhiteSpace(raw.ServerOutputPath)
-                ? Path.Combine(cwd, "Generated")
+                ? Path.Combine(serverRoot, "Generated")
                 : Path.GetFullPath(raw.ServerOutputPath);
 
             if (!string.IsNullOrEmpty(serverNamespace) && !IsValidNamespace(serverNamespace))
@@ -141,6 +152,17 @@ internal static class CliParser
 
         options = new ResolvedOptions(contractsPath, outputPath, unityNamespace, serverOutputPath, serverNamespace, mode);
         return true;
+    }
+
+    private static OutputMode DetectModeFromCurrentDirectory(string currentDirectory)
+    {
+        if (PathHelper.FindUnityProjectRoot(currentDirectory) is not null)
+            return OutputMode.Unity;
+
+        if (PathHelper.FindServerProjectRoot(currentDirectory) is not null)
+            return OutputMode.Server;
+
+        return OutputMode.Unknown;
     }
 
     private static bool IsValidNamespace(string ns)

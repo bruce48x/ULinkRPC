@@ -108,7 +108,7 @@ public class CliParserTests
     public void Resolve_MissingMode_Fails()
     {
         var raw = new RawOptions("/c", "", "", "", "", OutputMode.Unknown);
-        Assert.False(CliParser.TryResolveGenerationOptions(raw, out _, out var error));
+        Assert.False(CliParser.TryResolveGenerationOptions(raw, out _, out var error, currentDirectory: Path.GetTempPath()));
         Assert.Contains("--mode", error);
     }
 
@@ -211,6 +211,50 @@ public class CliParserTests
         finally
         {
             Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_AutoDetectsUnityMode_FromCurrentDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"unity_codegen_{Guid.NewGuid():N}");
+        var cwd = Path.Combine(root, "Assets", "Scripts");
+        var contracts = Path.Combine(root, "Packages", "com.samples.contracts");
+        try
+        {
+            Directory.CreateDirectory(cwd);
+            Directory.CreateDirectory(contracts);
+
+            var raw = new RawOptions(contracts, "", "", "", "", OutputMode.Unknown);
+            Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _, currentDirectory: cwd));
+            Assert.Equal(OutputMode.Unity, opt.Mode);
+            Assert.Equal(Path.Combine(root, PathHelper.DefaultUnityOutputRelativePath), opt.OutputPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_AutoDetectsServerMode_FromCurrentDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"server_codegen_{Guid.NewGuid():N}");
+        var contracts = Path.Combine(root, "Contracts");
+        var generated = Path.Combine(root, "Generated");
+        try
+        {
+            Directory.CreateDirectory(contracts);
+            File.WriteAllText(Path.Combine(root, "Sample.Server.csproj"), "<Project />");
+
+            var raw = new RawOptions(contracts, "", "", "", "", OutputMode.Unknown);
+            Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _, currentDirectory: generated));
+            Assert.Equal(OutputMode.Server, opt.Mode);
+            Assert.Equal(Path.GetFullPath(generated), opt.ServerOutputPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
         }
     }
 

@@ -111,6 +111,41 @@ public class PathHelperTests
         }
     }
 
+    [Fact]
+    public void FindServerProjectRoot_FindsAncestorWithCsproj()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"server_root_{Guid.NewGuid():N}");
+        var nested = Path.Combine(root, "Generated");
+        try
+        {
+            Directory.CreateDirectory(nested);
+            File.WriteAllText(Path.Combine(root, "Sample.Server.csproj"), "<Project />");
+
+            var found = PathHelper.FindServerProjectRoot(nested);
+            Assert.NotNull(found);
+            Assert.Equal(Path.GetFullPath(root), Path.GetFullPath(found));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void FindServerProjectRoot_ReturnsNullWhenNoCsprojExists()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"no_server_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            Assert.Null(PathHelper.FindServerProjectRoot(dir));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     #endregion
 
     #region DeriveNamespaceFromOutputPath
