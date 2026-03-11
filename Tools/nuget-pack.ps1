@@ -6,7 +6,6 @@ $artifacts = Join-Path $root "artifacts"
 $projects = @(
     (Join-Path $root "src\ULinkRPC.Core\ULinkRPC.Core.csproj"),
     (Join-Path $root "src\ULinkRPC.Client\ULinkRPC.Client.csproj"),
-    (Join-Path $root "src\ULinkRPC.Client.Unity\ULinkRPC.Client.Unity.csproj"),
     (Join-Path $root "src\ULinkRPC.Server\ULinkRPC.Server.csproj"),
     (Join-Path $root "src\ULinkRPC.Transport.Tcp\ULinkRPC.Transport.Tcp.csproj"),
     (Join-Path $root "src\ULinkRPC.Transport.WebSocket\ULinkRPC.Transport.WebSocket.csproj"),
