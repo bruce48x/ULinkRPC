@@ -27,10 +27,14 @@ namespace Rpc.Generated
         public GameRpcGroup(IRpcClient client)
         {
             if (client is null) throw new ArgumentNullException(nameof(client));
+            Inventory = client.CreateInventoryService();
             Player = client.CreatePlayerService();
+            Quest = client.CreateQuestService();
         }
 
+        public IInventoryService Inventory { get; }
         public IPlayerService Player { get; }
+        public IQuestService Quest { get; }
     }
 
     public sealed class RpcConnection : IAsyncDisposable
@@ -44,17 +48,69 @@ namespace Rpc.Generated
         public RpcApi Api { get; }
         public RpcClient Client { get; }
 
-        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, IPlayerCallback? playerCallback = null, CancellationToken ct = default)
+        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)
         {
             if (builder is null) throw new ArgumentNullException(nameof(builder));
-            return builder.ConnectTypedAsync(static client => new RpcConnection(client), client => BindCallbacks(client, playerCallback), ct);
+            return builder.ConnectTypedAsync(static client => new RpcConnection(client), configureClient: null, ct);
         }
 
-        private static void BindCallbacks(IRpcClient client, IPlayerCallback? playerCallback)
+        public static ValueTask<RpcConnection> ConnectAsync<TCallbacks>(RpcClientBuilder builder, TCallbacks callbacks, CancellationToken ct = default) where TCallbacks : class
         {
-            if (playerCallback is not null)
+            if (builder is null) throw new ArgumentNullException(nameof(builder));
+            if (callbacks is null) throw new ArgumentNullException(nameof(callbacks));
+            return builder.ConnectTypedAsync(static client => new RpcConnection(client), client => BindCallbacks(client, callbacks), ct);
+        }
+
+        private static void BindCallbacks<TCallbacks>(IRpcClient client, TCallbacks callbacks) where TCallbacks : class
+        {
+            if (callbacks is IInventoryCallback inventoryCallback)
+            {
+                InventoryCallbackBinder.Bind(client, inventoryCallback);
+            }
+            if (callbacks is IPlayerCallback playerCallback)
             {
                 PlayerCallbackBinder.Bind(client, playerCallback);
+            }
+            if (callbacks is IQuestCallback questCallback)
+            {
+                QuestCallbackBinder.Bind(client, questCallback);
+            }
+        }
+
+        public sealed class RpcCallbacks : IInventoryCallback, IPlayerCallback, IQuestCallback
+        {
+
+            public Action<string>? InventoryCallbackOnInventoryNotifyHandler { get; private set; }
+            public RpcCallbacks SetInventoryCallbackOnInventoryNotify(Action<string> handler)
+            {
+                InventoryCallbackOnInventoryNotifyHandler = handler ?? throw new ArgumentNullException(nameof(handler));
+                return this;
+            }
+            public void OnInventoryNotify(string message)
+            {
+                InventoryCallbackOnInventoryNotifyHandler?.Invoke(message);
+            }
+
+            public Action<string>? PlayerCallbackOnPlayerNotifyHandler { get; private set; }
+            public RpcCallbacks SetPlayerCallbackOnPlayerNotify(Action<string> handler)
+            {
+                PlayerCallbackOnPlayerNotifyHandler = handler ?? throw new ArgumentNullException(nameof(handler));
+                return this;
+            }
+            public void OnPlayerNotify(string message)
+            {
+                PlayerCallbackOnPlayerNotifyHandler?.Invoke(message);
+            }
+
+            public Action<string>? QuestCallbackOnQuestNotifyHandler { get; private set; }
+            public RpcCallbacks SetQuestCallbackOnQuestNotify(Action<string> handler)
+            {
+                QuestCallbackOnQuestNotifyHandler = handler ?? throw new ArgumentNullException(nameof(handler));
+                return this;
+            }
+            public void OnQuestNotify(string message)
+            {
+                QuestCallbackOnQuestNotifyHandler?.Invoke(message);
             }
         }
 
@@ -70,6 +126,36 @@ namespace Rpc.Generated
         {
             if (client is null) throw new ArgumentNullException(nameof(client));
             return new RpcApi(client);
+        }
+    }
+
+    public sealed class GameRpcClient : IAsyncDisposable
+    {
+        private GameRpcClient(RpcConnection connection)
+        {
+            Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+        }
+
+        public RpcConnection Connection { get; }
+        public RpcApi Api => Connection.Api;
+        public RpcClient Client => Connection.Client;
+        public GameRpcGroup Game => Api.Game;
+
+        public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)
+        {
+            var connection = await RpcConnection.ConnectAsync(builder, ct);
+            return new GameRpcClient(connection);
+        }
+
+        public static async ValueTask<GameRpcClient> ConnectAsync<TCallbacks>(RpcClientBuilder builder, TCallbacks callbacks, CancellationToken ct = default) where TCallbacks : class
+        {
+            var connection = await RpcConnection.ConnectAsync(builder, callbacks, ct);
+            return new GameRpcClient(connection);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return Connection.DisposeAsync();
         }
     }
 }

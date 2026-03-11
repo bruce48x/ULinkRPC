@@ -16,12 +16,16 @@ namespace Game.Rpc.Server.Generated
     {
         public static void BindAll(RpcServiceRegistry registry)
         {
+            InventoryServiceBinder.Bind(registry, CreateCallbackServiceFactory<IInventoryService, IInventoryCallback>());
             PlayerServiceBinder.Bind(registry, CreateCallbackServiceFactory<IPlayerService, IPlayerCallback>());
+            QuestServiceBinder.Bind(registry, CreateCallbackServiceFactory<IQuestService, IQuestCallback>());
         }
 
-        public static void BindAll(RpcServiceRegistry registry, Func<IPlayerCallback, IPlayerService> playerServiceFactory)
+        public static void BindAll(RpcServiceRegistry registry, Func<IInventoryCallback, IInventoryService> inventoryServiceFactory, Func<IPlayerCallback, IPlayerService> playerServiceFactory, Func<IQuestCallback, IQuestService> questServiceFactory)
         {
+            InventoryServiceBinder.Bind(registry, inventoryServiceFactory);
             PlayerServiceBinder.Bind(registry, playerServiceFactory);
+            QuestServiceBinder.Bind(registry, questServiceFactory);
         }
 
         private static Func<RpcSession, TService> CreateServiceFactory<TService>()

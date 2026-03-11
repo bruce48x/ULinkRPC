@@ -3,19 +3,19 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
-    [RpcService(1)]
-    public interface IPlayerService : IRpcService<IPlayerService, IPlayerCallback>
+    [RpcService(2)]
+    public interface IInventoryService : IRpcService<IInventoryService, IInventoryCallback>
     {
         [RpcMethod(1)]
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
         [RpcMethod(2)]
-        ValueTask<int> IncrStep();
+        ValueTask<int> IncrRevision();
     }
 
-    public interface IPlayerCallback
+    public interface IInventoryCallback
     {
         [RpcMethod(1)]
-        void OnPlayerNotify(string message);
+        void OnInventoryNotify(string message);
     }
 }

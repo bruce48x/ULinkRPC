@@ -9,14 +9,14 @@ using ULinkRPC.Server;
 
 namespace Game.Rpc.Server.Generated
 {
-    public sealed class PlayerCallbackProxy : IPlayerCallback
+    public sealed class InventoryCallbackProxy : IInventoryCallback
     {
-        private const int ServiceId = 1;
+        private const int ServiceId = 2;
         private readonly RpcSession _session;
 
-        public PlayerCallbackProxy(RpcSession session) { _session = session; }
+        public InventoryCallbackProxy(RpcSession session) { _session = session; }
 
-        public void OnPlayerNotify(string message)
+        public void OnInventoryNotify(string message)
         {
             _ = _session.PushAsync<string>(ServiceId, 1, message).AsTask();
         }

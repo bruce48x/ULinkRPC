@@ -12,13 +12,13 @@ namespace Rpc.Generated
     {
         private const int ServiceId = 1;
 
-        private static readonly RpcPushMethod<string> onNotifyPushMethod = new(ServiceId, 1);
+        private static readonly RpcPushMethod<string> onPlayerNotifyPushMethod = new(ServiceId, 1);
 
         public static void Bind(IRpcClient client, IPlayerCallback receiver)
         {
-            client.RegisterPushHandler(onNotifyPushMethod, (arg) =>
+            client.RegisterPushHandler(onPlayerNotifyPushMethod, (arg) =>
             {
-                receiver.OnNotify(arg);
+                receiver.OnPlayerNotify(arg);
             });
 
         }

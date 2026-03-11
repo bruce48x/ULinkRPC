@@ -420,7 +420,9 @@ namespace Rpc.Testing
 
                 sessionCard.Add(CreateValueLabel(snapshot.Account ?? "?", "rpc-session-account"));
                 sessionCard.Add(CreateValueLabel(snapshot.State ?? "Idle", "rpc-session-state"));
-                sessionCard.Add(CreateValueLabel($"step={snapshot.LastStep}", "rpc-session-step"));
+                sessionCard.Add(CreateValueLabel(
+                    $"player={snapshot.PlayerStep} inventory={snapshot.InventoryRevision} quest={snapshot.QuestProgress}",
+                    "rpc-session-step"));
 
                 if (!string.IsNullOrWhiteSpace(snapshot.LastMessage))
                     sessionCard.Add(CreateValueLabel(snapshot.LastMessage!, "rpc-session-message"));
@@ -483,59 +485,96 @@ namespace Rpc.Testing
         {
             public string? Account;
             public int Index;
+            public int InventoryRevision;
             public string? LastMessage;
-            public int LastStep;
+            public int PlayerStep;
+            public int QuestProgress;
             public string? State;
         }
 
-        private sealed class ConnectionSession : IPlayerCallback, IAsyncDisposable
+        private sealed class ConnectionSession : IAsyncDisposable
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
-            private RpcConnection? _connection;
+            private readonly RpcCallbacks _callbacks;
+            private GameRpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
-            private IPlayerService? _proxy;
+            private IInventoryService? _inventory;
+            private IPlayerService? _player;
+            private IQuestService? _quest;
             private bool _stopped;
 
             public ConnectionSession(RpcConnectionTesterBase owner, int index)
             {
                 _owner = owner;
                 Index = index;
+                _callbacks = new RpcCallbacks()
+                    .SetInventoryCallbackOnInventoryNotify(OnInventoryNotify)
+                    .SetPlayerCallbackOnPlayerNotify(OnPlayerNotify)
+                    .SetQuestCallbackOnQuestNotify(OnQuestNotify);
             }
 
             public int Index { get; }
 
             public async Task StartAsync()
             {
-                _connection = await RpcConnection.ConnectAsync(_owner.CreateClientBuilder(), this, _cts.Token);
+                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), _callbacks, _cts.Token);
                 _connection.Client.Disconnected += OnDisconnected;
-                _proxy = _connection.Api.Game.Player;
+                _player = _connection.Game.Player;
+                _inventory = _connection.Game.Inventory;
+                _quest = _connection.Game.Quest;
 
                 var account = $"{_owner.Account}-{Index + 1}";
-                var reply = await _proxy.LoginAsync(new LoginRequest
+                var loginRequest = new LoginRequest
                 {
                     Account = account,
                     Password = _owner.Password
-                });
+                };
+
+                var playerReply = await _player.LoginAsync(loginRequest);
+                var inventoryReply = await _inventory.LoginAsync(loginRequest);
+                var questReply = await _quest.LoginAsync(loginRequest);
 
                 _owner.UpdateSession(Index, snapshot =>
                 {
                     snapshot.Account = account;
                     snapshot.State = "Connected";
-                    snapshot.LastMessage = $"token={reply.Token}";
+                    snapshot.LastMessage =
+                        $"player={playerReply.Token[..Math.Min(12, playerReply.Token.Length)]} | " +
+                        $"inventory={inventoryReply.Token[..Math.Min(12, inventoryReply.Token.Length)]} | " +
+                        $"quest={questReply.Token[..Math.Min(12, questReply.Token.Length)]}";
                 });
-                _owner.AppendLog($"Session[{Index}] login ok: code={reply.Code}, token={reply.Token}");
+                _owner.AppendLog(
+                    $"Session[{Index}] login ok: player={playerReply.Code}, inventory={inventoryReply.Code}, quest={questReply.Code}");
                 _pollingTask = RunPollingAsync(account);
             }
 
-            public void OnNotify(string message)
+            private void OnPlayerNotify(string message)
             {
                 if (_stopped || _owner._isShuttingDown)
                     return;
 
                 _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
-                _owner.AppendLog($"Session[{Index}] server push: {message}");
+                _owner.AppendLog($"Session[{Index}] player push: {message}");
+            }
+
+            private void OnInventoryNotify(string message)
+            {
+                if (_stopped || _owner._isShuttingDown)
+                    return;
+
+                _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
+                _owner.AppendLog($"Session[{Index}] inventory push: {message}");
+            }
+
+            private void OnQuestNotify(string message)
+            {
+                if (_stopped || _owner._isShuttingDown)
+                    return;
+
+                _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
+                _owner.AppendLog($"Session[{Index}] quest push: {message}");
             }
 
             public void BeginShutdown()
@@ -583,17 +622,22 @@ namespace Rpc.Testing
                 {
                     try
                     {
-                        var step = await _proxy!.IncrStep();
+                        var playerStep = await _player!.IncrStep();
+                        var inventoryRevision = await _inventory!.IncrRevision();
+                        var questProgress = await _quest!.IncrProgress();
                         if (_cts.IsCancellationRequested || _stopped || _owner._isShuttingDown)
                             return;
 
                         _owner.UpdateSession(Index, snapshot =>
                         {
                             snapshot.Account = account;
-                            snapshot.LastStep = step;
+                            snapshot.PlayerStep = playerStep;
+                            snapshot.InventoryRevision = inventoryRevision;
+                            snapshot.QuestProgress = questProgress;
                             snapshot.State = "Polling";
                         });
-                        _owner.AppendLog($"Session[{Index}] {account} step={step}");
+                        _owner.AppendLog(
+                            $"Session[{Index}] {account} player={playerStep}, inventory={inventoryRevision}, quest={questProgress}");
                         await Task.Delay(TimeSpan.FromSeconds(interval), _cts.Token);
                     }
                     catch (OperationCanceledException)

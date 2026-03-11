@@ -39,7 +39,25 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.MemoryPack -SkipBuild
 
 打开 `samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity`，进入场景 `Assets/Scenes/TcpConnectionTest.unity`，点击 Play。
 
-默认会自动连接 `127.0.0.1:20000`，完成 `Login` 后持续调用 `IncrStep()`，同时接收服务端通过 `IPlayerCallback.OnNotify` 推送的回调消息。
+默认会自动连接 `127.0.0.1:20000`，然后在每个连接上同时使用 3 个独立 service：
+
+- `IPlayerService`
+- `IInventoryService`
+- `IQuestService`
+
+每个 service 都有自己的 callback。客户端完成 3 次 `LoginAsync(...)` 后，会按固定间隔持续调用：
+
+- `IPlayerService.IncrStep()`
+- `IInventoryService.IncrRevision()`
+- `IQuestService.IncrProgress()`
+
+服务端会分别通过：
+
+- `IPlayerCallback.OnPlayerNotify(...)`
+- `IInventoryCallback.OnInventoryNotify(...)`
+- `IQuestCallback.OnQuestNotify(...)`
+
+把回调消息推回当前连接。
 
 Unity 客户端入口现在和其它 sample 一致：
 
@@ -58,9 +76,9 @@ return RpcClientBuilder.Create()
 
 ## 多连接示例
 
-`RpcConnectionTester` 现在会在一个场景里管理多个独立连接，并让每个连接按固定间隔持续调用 `IPlayerService.IncrStep()`。
+`RpcConnectionTester` 现在会在一个场景里管理多个独立连接，并让每个连接同时轮询 3 个 service 的递增方法。
 
 - `Connection Count`：同时建立的连接数
-- `Request Interval Seconds`：每个连接调用 `IncrStep()` 的间隔
+- `Request Interval Seconds`：每个连接轮询 3 个 service 的间隔
 
-服务端会为每个连接创建各自的 `PlayerService` 实例，因此 `IncrStep()` 的返回值会按连接分别递增，而不会彼此共享计数。
+服务端会为每个连接创建各自的 `PlayerService`、`InventoryService`、`QuestService` 实例，因此这 3 组计数都会按连接分别递增，而不会彼此共享。
