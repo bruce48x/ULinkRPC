@@ -488,11 +488,12 @@ namespace Rpc.Testing
             public string? State;
         }
 
-        private sealed class ConnectionSession : IPlayerCallback, IAsyncDisposable
+        private sealed class ConnectionSession : IAsyncDisposable
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
-            private RpcConnection? _connection;
+            private readonly RpcConnection.RpcCallbacks _callbacks;
+            private GameRpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
             private IPlayerService? _proxy;
@@ -502,15 +503,17 @@ namespace Rpc.Testing
             {
                 _owner = owner;
                 Index = index;
+                _callbacks = new RpcConnection.RpcCallbacks()
+                    .SetPlayerCallbackOnNotify(OnNotify);
             }
 
             public int Index { get; }
 
             public async Task StartAsync()
             {
-                _connection = await RpcConnection.ConnectAsync(_owner.CreateClientBuilder(), this, _cts.Token);
+                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), _callbacks, _cts.Token);
                 _connection.Client.Disconnected += OnDisconnected;
-                _proxy = _connection.Api.Game.Player;
+                _proxy = _connection.Game.Player;
 
                 var account = $"{_owner.Account}-{Index + 1}";
                 var reply = await _proxy.LoginAsync(new LoginRequest
@@ -529,7 +532,7 @@ namespace Rpc.Testing
                 _pollingTask = RunPollingAsync(account);
             }
 
-            public void OnNotify(string message)
+            private void OnNotify(string message)
             {
                 if (_stopped || _owner._isShuttingDown)
                     return;
