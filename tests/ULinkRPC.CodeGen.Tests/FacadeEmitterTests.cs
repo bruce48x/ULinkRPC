@@ -49,18 +49,18 @@ public class FacadeEmitterTests
 
         Assert.Contains("public sealed class RpcConnection : IAsyncDisposable", code);
         Assert.Contains("public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)", code);
-        Assert.Contains("public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, GameRpcCallbacksBase callbacks, CancellationToken ct = default)", code);
-        Assert.Contains("public static ValueTask<RpcConnection> ConnectAsync<TCallbacks>(RpcClientBuilder builder, TCallbacks callbacks, CancellationToken ct = default) where TCallbacks : class", code);
-        Assert.Contains("if (callbacks is IPlayerCallback playerCallback)", code);
-        Assert.Contains("PlayerCallbackBinder.Bind(client, playerCallback);", code);
-        Assert.Contains("public abstract class GameRpcCallbacksBase", code);
-        Assert.Contains(": IPlayerCallback", code);
+        Assert.Contains("public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, RpcCallbackBindings callbacks, CancellationToken ct = default)", code);
+        Assert.Contains("public sealed class RpcCallbackBindings", code);
+        Assert.Contains("public void Add(IPlayerCallback playerCallback)", code);
+        Assert.Contains("PlayerCallbackBinder.Bind(client, _playerCallback);", code);
+        Assert.Contains("public abstract class PlayerCallbackBase : IPlayerCallback", code);
         Assert.Contains("public virtual void OnNotify(string message)", code);
-        Assert.DoesNotContain("public sealed class RpcCallbacks", code);
+        Assert.DoesNotContain("ConnectAsync<TCallbacks>", code);
+        Assert.DoesNotContain("public abstract class GameRpcCallbacksBase", code);
         Assert.DoesNotContain("SetPlayerCallbackOnNotify", code);
         Assert.Contains("public sealed class GameRpcClient : IAsyncDisposable", code);
         Assert.Contains("public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)", code);
-        Assert.Contains("public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, RpcConnection.GameRpcCallbacksBase callbacks, CancellationToken ct = default)", code);
+        Assert.Contains("public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, RpcConnection.RpcCallbackBindings callbacks, CancellationToken ct = default)", code);
     }
 
     [Fact]

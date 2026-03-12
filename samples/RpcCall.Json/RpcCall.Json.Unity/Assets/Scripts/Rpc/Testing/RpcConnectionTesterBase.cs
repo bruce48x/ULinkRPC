@@ -606,10 +606,11 @@ namespace Rpc.Testing
             public Label Message { get; }
         }
 
-        private sealed class ConnectionSession : RpcConnection.GameRpcCallbacksBase, IAsyncDisposable
+        private sealed class ConnectionSession : IAsyncDisposable
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
+            private readonly RpcConnection.RpcCallbackBindings _callbacks;
             private GameRpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
@@ -620,13 +621,17 @@ namespace Rpc.Testing
             {
                 _owner = owner;
                 Index = index;
+                _callbacks = new RpcConnection.RpcCallbackBindings
+                {
+                    new PlayerCallbacks(this)
+                };
             }
 
             public int Index { get; }
 
             public async Task StartAsync()
             {
-                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), this, _cts.Token);
+                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), _callbacks, _cts.Token);
                 _connection.Client.Disconnected += OnDisconnected;
                 _proxy = _connection.Game.Player;
 
@@ -647,7 +652,7 @@ namespace Rpc.Testing
                 _pollingTask = RunPollingAsync(account);
             }
 
-            public override void OnNotify(string message)
+            private void HandleNotify(string message)
             {
                 if (_stopped || _owner._isShuttingDown)
                     return;
@@ -728,6 +733,18 @@ namespace Rpc.Testing
 
                 _stopped = true;
                 _owner.OnSessionDisconnected(this, ex);
+            }
+
+            private sealed class PlayerCallbacks : RpcConnection.PlayerCallbackBase
+            {
+                private readonly ConnectionSession _owner;
+
+                public PlayerCallbacks(ConnectionSession owner)
+                {
+                    _owner = owner;
+                }
+
+                public override void OnNotify(string message) => _owner.HandleNotify(message);
             }
         }
     }

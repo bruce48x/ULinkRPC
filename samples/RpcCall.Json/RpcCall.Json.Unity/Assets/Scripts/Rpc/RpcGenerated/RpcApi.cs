@@ -5,6 +5,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections;
+using System.Collections.Generic;
 using Game.Rpc.Contracts;
 using ULinkRPC.Client;
 using ULinkRPC.Core;
@@ -50,28 +52,48 @@ namespace Rpc.Generated
             return builder.ConnectTypedAsync(static client => new RpcConnection(client), configureClient: null, ct);
         }
 
-        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, GameRpcCallbacksBase callbacks, CancellationToken ct = default)
-        {
-            if (callbacks is null) throw new ArgumentNullException(nameof(callbacks));
-            return ConnectAsync(builder, callbacks: (object)callbacks, ct);
-        }
-
-        public static ValueTask<RpcConnection> ConnectAsync<TCallbacks>(RpcClientBuilder builder, TCallbacks callbacks, CancellationToken ct = default) where TCallbacks : class
+        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, RpcCallbackBindings callbacks, CancellationToken ct = default)
         {
             if (builder is null) throw new ArgumentNullException(nameof(builder));
             if (callbacks is null) throw new ArgumentNullException(nameof(callbacks));
-            return builder.ConnectTypedAsync(static client => new RpcConnection(client), client => BindCallbacks(client, callbacks), ct);
+            return builder.ConnectTypedAsync(static client => new RpcConnection(client), callbacks.Bind, ct);
         }
 
-        private static void BindCallbacks<TCallbacks>(IRpcClient client, TCallbacks callbacks) where TCallbacks : class
+        public sealed class RpcCallbackBindings : IEnumerable<object>
         {
-            if (callbacks is IPlayerCallback playerCallback)
+            private IPlayerCallback? _playerCallback;
+            public void Add(IPlayerCallback playerCallback)
             {
-                PlayerCallbackBinder.Bind(client, playerCallback);
+                if (playerCallback is null) throw new ArgumentNullException(nameof(playerCallback));
+                if (_playerCallback is not null)
+                {
+                    throw new InvalidOperationException("Callback receiver for 'IPlayerCallback' is already registered.");
+                }
+                _playerCallback = playerCallback;
             }
+
+            internal void Bind(IRpcClient client)
+            {
+                if (client is null) throw new ArgumentNullException(nameof(client));
+                if (_playerCallback is not null)
+                {
+                    PlayerCallbackBinder.Bind(client, _playerCallback);
+                }
+            }
+
+            public IEnumerator<object> GetEnumerator()
+            {
+                yield break;
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
         }
 
-        public abstract class GameRpcCallbacksBase : IPlayerCallback
+        public abstract class PlayerCallbackBase : IPlayerCallback
         {
 
             public virtual void OnNotify(string message)
@@ -112,13 +134,7 @@ namespace Rpc.Generated
             return new GameRpcClient(connection);
         }
 
-        public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, RpcConnection.GameRpcCallbacksBase callbacks, CancellationToken ct = default)
-        {
-            var connection = await RpcConnection.ConnectAsync(builder, callbacks, ct);
-            return new GameRpcClient(connection);
-        }
-
-        public static async ValueTask<GameRpcClient> ConnectAsync<TCallbacks>(RpcClientBuilder builder, TCallbacks callbacks, CancellationToken ct = default) where TCallbacks : class
+        public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, RpcConnection.RpcCallbackBindings callbacks, CancellationToken ct = default)
         {
             var connection = await RpcConnection.ConnectAsync(builder, callbacks, ct);
             return new GameRpcClient(connection);
