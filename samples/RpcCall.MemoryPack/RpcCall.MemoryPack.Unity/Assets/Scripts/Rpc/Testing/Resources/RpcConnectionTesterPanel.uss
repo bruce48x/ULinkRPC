@@ -78,6 +78,10 @@
     padding: 8px;
 }
 
+.rpc-list-content {
+    flex-direction: column;
+}
+
 .rpc-sessions-scroll {
     height: 150px;
 }
@@ -112,4 +116,10 @@
     color: rgb(214, 220, 228);
     white-space: normal;
     margin-bottom: 2px;
+}
+
+.rpc-log-content {
+    color: rgb(214, 220, 228);
+    white-space: normal;
+    -unity-text-align: upper-left;
 }
