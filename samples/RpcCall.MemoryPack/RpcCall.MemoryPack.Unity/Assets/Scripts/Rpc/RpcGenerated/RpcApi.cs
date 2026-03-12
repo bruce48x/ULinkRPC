@@ -54,6 +54,12 @@ namespace Rpc.Generated
             return builder.ConnectTypedAsync(static client => new RpcConnection(client), configureClient: null, ct);
         }
 
+        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, GameRpcCallbacksBase callbacks, CancellationToken ct = default)
+        {
+            if (callbacks is null) throw new ArgumentNullException(nameof(callbacks));
+            return ConnectAsync(builder, callbacks: (object)callbacks, ct);
+        }
+
         public static ValueTask<RpcConnection> ConnectAsync<TCallbacks>(RpcClientBuilder builder, TCallbacks callbacks, CancellationToken ct = default) where TCallbacks : class
         {
             if (builder is null) throw new ArgumentNullException(nameof(builder));
@@ -77,40 +83,19 @@ namespace Rpc.Generated
             }
         }
 
-        public sealed class RpcCallbacks : IInventoryCallback, IPlayerCallback, IQuestCallback
+        public abstract class GameRpcCallbacksBase : IInventoryCallback, IPlayerCallback, IQuestCallback
         {
 
-            public Action<string>? InventoryCallbackOnInventoryNotifyHandler { get; private set; }
-            public RpcCallbacks SetInventoryCallbackOnInventoryNotify(Action<string> handler)
+            public virtual void OnInventoryNotify(string message)
             {
-                InventoryCallbackOnInventoryNotifyHandler = handler ?? throw new ArgumentNullException(nameof(handler));
-                return this;
-            }
-            public void OnInventoryNotify(string message)
-            {
-                InventoryCallbackOnInventoryNotifyHandler?.Invoke(message);
             }
 
-            public Action<string>? PlayerCallbackOnPlayerNotifyHandler { get; private set; }
-            public RpcCallbacks SetPlayerCallbackOnPlayerNotify(Action<string> handler)
+            public virtual void OnPlayerNotify(string message)
             {
-                PlayerCallbackOnPlayerNotifyHandler = handler ?? throw new ArgumentNullException(nameof(handler));
-                return this;
-            }
-            public void OnPlayerNotify(string message)
-            {
-                PlayerCallbackOnPlayerNotifyHandler?.Invoke(message);
             }
 
-            public Action<string>? QuestCallbackOnQuestNotifyHandler { get; private set; }
-            public RpcCallbacks SetQuestCallbackOnQuestNotify(Action<string> handler)
+            public virtual void OnQuestNotify(string message)
             {
-                QuestCallbackOnQuestNotifyHandler = handler ?? throw new ArgumentNullException(nameof(handler));
-                return this;
-            }
-            public void OnQuestNotify(string message)
-            {
-                QuestCallbackOnQuestNotifyHandler?.Invoke(message);
             }
         }
 
@@ -144,6 +129,12 @@ namespace Rpc.Generated
         public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)
         {
             var connection = await RpcConnection.ConnectAsync(builder, ct);
+            return new GameRpcClient(connection);
+        }
+
+        public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, RpcConnection.GameRpcCallbacksBase callbacks, CancellationToken ct = default)
+        {
+            var connection = await RpcConnection.ConnectAsync(builder, callbacks, ct);
             return new GameRpcClient(connection);
         }
 

@@ -50,6 +50,12 @@ namespace Rpc.Generated
             return builder.ConnectTypedAsync(static client => new RpcConnection(client), configureClient: null, ct);
         }
 
+        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, GameRpcCallbacksBase callbacks, CancellationToken ct = default)
+        {
+            if (callbacks is null) throw new ArgumentNullException(nameof(callbacks));
+            return ConnectAsync(builder, callbacks: (object)callbacks, ct);
+        }
+
         public static ValueTask<RpcConnection> ConnectAsync<TCallbacks>(RpcClientBuilder builder, TCallbacks callbacks, CancellationToken ct = default) where TCallbacks : class
         {
             if (builder is null) throw new ArgumentNullException(nameof(builder));
@@ -65,18 +71,11 @@ namespace Rpc.Generated
             }
         }
 
-        public sealed class RpcCallbacks : IPlayerCallback
+        public abstract class GameRpcCallbacksBase : IPlayerCallback
         {
 
-            public Action<string>? PlayerCallbackOnNotifyHandler { get; private set; }
-            public RpcCallbacks SetPlayerCallbackOnNotify(Action<string> handler)
+            public virtual void OnNotify(string message)
             {
-                PlayerCallbackOnNotifyHandler = handler ?? throw new ArgumentNullException(nameof(handler));
-                return this;
-            }
-            public void OnNotify(string message)
-            {
-                PlayerCallbackOnNotifyHandler?.Invoke(message);
             }
         }
 
@@ -110,6 +109,12 @@ namespace Rpc.Generated
         public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)
         {
             var connection = await RpcConnection.ConnectAsync(builder, ct);
+            return new GameRpcClient(connection);
+        }
+
+        public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, RpcConnection.GameRpcCallbacksBase callbacks, CancellationToken ct = default)
+        {
+            var connection = await RpcConnection.ConnectAsync(builder, callbacks, ct);
             return new GameRpcClient(connection);
         }
 

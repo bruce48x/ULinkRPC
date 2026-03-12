@@ -606,11 +606,10 @@ namespace Rpc.Testing
             public Label Message { get; }
         }
 
-        private sealed class ConnectionSession : IAsyncDisposable
+        private sealed class ConnectionSession : RpcConnection.GameRpcCallbacksBase, IAsyncDisposable
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
-            private readonly RpcConnection.RpcCallbacks _callbacks;
             private GameRpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
@@ -621,15 +620,13 @@ namespace Rpc.Testing
             {
                 _owner = owner;
                 Index = index;
-                _callbacks = new RpcConnection.RpcCallbacks()
-                    .SetPlayerCallbackOnNotify(OnNotify);
             }
 
             public int Index { get; }
 
             public async Task StartAsync()
             {
-                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), _callbacks, _cts.Token);
+                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), this, _cts.Token);
                 _connection.Client.Disconnected += OnDisconnected;
                 _proxy = _connection.Game.Player;
 
@@ -650,7 +647,7 @@ namespace Rpc.Testing
                 _pollingTask = RunPollingAsync(account);
             }
 
-            private void OnNotify(string message)
+            public override void OnNotify(string message)
             {
                 if (_stopped || _owner._isShuttingDown)
                     return;

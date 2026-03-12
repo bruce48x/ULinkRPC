@@ -608,11 +608,10 @@ namespace Rpc.Testing
             public Label Message { get; }
         }
 
-        private sealed class ConnectionSession : IAsyncDisposable
+        private sealed class ConnectionSession : RpcConnection.GameRpcCallbacksBase, IAsyncDisposable
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
-            private readonly RpcConnection.RpcCallbacks _callbacks;
             private GameRpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
@@ -625,17 +624,13 @@ namespace Rpc.Testing
             {
                 _owner = owner;
                 Index = index;
-                _callbacks = new RpcConnection.RpcCallbacks()
-                    .SetInventoryCallbackOnInventoryNotify(OnInventoryNotify)
-                    .SetPlayerCallbackOnPlayerNotify(OnPlayerNotify)
-                    .SetQuestCallbackOnQuestNotify(OnQuestNotify);
             }
 
             public int Index { get; }
 
             public async Task StartAsync()
             {
-                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), _callbacks, _cts.Token);
+                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), this, _cts.Token);
                 _connection.Client.Disconnected += OnDisconnected;
                 _player = _connection.Game.Player;
                 _inventory = _connection.Game.Inventory;
@@ -666,7 +661,7 @@ namespace Rpc.Testing
                 _pollingTask = RunPollingAsync(account);
             }
 
-            private void OnPlayerNotify(string message)
+            public override void OnPlayerNotify(string message)
             {
                 if (_stopped || _owner._isShuttingDown)
                     return;
@@ -675,7 +670,7 @@ namespace Rpc.Testing
                 _owner.AppendLog($"Session[{Index}] player push: {message}");
             }
 
-            private void OnInventoryNotify(string message)
+            public override void OnInventoryNotify(string message)
             {
                 if (_stopped || _owner._isShuttingDown)
                     return;
@@ -684,7 +679,7 @@ namespace Rpc.Testing
                 _owner.AppendLog($"Session[{Index}] inventory push: {message}");
             }
 
-            private void OnQuestNotify(string message)
+            public override void OnQuestNotify(string message)
             {
                 if (_stopped || _owner._isShuttingDown)
                     return;
