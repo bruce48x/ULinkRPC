@@ -103,9 +103,13 @@ namespace Rpc.Testing
         private Button? _connectButton;
         private ScrollView? _sessionsScroll;
         private ScrollView? _logsScroll;
+        private VisualElement? _sessionsContent;
+        private Label? _logsLabel;
+        private readonly Dictionary<int, SessionView> _sessionViews = new();
         private bool _cleanupStarted;
         private bool _debugUiBound;
         private bool _isShuttingDown;
+        private bool _styleSheetAttached;
         private bool _uiDirty = true;
         private bool _uiToolkitReady;
 
@@ -332,6 +336,7 @@ namespace Rpc.Testing
             }
 
             var root = _debugDocument.rootVisualElement;
+            AttachStyleSheet(root);
 
             _titleLabel = root.Q<Label>("titleLabel");
             _stateLabel = root.Q<Label>("stateLabel");
@@ -342,6 +347,8 @@ namespace Rpc.Testing
             _connectButton = root.Q<Button>("connectButton");
             _sessionsScroll = root.Q<ScrollView>("sessionsScroll");
             _logsScroll = root.Q<ScrollView>("logsScroll");
+            EnsureSessionsContent();
+            EnsureLogsContent();
 
             if (_connectButton is not null)
             {
@@ -366,6 +373,7 @@ namespace Rpc.Testing
                 return;
 
             var root = _debugDocument.rootVisualElement;
+            AttachStyleSheet(root);
             _uiToolkitReady = root.panel is not null &&
                               _titleLabel is not null &&
                               _connectButton is not null &&
@@ -403,44 +411,53 @@ namespace Rpc.Testing
 
         private void RebuildSessions()
         {
-            if (_sessionsScroll is null)
+            if (_sessionsContent is null)
                 return;
 
-            _sessionsScroll.contentContainer.Clear();
+            var activeKeys = new HashSet<int>();
 
             foreach (var entry in GetOrderedSessionSnapshots())
             {
                 var snapshot = entry.Value;
-                var sessionCard = new VisualElement();
-                sessionCard.AddToClassList("rpc-session-card");
+                activeKeys.Add(snapshot.Index);
+                if (!_sessionViews.TryGetValue(snapshot.Index, out var view))
+                {
+                    view = CreateSessionView(snapshot.Index);
+                    _sessionViews[snapshot.Index] = view;
+                    _sessionsContent.Add(view.Root);
+                }
 
-                var title = new Label($"Session {snapshot.Index + 1}");
-                title.AddToClassList("rpc-session-title");
-                sessionCard.Add(title);
+                view.Title.text = $"Session {snapshot.Index + 1}";
+                view.Account.text = snapshot.Account ?? "?";
+                view.State.text = snapshot.State ?? "Idle";
+                view.Step.text = $"step={snapshot.LastStep}";
+                view.Message.text = snapshot.LastMessage ?? string.Empty;
+                view.Message.style.display = string.IsNullOrWhiteSpace(snapshot.LastMessage)
+                    ? DisplayStyle.None
+                    : DisplayStyle.Flex;
+            }
 
-                sessionCard.Add(CreateValueLabel(snapshot.Account ?? "?", "rpc-session-account"));
-                sessionCard.Add(CreateValueLabel(snapshot.State ?? "Idle", "rpc-session-state"));
-                sessionCard.Add(CreateValueLabel($"step={snapshot.LastStep}", "rpc-session-step"));
+            var staleKeys = new List<int>();
+            foreach (var key in _sessionViews.Keys)
+            {
+                if (!activeKeys.Contains(key))
+                    staleKeys.Add(key);
+            }
 
-                if (!string.IsNullOrWhiteSpace(snapshot.LastMessage))
-                    sessionCard.Add(CreateValueLabel(snapshot.LastMessage!, "rpc-session-message"));
-
-                _sessionsScroll.contentContainer.Add(sessionCard);
+            foreach (var key in staleKeys)
+            {
+                var view = _sessionViews[key];
+                view.Root.RemoveFromHierarchy();
+                _sessionViews.Remove(key);
             }
         }
 
         private void RebuildLogs()
         {
-            if (_logsScroll is null)
+            if (_logsLabel is null)
                 return;
 
-            _logsScroll.contentContainer.Clear();
-
-            foreach (var entry in _logEntries)
-            {
-                var label = CreateValueLabel(entry, "rpc-log-entry");
-                _logsScroll.contentContainer.Add(label);
-            }
+            _logsLabel.text = string.Join("\n", _logEntries);
         }
 
         private static Label CreateValueLabel(string text, string className)
@@ -475,8 +492,83 @@ namespace Rpc.Testing
             _connectButton = null;
             _sessionsScroll = null;
             _logsScroll = null;
+            _sessionsContent = null;
+            _logsLabel = null;
+            _sessionViews.Clear();
+            _styleSheetAttached = false;
             _uiToolkitReady = false;
             _debugUiBound = false;
+        }
+
+        private void AttachStyleSheet(VisualElement root)
+        {
+            if (_styleSheetAttached)
+                return;
+
+            var styleSheet = Resources.Load<StyleSheet>("RpcConnectionTesterPanel");
+            if (styleSheet is null)
+                return;
+
+            root.styleSheets.Add(styleSheet);
+            _styleSheetAttached = true;
+        }
+
+        private void EnsureSessionsContent()
+        {
+            if (_sessionsScroll is null)
+                return;
+
+            _sessionsContent = _sessionsScroll.Q<VisualElement>("sessionsContent");
+            if (_sessionsContent is not null)
+                return;
+
+            _sessionsContent = new VisualElement
+            {
+                name = "sessionsContent"
+            };
+            _sessionsContent.AddToClassList("rpc-list-content");
+            _sessionsScroll.contentContainer.Clear();
+            _sessionsScroll.contentContainer.Add(_sessionsContent);
+        }
+
+        private void EnsureLogsContent()
+        {
+            if (_logsScroll is null)
+                return;
+
+            _logsLabel = _logsScroll.Q<Label>("logsLabel");
+            if (_logsLabel is not null)
+                return;
+
+            _logsLabel = new Label
+            {
+                name = "logsLabel"
+            };
+            _logsLabel.AddToClassList("rpc-log-content");
+            _logsScroll.contentContainer.Clear();
+            _logsScroll.contentContainer.Add(_logsLabel);
+        }
+
+        private static SessionView CreateSessionView(int index)
+        {
+            var root = new VisualElement();
+            root.AddToClassList("rpc-session-card");
+
+            var title = new Label($"Session {index + 1}");
+            title.AddToClassList("rpc-session-title");
+            root.Add(title);
+
+            var account = CreateValueLabel("?", "rpc-session-account");
+            var state = CreateValueLabel("Idle", "rpc-session-state");
+            var step = CreateValueLabel("step=0", "rpc-session-step");
+            var message = CreateValueLabel(string.Empty, "rpc-session-message");
+
+            root.Add(account);
+            root.Add(state);
+            root.Add(step);
+            root.Add(message);
+
+            return new SessionView(root, title, account, state, step, message);
         }
 
         protected sealed class SessionSnapshot
@@ -486,6 +578,32 @@ namespace Rpc.Testing
             public string? LastMessage;
             public int LastStep;
             public string? State;
+        }
+
+        private sealed class SessionView
+        {
+            public SessionView(
+                VisualElement root,
+                Label title,
+                Label account,
+                Label state,
+                Label step,
+                Label message)
+            {
+                Root = root;
+                Title = title;
+                Account = account;
+                State = state;
+                Step = step;
+                Message = message;
+            }
+
+            public VisualElement Root { get; }
+            public Label Title { get; }
+            public Label Account { get; }
+            public Label State { get; }
+            public Label Step { get; }
+            public Label Message { get; }
         }
 
         private sealed class ConnectionSession : IAsyncDisposable
