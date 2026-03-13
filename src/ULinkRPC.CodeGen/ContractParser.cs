@@ -7,8 +7,9 @@ namespace ULinkRPC.CodeGen;
 internal static partial class ContractParser
 {
     private const string RpcServiceAttributeName = "RpcService";
+    private const string RpcCallbackAttributeName = "RpcCallback";
     private const string RpcMethodAttributeName = "RpcMethod";
-    private const string RpcServiceBaseInterfaceName = "IRpcService";
+    private const string RpcPushAttributeName = "RpcPush";
     private const string ValueTaskTypeName = "ValueTask";
     private const string ValueTaskNamespace = "System.Threading.Tasks";
     private const string AnalysisCompilationName = "ULinkRPC.Contracts.Analysis";
@@ -44,10 +45,20 @@ internal static partial class ContractParser
                 if (!sourceFile.CallbackInterfaces.TryGetValue(svc.CallbackInterfaceFullName, out var callbackInfo))
                     continue;
 
+                if (!string.Equals(callbackInfo.ServiceFullName, svc.InterfaceFullName, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        $"Callback interface '{callbackInfo.FullName}' is associated with '{callbackInfo.ServiceFullName}', but service '{svc.InterfaceFullName}' declared it as its callback.");
+
                 svc.CallbackMethods = callbackInfo.Methods;
                 svc.AddUsingDirectives(callbackInfo.RequiredNamespaces);
                 break;
             }
+
+            if (svc.HasCallback)
+                continue;
+
+            throw new InvalidOperationException(
+                $"Callback interface '{svc.CallbackInterfaceFullName}' declared by service '{svc.InterfaceFullName}' was not found or is missing a valid [RpcCallback] contract.");
         }
 
         return services;
@@ -99,11 +110,12 @@ internal static partial class ContractParser
 
             AddNamespace(requiredNamespaces, ifaceSymbol.ContainingNamespace);
             var fullName = GetTypeFullName(ifaceSymbol);
-            var callbackType = TryGetServiceCallbackType(ifaceSymbol);
-            var callbackName = callbackType?.Name;
-            var callbackFullName = callbackType != null ? GetTypeFullName(callbackType) : null;
-            if (callbackType == null)
-                TryGetServiceCallbackTypeFromSyntax(iface, semanticModel, out callbackName, out callbackFullName);
+            TryGetAttributeTypeValue(
+                iface.AttributeLists,
+                semanticModel,
+                RpcServiceAttributeName,
+                out var callbackName,
+                out var callbackFullName);
 
             var service = new RpcServiceInfo(ifaceSymbol.Name, fullName, serviceId, methods, requiredNamespaces.ToList())
             {
@@ -125,7 +137,12 @@ internal static partial class ContractParser
             if (semanticModel.GetDeclaredSymbol(iface) is not INamedTypeSymbol ifaceSymbol)
                 continue;
 
-            if (TryGetAttributeIntValue(iface.AttributeLists, semanticModel, RpcServiceAttributeName, out _))
+            if (!TryGetAttributeTypeValue(
+                    iface.AttributeLists,
+                    semanticModel,
+                    RpcCallbackAttributeName,
+                    out _,
+                    out var serviceFullName))
                 continue;
 
             var methods = ParseCallbackMethods(iface, semanticModel, out var requiredNamespaces);
@@ -136,7 +153,12 @@ internal static partial class ContractParser
             var callbackFullName = GetTypeFullName(ifaceSymbol);
             callbacks.TryAdd(
                 callbackFullName,
-                new CallbackInterfaceInfo(ifaceSymbol.Name, callbackFullName, methods, requiredNamespaces.ToList()));
+                new CallbackInterfaceInfo(
+                    ifaceSymbol.Name,
+                    callbackFullName,
+                    serviceFullName!,
+                    methods,
+                    requiredNamespaces.ToList()));
         }
 
         return callbacks;
@@ -193,7 +215,7 @@ internal static partial class ContractParser
             if (semanticModel.GetDeclaredSymbol(method) is not IMethodSymbol methodSymbol)
                 continue;
 
-            if (!TryGetAttributeIntValue(method.AttributeLists, semanticModel, RpcMethodAttributeName, out var methodId))
+            if (!TryGetAttributeIntValue(method.AttributeLists, semanticModel, RpcPushAttributeName, out var methodId))
                 continue;
 
             if (!methodSymbol.ReturnsVoid)

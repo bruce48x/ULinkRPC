@@ -14,6 +14,21 @@ namespace ULinkRPC.Core
         }
 
         public int ServiceId { get; }
+        public Type? Callback { get; set; }
+    }
+
+    /// <summary>
+    ///     Marks an interface as the callback contract for a specific RPC service.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Interface)]
+    public sealed class RpcCallbackAttribute : Attribute
+    {
+        public RpcCallbackAttribute(Type serviceType)
+        {
+            ServiceType = serviceType;
+        }
+
+        public Type ServiceType { get; }
     }
 
     /// <summary>
@@ -24,6 +39,20 @@ namespace ULinkRPC.Core
     public sealed class RpcMethodAttribute : Attribute
     {
         public RpcMethodAttribute(int methodId)
+        {
+            MethodId = methodId;
+        }
+
+        public int MethodId { get; }
+    }
+
+    /// <summary>
+    ///     Marks an interface method as a server-to-client push callback. MethodId must be stable within a callback contract.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, Inherited = false)]
+    public sealed class RpcPushAttribute : Attribute
+    {
+        public RpcPushAttribute(int methodId)
         {
             MethodId = methodId;
         }

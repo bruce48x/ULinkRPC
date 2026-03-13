@@ -32,12 +32,25 @@ public class ContractParserTests : IDisposable
         public class RpcServiceAttribute : Attribute
         {
             public RpcServiceAttribute(int id) { }
+            public Type Callback { get; set; }
+        }
+
+        [AttributeUsage(AttributeTargets.Interface)]
+        public class RpcCallbackAttribute : Attribute
+        {
+            public RpcCallbackAttribute(Type serviceType) { }
         }
 
         [AttributeUsage(AttributeTargets.Method)]
         public class RpcMethodAttribute : Attribute
         {
             public RpcMethodAttribute(int id) { }
+        }
+
+        [AttributeUsage(AttributeTargets.Method)]
+        public class RpcPushAttribute : Attribute
+        {
+            public RpcPushAttribute(int id) { }
         }
         """;
 
@@ -249,25 +262,24 @@ public class ContractParserTests : IDisposable
     #region Callback interfaces
 
     [Fact]
-    public void ParsesCallbackInterface_ViaTypeArgument()
+    public void ParsesCallbackInterface_ViaRpcCallbackAttribute()
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System;
             using System.Threading.Tasks;
 
-            public interface IRpcService<TSelf, TCallback> { }
-
+            [RpcCallback(typeof(IGameService))]
             public interface IGameCallback
             {
-                [RpcMethod(1)]
+                [RpcPush(1)]
                 void OnPlayerJoined(int playerId);
 
-                [RpcMethod(2)]
+                [RpcPush(2)]
                 void OnMessage(string msg);
             }
 
-            [RpcService(5)]
-            public interface IGameService : IRpcService<IGameService, IGameCallback>
+            [RpcService(5, Callback = typeof(IGameCallback))]
+            public interface IGameService
             {
                 [RpcMethod(1)]
                 ValueTask Start();
@@ -295,16 +307,15 @@ public class ContractParserTests : IDisposable
             using System;
             using System.Threading.Tasks;
 
-            public interface IRpcService<TSelf, TCallback> { }
-
+            [RpcCallback(typeof(ISvc))]
             public interface INotify
             {
-                [RpcMethod(1)]
+                [RpcPush(1)]
                 void Ping();
             }
 
-            [RpcService(1)]
-            public interface ISvc : IRpcService<ISvc, INotify>
+            [RpcService(1, Callback = typeof(INotify))]
+            public interface ISvc
             {
                 [RpcMethod(1)]
                 ValueTask Do();
@@ -327,19 +338,18 @@ public class ContractParserTests : IDisposable
             using System;
             using System.Threading.Tasks;
 
-            public interface IRpcService<TSelf, TCallback> { }
-
+            [RpcCallback(typeof(IMySvc))]
             public interface IEvents
             {
-                [RpcMethod(1)]
+                [RpcPush(1)]
                 void OnEvent(int code);
             }
             """,
             """
             using System.Threading.Tasks;
 
-            [RpcService(3)]
-            public interface IMySvc : IRpcService<IMySvc, IEvents>
+            [RpcService(3, Callback = typeof(IEvents))]
+            public interface IMySvc
             {
                 [RpcMethod(1)]
                 ValueTask Act();

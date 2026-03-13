@@ -3,8 +3,8 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
-    [RpcService(2)]
-    public interface IInventoryService : IRpcService<IInventoryService, IInventoryCallback>
+    [RpcService(2, Callback = typeof(IInventoryCallback))]
+    public interface IInventoryService
     {
         [RpcMethod(1)]
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
@@ -13,9 +13,10 @@ namespace Game.Rpc.Contracts
         ValueTask<int> IncrRevision();
     }
 
+    [RpcCallback(typeof(IInventoryService))]
     public interface IInventoryCallback
     {
-        [RpcMethod(1)]
+        [RpcPush(1)]
         void OnInventoryNotify(string message);
     }
 }

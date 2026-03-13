@@ -62,11 +62,13 @@ internal sealed class SourceFileInfo(
 internal sealed class CallbackInterfaceInfo(
     string name,
     string fullName,
+    string serviceFullName,
     List<RpcCallbackMethodInfo> methods,
     IReadOnlyList<string> requiredNamespaces)
 {
     public string Name { get; } = name;
     public string FullName { get; } = fullName;
+    public string ServiceFullName { get; } = serviceFullName;
     public List<RpcCallbackMethodInfo> Methods { get; } = methods;
     public IReadOnlyList<string> RequiredNamespaces { get; } = requiredNamespaces;
 }

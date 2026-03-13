@@ -3,8 +3,8 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
-    [RpcService(3)]
-    public interface IQuestService : IRpcService<IQuestService, IQuestCallback>
+    [RpcService(3, Callback = typeof(IQuestCallback))]
+    public interface IQuestService
     {
         [RpcMethod(1)]
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
@@ -13,9 +13,10 @@ namespace Game.Rpc.Contracts
         ValueTask<int> IncrProgress();
     }
 
+    [RpcCallback(typeof(IQuestService))]
     public interface IQuestCallback
     {
-        [RpcMethod(1)]
+        [RpcPush(1)]
         void OnQuestNotify(string message);
     }
 }

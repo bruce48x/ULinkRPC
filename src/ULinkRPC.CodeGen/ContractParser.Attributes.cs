@@ -6,6 +6,27 @@ namespace ULinkRPC.CodeGen;
 
 internal static partial class ContractParser
 {
+    private static bool TryGetAttributeTypeValue(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SemanticModel semanticModel,
+        string attributeBaseName,
+        out string? typeName,
+        out string? fullTypeName)
+    {
+        foreach (var attribute in attributeLists.SelectMany(list => list.Attributes))
+        {
+            if (!IsMatchingAttribute(attribute, semanticModel, attributeBaseName))
+                continue;
+
+            if (TryExtractAttributeTypeArgument(attribute, semanticModel, out typeName, out fullTypeName))
+                return true;
+        }
+
+        typeName = null;
+        fullTypeName = null;
+        return false;
+    }
+
     private static bool TryGetAttributeIntValue(
         SyntaxList<AttributeListSyntax> attributeLists,
         SemanticModel semanticModel,
@@ -81,6 +102,35 @@ internal static partial class ContractParser
         return false;
     }
 
+    private static bool TryExtractAttributeTypeArgument(
+        AttributeSyntax attribute,
+        SemanticModel semanticModel,
+        out string? typeName,
+        out string? fullTypeName)
+    {
+        typeName = null;
+        fullTypeName = null;
+        var arguments = attribute.ArgumentList?.Arguments;
+        if (arguments == null || arguments.Value.Count == 0)
+            return false;
+
+        foreach (var argument in arguments.Value)
+        {
+            if (!IsNamedAttributeArgument(argument)) continue;
+            if (TryGetTypeReference(argument.Expression, semanticModel, out typeName, out fullTypeName))
+                return true;
+        }
+
+        foreach (var argument in arguments.Value)
+        {
+            if (IsNamedAttributeArgument(argument)) continue;
+            if (TryGetTypeReference(argument.Expression, semanticModel, out typeName, out fullTypeName))
+                return true;
+        }
+
+        return false;
+    }
+
     private static bool IsNamedAttributeArgument(AttributeArgumentSyntax argument) =>
         argument.NameColon != null || argument.NameEquals != null;
 
@@ -108,6 +158,26 @@ internal static partial class ContractParser
             default:
                 return false;
         }
+    }
+
+    private static bool TryGetTypeReference(
+        ExpressionSyntax expression,
+        SemanticModel semanticModel,
+        out string? typeName,
+        out string? fullTypeName)
+    {
+        typeName = null;
+        fullTypeName = null;
+
+        if (expression is not TypeOfExpressionSyntax typeOfExpression)
+            return false;
+
+        if (semanticModel.GetTypeInfo(typeOfExpression.Type).Type is not INamedTypeSymbol typeSymbol)
+            return false;
+
+        typeName = typeSymbol.Name;
+        fullTypeName = GetTypeFullName(typeSymbol);
+        return true;
     }
 
     private static bool IsAttributeName(NameSyntax attributeName, string attributeBaseName)
