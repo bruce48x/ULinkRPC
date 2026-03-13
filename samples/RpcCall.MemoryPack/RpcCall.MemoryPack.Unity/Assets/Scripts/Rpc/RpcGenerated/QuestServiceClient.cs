@@ -13,21 +13,21 @@ namespace Rpc.Generated
     public sealed class QuestServiceClient : IQuestService
     {
         private const int ServiceId = 3;
-        private static readonly RpcMethod<LoginRequest, LoginReply> loginAsyncRpcMethod = new(ServiceId, 1);
+        private static readonly RpcMethod<RpcVoid, int> getProgressAsyncRpcMethod = new(ServiceId, 1);
         private static readonly RpcMethod<RpcVoid, int> incrProgressRpcMethod = new(ServiceId, 2);
 
         private readonly IRpcClient _client;
 
         public QuestServiceClient(IRpcClient client) { _client = client; }
 
-        public ValueTask<LoginReply> LoginAsync(LoginRequest req)
+        public ValueTask<int> GetProgressAsync()
         {
-            return LoginAsync(req, CancellationToken.None);
+            return GetProgressAsync(CancellationToken.None);
         }
 
-        public ValueTask<LoginReply> LoginAsync(LoginRequest req, CancellationToken ct)
+        public ValueTask<int> GetProgressAsync(CancellationToken ct)
         {
-            return _client.CallAsync(loginAsyncRpcMethod, req, ct);
+            return _client.CallAsync(getProgressAsyncRpcMethod, default, ct);
         }
 
         public ValueTask<int> IncrProgress()

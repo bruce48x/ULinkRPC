@@ -7,7 +7,7 @@ namespace Game.Rpc.Contracts
     public interface IQuestService
     {
         [RpcMethod(1)]
-        ValueTask<LoginReply> LoginAsync(LoginRequest req);
+        ValueTask<int> GetProgressAsync();
 
         [RpcMethod(2)]
         ValueTask<int> IncrProgress();

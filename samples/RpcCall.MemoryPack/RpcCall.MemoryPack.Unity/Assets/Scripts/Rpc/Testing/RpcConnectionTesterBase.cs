@@ -609,90 +609,69 @@ namespace Rpc.Testing
         }
 
         private sealed class ConnectionSession : IAsyncDisposable
+            , IConnectionSessionHost
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
             private readonly RpcConnection.RpcCallbackBindings _callbacks;
+            private readonly InventorySessionModule _inventoryModule;
+            private readonly PlayerSessionModule _playerModule;
+            private readonly QuestSessionModule _questModule;
             private GameRpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
-            private IInventoryService? _inventory;
-            private IPlayerService? _player;
-            private IQuestService? _quest;
             private bool _stopped;
+            private string? _account;
 
             public ConnectionSession(RpcConnectionTesterBase owner, int index)
             {
                 _owner = owner;
                 Index = index;
+                _playerModule = new PlayerSessionModule(this);
+                _inventoryModule = new InventorySessionModule(this);
+                _questModule = new QuestSessionModule(this);
                 _callbacks = new RpcConnection.RpcCallbackBindings
                 {
-                    new InventoryCallbacks(this),
-                    new PlayerCallbacks(this),
-                    new QuestCallbacks(this)
+                    _inventoryModule,
+                    _playerModule,
+                    _questModule
                 };
             }
 
             public int Index { get; }
+            public bool IsStopping => _stopped || _owner._isShuttingDown || _cts.IsCancellationRequested;
 
             public async Task StartAsync()
             {
                 _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), _callbacks, _cts.Token);
                 _connection.Client.Disconnected += OnDisconnected;
-                _player = _connection.Game.Player;
-                _inventory = _connection.Game.Inventory;
-                _quest = _connection.Game.Quest;
+                _playerModule.Attach(_connection.Game.Player);
+                _inventoryModule.Attach(_connection.Game.Inventory);
+                _questModule.Attach(_connection.Game.Quest);
 
-                var account = $"{_owner.Account}-{Index + 1}";
+                _account = $"{_owner.Account}-{Index + 1}";
                 var loginRequest = new LoginRequest
                 {
-                    Account = account,
+                    Account = _account,
                     Password = _owner.Password
                 };
 
-                var playerReply = await _player.LoginAsync(loginRequest);
-                var inventoryReply = await _inventory.LoginAsync(loginRequest);
-                var questReply = await _quest.LoginAsync(loginRequest);
+                var playerReply = await _playerModule.LoginAsync(loginRequest);
+                var inventoryRevision = await _inventoryModule.LoadAsync();
+                var questProgress = await _questModule.LoadAsync();
 
                 _owner.UpdateSession(Index, snapshot =>
                 {
-                    snapshot.Account = account;
+                    snapshot.Account = _account;
                     snapshot.State = "Connected";
+                    snapshot.InventoryRevision = inventoryRevision;
+                    snapshot.QuestProgress = questProgress;
                     snapshot.LastMessage =
-                        $"player={playerReply.Token[..Math.Min(12, playerReply.Token.Length)]} | " +
-                        $"inventory={inventoryReply.Token[..Math.Min(12, inventoryReply.Token.Length)]} | " +
-                        $"quest={questReply.Token[..Math.Min(12, questReply.Token.Length)]}";
+                        $"player={playerReply.Token[..Math.Min(12, playerReply.Token.Length)]} | inventory={inventoryRevision} | quest={questProgress}";
                 });
                 _owner.AppendLog(
-                    $"Session[{Index}] login ok: player={playerReply.Code}, inventory={inventoryReply.Code}, quest={questReply.Code}");
-                _pollingTask = RunPollingAsync(account);
-            }
-
-            private void HandlePlayerNotify(string message)
-            {
-                if (_stopped || _owner._isShuttingDown)
-                    return;
-
-                _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
-                _owner.AppendLog($"Session[{Index}] player push: {message}");
-            }
-
-            private void HandleInventoryNotify(string message)
-            {
-                if (_stopped || _owner._isShuttingDown)
-                    return;
-
-                _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
-                _owner.AppendLog($"Session[{Index}] inventory push: {message}");
-            }
-
-            private void HandleQuestNotify(string message)
-            {
-                if (_stopped || _owner._isShuttingDown)
-                    return;
-
-                _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
-                _owner.AppendLog($"Session[{Index}] quest push: {message}");
+                    $"Session[{Index}] ready: player={playerReply.Code}, inventory={inventoryRevision}, quest={questProgress}");
+                _pollingTask = RunPollingAsync();
             }
 
             public void BeginShutdown()
@@ -732,7 +711,7 @@ namespace Rpc.Testing
                 _cts.Dispose();
             }
 
-            private async Task RunPollingAsync(string account)
+            private async Task RunPollingAsync()
             {
                 var interval = Mathf.Max(0.1f, _owner.RequestIntervalSeconds);
 
@@ -740,22 +719,15 @@ namespace Rpc.Testing
                 {
                     try
                     {
-                        var playerStep = await _player!.IncrStep();
-                        var inventoryRevision = await _inventory!.IncrRevision();
-                        var questProgress = await _quest!.IncrProgress();
+                        var playerStep = await _playerModule.PollAsync();
+                        var inventoryRevision = await _inventoryModule.PollAsync();
+                        var questProgress = await _questModule.PollAsync();
                         if (_cts.IsCancellationRequested || _stopped || _owner._isShuttingDown)
                             return;
 
-                        _owner.UpdateSession(Index, snapshot =>
-                        {
-                            snapshot.Account = account;
-                            snapshot.PlayerStep = playerStep;
-                            snapshot.InventoryRevision = inventoryRevision;
-                            snapshot.QuestProgress = questProgress;
-                            snapshot.State = "Polling";
-                        });
+                        UpdateState("Polling");
                         _owner.AppendLog(
-                            $"Session[{Index}] {account} player={playerStep}, inventory={inventoryRevision}, quest={questProgress}");
+                            $"Session[{Index}] {_account} player={playerStep}, inventory={inventoryRevision}, quest={questProgress}");
                         await Task.Delay(TimeSpan.FromSeconds(interval), _cts.Token);
                     }
                     catch (OperationCanceledException)
@@ -774,40 +746,47 @@ namespace Rpc.Testing
                 _owner.OnSessionDisconnected(this, ex);
             }
 
-            private sealed class PlayerCallbacks : RpcConnection.PlayerCallbackBase
+            public void AppendLog(string message) => _owner.AppendLog(message);
+
+            public void UpdateLastMessage(string message)
             {
-                private readonly ConnectionSession _owner;
-
-                public PlayerCallbacks(ConnectionSession owner)
-                {
-                    _owner = owner;
-                }
-
-                public override void OnPlayerNotify(string message) => _owner.HandlePlayerNotify(message);
+                _owner.UpdateSession(Index, snapshot => snapshot.LastMessage = message);
             }
 
-            private sealed class InventoryCallbacks : RpcConnection.InventoryCallbackBase
+            public void UpdatePlayerStep(int value)
             {
-                private readonly ConnectionSession _owner;
-
-                public InventoryCallbacks(ConnectionSession owner)
+                _owner.UpdateSession(Index, snapshot =>
                 {
-                    _owner = owner;
-                }
-
-                public override void OnInventoryNotify(string message) => _owner.HandleInventoryNotify(message);
+                    snapshot.Account = _account;
+                    snapshot.PlayerStep = value;
+                });
             }
 
-            private sealed class QuestCallbacks : RpcConnection.QuestCallbackBase
+            public void UpdateInventoryRevision(int value)
             {
-                private readonly ConnectionSession _owner;
-
-                public QuestCallbacks(ConnectionSession owner)
+                _owner.UpdateSession(Index, snapshot =>
                 {
-                    _owner = owner;
-                }
+                    snapshot.Account = _account;
+                    snapshot.InventoryRevision = value;
+                });
+            }
 
-                public override void OnQuestNotify(string message) => _owner.HandleQuestNotify(message);
+            public void UpdateQuestProgress(int value)
+            {
+                _owner.UpdateSession(Index, snapshot =>
+                {
+                    snapshot.Account = _account;
+                    snapshot.QuestProgress = value;
+                });
+            }
+
+            public void UpdateState(string state)
+            {
+                _owner.UpdateSession(Index, snapshot =>
+                {
+                    snapshot.Account = _account;
+                    snapshot.State = state;
+                });
             }
         }
     }

@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Serializer.MemoryPack</PackageId>
-    <Version>0.6.1</Version>
+    <Version>0.6.2</Version>
     <Authors>ULinkRPC</Authors>
     <Description>MemoryPack based payload serializer for ULinkRPC.</Description>
     <PackageTags>rpc;unity;serializer;memorypack</PackageTags>

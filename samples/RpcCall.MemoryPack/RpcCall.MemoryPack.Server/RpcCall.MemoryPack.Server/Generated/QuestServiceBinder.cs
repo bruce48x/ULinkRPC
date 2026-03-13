@@ -14,25 +14,25 @@ namespace Game.Rpc.Server.Generated
     {
         private const int ServiceId = 3;
 
-        public static void Bind(RpcServiceRegistry registry, Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask<int>> incrProgressHandler)
+        public static void Bind(RpcServiceRegistry registry, Func<ValueTask<int>> getProgressAsyncHandler, Func<ValueTask<int>> incrProgressHandler)
         {
-            BindFactory(registry, _ => new DelegateImpl(loginAsyncHandler, incrProgressHandler));
+            BindFactory(registry, _ => new DelegateImpl(getProgressAsyncHandler, incrProgressHandler));
         }
 
         private sealed class DelegateImpl : IQuestService
         {
-            private readonly Func<LoginRequest, ValueTask<LoginReply>> _loginAsyncHandler;
+            private readonly Func<ValueTask<int>> _getProgressAsyncHandler;
             private readonly Func<ValueTask<int>> _incrProgressHandler;
 
-            public DelegateImpl(Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask<int>> incrProgressHandler)
+            public DelegateImpl(Func<ValueTask<int>> getProgressAsyncHandler, Func<ValueTask<int>> incrProgressHandler)
             {
-                _loginAsyncHandler = loginAsyncHandler ?? throw new ArgumentNullException(nameof(loginAsyncHandler));
+                _getProgressAsyncHandler = getProgressAsyncHandler ?? throw new ArgumentNullException(nameof(getProgressAsyncHandler));
                 _incrProgressHandler = incrProgressHandler ?? throw new ArgumentNullException(nameof(incrProgressHandler));
             }
 
-            public ValueTask<LoginReply> LoginAsync(LoginRequest req)
+            public ValueTask<int> GetProgressAsync()
             {
-                return _loginAsyncHandler(req);
+                return _getProgressAsyncHandler();
             }
 
             public ValueTask<int> IncrProgress()
@@ -63,8 +63,7 @@ namespace Game.Rpc.Server.Generated
             registry.Register(ServiceId, 1, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var arg1 = server.Serializer.Deserialize<LoginRequest>(req.Payload.AsSpan())!;
-                var resp = await impl.LoginAsync(arg1);
+                var resp = await impl.GetProgressAsync();
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 

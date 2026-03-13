@@ -7,7 +7,7 @@ namespace Game.Rpc.Contracts
     public interface IInventoryService
     {
         [RpcMethod(1)]
-        ValueTask<LoginReply> LoginAsync(LoginRequest req);
+        ValueTask<int> GetRevisionAsync();
 
         [RpcMethod(2)]
         ValueTask<int> IncrRevision();

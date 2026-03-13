@@ -6,20 +6,22 @@ public class InventoryService : IInventoryService
 {
     private readonly IInventoryCallback _callback;
     private int _revision;
+    private bool _announced;
 
     public InventoryService(IInventoryCallback callback)
     {
         _callback = callback;
     }
 
-    public ValueTask<LoginReply> LoginAsync(LoginRequest req)
+    public ValueTask<int> GetRevisionAsync()
     {
-        _callback.OnInventoryNotify($"Inventory ready for {req.Account}.");
-        return new ValueTask<LoginReply>(new LoginReply
+        if (!_announced)
         {
-            Code = 0,
-            Token = $"inventory-{req.Account}-{Guid.NewGuid():N}"
-        });
+            _announced = true;
+            _callback.OnInventoryNotify("Inventory ready.");
+        }
+
+        return new ValueTask<int>(_revision);
     }
 
     public ValueTask<int> IncrRevision()

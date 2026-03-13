@@ -6,20 +6,22 @@ public class QuestService : IQuestService
 {
     private readonly IQuestCallback _callback;
     private int _progress;
+    private bool _announced;
 
     public QuestService(IQuestCallback callback)
     {
         _callback = callback;
     }
 
-    public ValueTask<LoginReply> LoginAsync(LoginRequest req)
+    public ValueTask<int> GetProgressAsync()
     {
-        _callback.OnQuestNotify($"Quest tracker ready for {req.Account}.");
-        return new ValueTask<LoginReply>(new LoginReply
+        if (!_announced)
         {
-            Code = 0,
-            Token = $"quest-{req.Account}-{Guid.NewGuid():N}"
-        });
+            _announced = true;
+            _callback.OnQuestNotify("Quest tracker ready.");
+        }
+
+        return new ValueTask<int>(_progress);
     }
 
     public ValueTask<int> IncrProgress()

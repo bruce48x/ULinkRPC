@@ -13,21 +13,21 @@ namespace Rpc.Generated
     public sealed class InventoryServiceClient : IInventoryService
     {
         private const int ServiceId = 2;
-        private static readonly RpcMethod<LoginRequest, LoginReply> loginAsyncRpcMethod = new(ServiceId, 1);
+        private static readonly RpcMethod<RpcVoid, int> getRevisionAsyncRpcMethod = new(ServiceId, 1);
         private static readonly RpcMethod<RpcVoid, int> incrRevisionRpcMethod = new(ServiceId, 2);
 
         private readonly IRpcClient _client;
 
         public InventoryServiceClient(IRpcClient client) { _client = client; }
 
-        public ValueTask<LoginReply> LoginAsync(LoginRequest req)
+        public ValueTask<int> GetRevisionAsync()
         {
-            return LoginAsync(req, CancellationToken.None);
+            return GetRevisionAsync(CancellationToken.None);
         }
 
-        public ValueTask<LoginReply> LoginAsync(LoginRequest req, CancellationToken ct)
+        public ValueTask<int> GetRevisionAsync(CancellationToken ct)
         {
-            return _client.CallAsync(loginAsyncRpcMethod, req, ct);
+            return _client.CallAsync(getRevisionAsyncRpcMethod, default, ct);
         }
 
         public ValueTask<int> IncrRevision()
