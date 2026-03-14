@@ -6,7 +6,7 @@ using ULinkRPC.Transport.Loopback;
 
 namespace ULinkRPC.Tests;
 
-public class RpcClientTests
+public class RpcClientRuntimeTests
 {
     private static readonly RpcMethod<string, string> EchoMethod = new(1, 1);
     private static readonly RpcMethod<string, RpcVoid> VoidMethod = new(1, 1);
@@ -34,7 +34,7 @@ public class RpcClientTests
 
         await server.StartAsync();
 
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
         await client.StartAsync();
 
         var response = await client.CallAsync(EchoMethod, "World");
@@ -60,7 +60,7 @@ public class RpcClientTests
 
         await server.StartAsync();
 
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
         await client.StartAsync();
 
         var result = await client.CallAsync(VoidMethod, "test");
@@ -82,7 +82,7 @@ public class RpcClientTests
 
         await server.StartAsync();
 
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
         await client.StartAsync();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -100,7 +100,7 @@ public class RpcClientTests
         var serializer = new JsonRpcSerializer();
 
         // Don't start a server so the call will hang
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
         await client.StartAsync();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
@@ -117,7 +117,7 @@ public class RpcClientTests
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
 
         await client.StartAsync();
 
@@ -133,7 +133,7 @@ public class RpcClientTests
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
 
         await client.StartAsync();
 
@@ -148,7 +148,7 @@ public class RpcClientTests
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
 
         var disconnectedTcs = new TaskCompletionSource<Exception?>();
         client.Disconnected += ex => disconnectedTcs.TrySetResult(ex);
@@ -175,7 +175,7 @@ public class RpcClientTests
         var server = new RpcSession(serverTransport, serializer);
         await server.StartAsync();
 
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
 
         string? receivedMessage = null;
         var pushReceived = new TaskCompletionSource<bool>();
@@ -204,7 +204,7 @@ public class RpcClientTests
     {
         LoopbackTransport.CreatePair(out var clientTransport, out _);
         var serializer = new JsonRpcSerializer();
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
 
         Assert.Throws<ArgumentNullException>(() =>
             client.RegisterPushHandler(NotifyPushMethod, null!));
@@ -214,14 +214,14 @@ public class RpcClientTests
     public void Constructor_NullTransport_Throws()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new RpcClient(null!, new JsonRpcSerializer()));
+            new RpcClientRuntime(null!, new JsonRpcSerializer()));
     }
 
     [Fact]
     public void Constructor_NullSerializer_Throws()
     {
         LoopbackTransport.CreatePair(out var client, out var server);
-        Assert.Throws<ArgumentNullException>(() => new RpcClient(client, null!));
+        Assert.Throws<ArgumentNullException>(() => new RpcClientRuntime(client, null!));
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public class RpcClientTests
 
         await server.StartAsync();
 
-        var client = new RpcClient(clientTransport, serializer);
+        var client = new RpcClientRuntime(clientTransport, serializer);
         await client.StartAsync();
 
         var tasks = Enumerable.Range(1, 20)

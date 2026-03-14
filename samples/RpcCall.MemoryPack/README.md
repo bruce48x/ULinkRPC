@@ -1,84 +1,55 @@
-# RpcCall.MemoryPack (Full Tutorial)
+# RpcCall.MemoryPack
 
-完整 RPC 示例，包含压缩与加密。
+MemoryPack-based RPC sample over TCP.
 
-## 结构
+## Structure
 
-- `RpcCall.MemoryPack.Server`：.NET 10 TCP 服务端
-- `RpcCall.MemoryPack.Unity`：Unity 2022 LTS 客户端
+- `RpcCall.MemoryPack.Server`: .NET 10 TCP server
+- `RpcCall.MemoryPack.Unity`: Unity 2022 LTS client
 
-## 快速开始
+## Quick Start
 
-1. 运行服务端
-
-```bash
-cd samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server
-dotnet build
-dotnet run --project RpcCall.MemoryPack.Server
-```
-
-也可以在仓库根目录直接执行，默认会先生成代码再构建：
+Build or regenerate the sample from the repository root:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.MemoryPack
 ```
 
-直接启动服务端：
+Run the server:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.MemoryPack -Run
 ```
 
-重新生成客户端/服务端代码：
+Open `samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity`, load `Assets/Scenes/TcpConnectionTest.unity`, and press Play.
 
-```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.MemoryPack -SkipBuild
-```
-
-2. 打开 Unity 项目
-
-打开 `samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity`，进入场景 `Assets/Scenes/TcpConnectionTest.unity`，点击 Play。
-
-默认会自动连接 `127.0.0.1:20000`，然后在每个连接上同时使用 3 个独立 service：
+The Unity client opens multiple TCP connections. Each connection uses three independent services:
 
 - `IPlayerService`
 - `IInventoryService`
 - `IQuestService`
 
-每个 service 都有自己的 callback。客户端完成 3 次 `LoginAsync(...)` 后，会按固定间隔持续调用：
+Each service has its own callback contract. After the player login succeeds, the client keeps calling:
 
 - `IPlayerService.IncrStep()`
 - `IInventoryService.IncrRevision()`
 - `IQuestService.IncrProgress()`
 
-服务端会分别通过：
+The server pushes updates back through:
 
 - `IPlayerCallback.OnPlayerNotify(...)`
 - `IInventoryCallback.OnInventoryNotify(...)`
 - `IQuestCallback.OnQuestNotify(...)`
 
-把回调消息推回当前连接。
-
-Unity 客户端入口现在和其它 sample 一致：
-
-- 传输地址统一由 `RpcEndpointSettings` 表示
-- 连接入口统一走 `RpcClientBuilder`
-- 生成代码统一提供 `RpcConnection.ConnectAsync(...)`
-- 多连接轮询和 Game 视图调试面板集中在 `RpcConnectionTesterBase`
-
-`RpcConnectionTester` 本身只保留当前 sample 的 transport / serializer 选择：
+The Unity client entry now uses `RpcClientOptions` plus the generated `RpcClient.Api` facade:
 
 ```csharp
-return RpcClientBuilder.Create()
-    .UseMemoryPack()
-    .UseTcp(_endpoint.Host, _endpoint.Port);
+var options = new RpcClientOptions(
+    new TcpTransport(_endpoint.Host, _endpoint.Port),
+    new MemoryPackRpcSerializer());
+
+await using var client = new RpcClient(options, callbacks);
+await client.ConnectAsync();
+
+var player = client.Api.Game.Player;
 ```
-
-## 多连接示例
-
-`RpcConnectionTester` 现在会在一个场景里管理多个独立连接，并让每个连接同时轮询 3 个 service 的递增方法。
-
-- `Connection Count`：同时建立的连接数
-- `Request Interval Seconds`：每个连接轮询 3 个 service 的间隔
-
-服务端会为每个连接创建各自的 `PlayerService`、`InventoryService`、`QuestService` 实例，因此这 3 组计数都会按连接分别递增，而不会彼此共享。

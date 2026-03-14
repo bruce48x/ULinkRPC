@@ -4,10 +4,11 @@ using System;
 using System.Threading.Tasks;
 using Game.Rpc.Contracts;
 using Rpc.Generated;
+using ULinkRPC.Client;
 
 namespace Rpc.Testing
 {
-    internal sealed class QuestSessionModule : RpcConnection.QuestCallbackBase
+    internal sealed class QuestSessionModule : RpcClient.QuestCallbackBase
     {
         private readonly IConnectionSessionHost _host;
         private IQuestService? _service;

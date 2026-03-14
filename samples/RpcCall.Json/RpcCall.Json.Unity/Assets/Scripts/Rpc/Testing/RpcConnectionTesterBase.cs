@@ -77,7 +77,7 @@ namespace Rpc.Testing
         protected abstract RpcEndpointSettings Endpoint { get; }
         protected abstract string RuntimeTitle { get; }
         protected abstract RpcTransportKind TransportKind { get; }
-        protected abstract RpcClientBuilder CreateClientBuilder();
+        protected abstract RpcClientOptions CreateClientOptions();
 
         [Header("Login")] public string Account = "a";
         public string Password = "b";
@@ -610,8 +610,8 @@ namespace Rpc.Testing
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
-            private readonly RpcConnection.RpcCallbackBindings _callbacks;
-            private GameRpcClient? _connection;
+            private readonly RpcClient.RpcCallbackBindings _callbacks;
+            private RpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
             private IPlayerService? _proxy;
@@ -621,19 +621,18 @@ namespace Rpc.Testing
             {
                 _owner = owner;
                 Index = index;
-                _callbacks = new RpcConnection.RpcCallbackBindings
-                {
-                    new PlayerCallbacks(this)
-                };
+                _callbacks = new RpcClient.RpcCallbackBindings();
+                _callbacks.Add(new PlayerCallbacks(this));
             }
 
             public int Index { get; }
 
             public async Task StartAsync()
             {
-                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), _callbacks, _cts.Token);
-                _connection.Client.Disconnected += OnDisconnected;
-                _proxy = _connection.Game.Player;
+                _connection = new RpcClient(_owner.CreateClientOptions(), _callbacks);
+                await _connection.ConnectAsync(_cts.Token);
+                _connection.Disconnected += OnDisconnected;
+                _proxy = _connection.Api.Game.Player;
 
                 var account = $"{_owner.Account}-{Index + 1}";
                 var reply = await _proxy.LoginAsync(new LoginRequest
@@ -670,7 +669,7 @@ namespace Rpc.Testing
                 _cts.Cancel();
 
                 if (_connection is not null)
-                    _connection.Client.Disconnected -= OnDisconnected;
+                    _connection.Disconnected -= OnDisconnected;
             }
 
             public async ValueTask DisposeAsync()
@@ -735,7 +734,7 @@ namespace Rpc.Testing
                 _owner.OnSessionDisconnected(this, ex);
             }
 
-            private sealed class PlayerCallbacks : RpcConnection.PlayerCallbackBase
+            private sealed class PlayerCallbacks : RpcClient.PlayerCallbackBase
             {
                 private readonly ConnectionSession _owner;
 

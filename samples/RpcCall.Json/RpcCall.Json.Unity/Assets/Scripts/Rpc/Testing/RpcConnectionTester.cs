@@ -11,11 +11,11 @@ namespace Rpc.Testing
         protected override string RuntimeTitle => "RpcCall.Json Runtime";
         protected override RpcTransportKind TransportKind => RpcTransportKind.WebSocket;
 
-        protected override RpcClientBuilder CreateClientBuilder()
+        protected override RpcClientOptions CreateClientOptions()
         {
-            return RpcClientBuilder.Create()
-                .UseJson()
-                .UseWebSocket(_endpoint.GetWebSocketUrl());
+            return new RpcClientOptions(
+                new global::ULinkRPC.Transport.WebSocket.WsTransport(_endpoint.GetWebSocketUrl()),
+                new global::ULinkRPC.Serializer.Json.JsonRpcSerializer());
         }
     }
 }

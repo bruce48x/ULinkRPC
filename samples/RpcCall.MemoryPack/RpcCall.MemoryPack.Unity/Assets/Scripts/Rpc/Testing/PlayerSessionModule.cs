@@ -4,10 +4,11 @@ using System;
 using System.Threading.Tasks;
 using Game.Rpc.Contracts;
 using Rpc.Generated;
+using ULinkRPC.Client;
 
 namespace Rpc.Testing
 {
-    internal sealed class PlayerSessionModule : RpcConnection.PlayerCallbackBase
+    internal sealed class PlayerSessionModule : RpcClient.PlayerCallbackBase
     {
         private readonly IConnectionSessionHost _host;
         private IPlayerService? _service;

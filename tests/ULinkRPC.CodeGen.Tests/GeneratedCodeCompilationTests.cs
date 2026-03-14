@@ -61,22 +61,30 @@ public class GeneratedCodeCompilationTests
 
         namespace ULinkRPC.Client
         {
-            public sealed class RpcClient : IRpcClient, IAsyncDisposable
+            public sealed class RpcClientOptions
+            {
+                public RpcClientOptions(ITransport transport, IRpcSerializer serializer)
+                {
+                    Transport = transport;
+                    Serializer = serializer;
+                }
+
+                public ITransport Transport { get; }
+                public IRpcSerializer Serializer { get; }
+            }
+
+            public sealed class RpcClientRuntime : IRpcClient, IAsyncDisposable
             {
                 public event Action<Exception?>? Disconnected;
 
+                public RpcClientRuntime(ITransport transport, IRpcSerializer serializer) { }
+
+                public ValueTask StartAsync(CancellationToken ct = default) => default;
                 public ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg arg, CancellationToken ct) => default;
                 public void RegisterPushHandler<TArg>(RpcPushMethod<TArg> method, Action<TArg> handler) { }
                 public ValueTask DisposeAsync() => default;
             }
 
-            public sealed class RpcClientBuilder
-            {
-                public ValueTask<TConnection> ConnectTypedAsync<TConnection>(
-                    Func<RpcClient, TConnection> connectionFactory,
-                    Action<IRpcClient>? configureClient = null,
-                    CancellationToken ct = default) => default;
-            }
         }
         """;
 

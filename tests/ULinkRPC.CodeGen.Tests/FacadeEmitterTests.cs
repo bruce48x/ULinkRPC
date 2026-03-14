@@ -22,17 +22,7 @@ public class FacadeEmitterTests
     }
 
     [Fact]
-    public void GeneratesExtensionMethod()
-    {
-        var svc = MakeSvc("IPlayerService", "Game.IPlayerService", 1);
-        var code = FacadeEmitter.GenerateClientFacade([svc], "Gen", "ULinkRPC.Core", "ULinkRPC.Client");
-
-        Assert.Contains("public static class RpcApiExtensions", code);
-        Assert.Contains("public static RpcApi CreateRpcApi(this IRpcClient client)", code);
-    }
-
-    [Fact]
-    public void GeneratesTypedConnection()
+    public void GeneratesRpcClient()
     {
         var svc = new RpcServiceInfo("IPlayerService", "Game.IPlayerService", 1,
             [new RpcMethodInfo("Do", 1, [], null, true)], [])
@@ -47,20 +37,22 @@ public class FacadeEmitterTests
 
         var code = FacadeEmitter.GenerateClientFacade([svc], "Gen", "ULinkRPC.Core", "ULinkRPC.Client");
 
-        Assert.Contains("public sealed class RpcConnection : IAsyncDisposable", code);
-        Assert.Contains("public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)", code);
-        Assert.Contains("public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, RpcCallbackBindings callbacks, CancellationToken ct = default)", code);
+        Assert.Contains("namespace ULinkRPC.Client", code);
+        Assert.Contains("public sealed class RpcClient : IAsyncDisposable", code);
+        Assert.Contains("private readonly RpcClientRuntime _runtime;", code);
+        Assert.Contains("public RpcClient(RpcClientOptions options)", code);
+        Assert.Contains("public global::Gen.RpcApi Api => _api ??= new global::Gen.RpcApi(_runtime);", code);
+        Assert.Contains("public RpcClient(RpcClientOptions options, RpcCallbackBindings callbacks) : this(options)", code);
+        Assert.Contains("public ValueTask ConnectAsync(CancellationToken ct = default)", code);
+        Assert.Contains("return _runtime.StartAsync(ct);", code);
         Assert.Contains("public sealed class RpcCallbackBindings", code);
         Assert.Contains("public void Add(IPlayerCallback playerCallback)", code);
         Assert.Contains("PlayerCallbackBinder.Bind(client, _playerCallback);", code);
         Assert.Contains("public abstract class PlayerCallbackBase : IPlayerCallback", code);
         Assert.Contains("public virtual void OnNotify(string message)", code);
-        Assert.DoesNotContain("ConnectAsync<TCallbacks>", code);
-        Assert.DoesNotContain("public abstract class GameRpcCallbacksBase", code);
-        Assert.DoesNotContain("SetPlayerCallbackOnNotify", code);
-        Assert.Contains("public sealed class GameRpcClient : IAsyncDisposable", code);
-        Assert.Contains("public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)", code);
-        Assert.Contains("public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, RpcConnection.RpcCallbackBindings callbacks, CancellationToken ct = default)", code);
+        Assert.DoesNotContain("public sealed class RpcConnection", code);
+        Assert.DoesNotContain("public sealed class GameRpcClient", code);
+        Assert.DoesNotContain("RpcClientBuilder", code);
     }
 
     [Fact]
@@ -97,7 +89,7 @@ public class FacadeEmitterTests
 
         Assert.Contains("GameRpcGroup", code);
         Assert.Contains("AuthRpcGroup", code);
-        Assert.Contains("public sealed class RpcClientHost : IAsyncDisposable", code);
+        Assert.Contains("public sealed class RpcClient : IAsyncDisposable", code);
     }
 
     [Fact]

@@ -11,11 +11,11 @@ namespace Rpc.Testing
         protected override string RuntimeTitle => "RpcCall.MemoryPack Runtime";
         protected override RpcTransportKind TransportKind => RpcTransportKind.Tcp;
 
-        protected override RpcClientBuilder CreateClientBuilder()
+        protected override RpcClientOptions CreateClientOptions()
         {
-            return RpcClientBuilder.Create()
-                .UseMemoryPack()
-                .UseTcp(_endpoint.Host, _endpoint.Port);
+            return new RpcClientOptions(
+                new global::ULinkRPC.Transport.Tcp.TcpTransport(_endpoint.Host, _endpoint.Port),
+                new global::ULinkRPC.Serializer.MemoryPack.MemoryPackRpcSerializer());
         }
     }
 }

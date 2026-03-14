@@ -77,7 +77,7 @@ namespace Rpc.Testing
         protected abstract RpcEndpointSettings Endpoint { get; }
         protected abstract string RuntimeTitle { get; }
         protected abstract RpcTransportKind TransportKind { get; }
-        protected abstract RpcClientBuilder CreateClientBuilder();
+        protected abstract RpcClientOptions CreateClientOptions();
 
         [Header("Login")] public string Account = "a";
         public string Password = "b";
@@ -613,11 +613,11 @@ namespace Rpc.Testing
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
-            private readonly RpcConnection.RpcCallbackBindings _callbacks;
+            private readonly RpcClient.RpcCallbackBindings _callbacks;
             private readonly InventorySessionModule _inventoryModule;
             private readonly PlayerSessionModule _playerModule;
             private readonly QuestSessionModule _questModule;
-            private GameRpcClient? _connection;
+            private RpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
             private bool _stopped;
@@ -630,12 +630,10 @@ namespace Rpc.Testing
                 _playerModule = new PlayerSessionModule(this);
                 _inventoryModule = new InventorySessionModule(this);
                 _questModule = new QuestSessionModule(this);
-                _callbacks = new RpcConnection.RpcCallbackBindings
-                {
-                    _inventoryModule,
-                    _playerModule,
-                    _questModule
-                };
+                _callbacks = new RpcClient.RpcCallbackBindings();
+                _callbacks.Add(_inventoryModule);
+                _callbacks.Add(_playerModule);
+                _callbacks.Add(_questModule);
             }
 
             public int Index { get; }
@@ -643,11 +641,12 @@ namespace Rpc.Testing
 
             public async Task StartAsync()
             {
-                _connection = await GameRpcClient.ConnectAsync(_owner.CreateClientBuilder(), _callbacks, _cts.Token);
-                _connection.Client.Disconnected += OnDisconnected;
-                _playerModule.Attach(_connection.Game.Player);
-                _inventoryModule.Attach(_connection.Game.Inventory);
-                _questModule.Attach(_connection.Game.Quest);
+                _connection = new RpcClient(_owner.CreateClientOptions(), _callbacks);
+                await _connection.ConnectAsync(_cts.Token);
+                _connection.Disconnected += OnDisconnected;
+                _playerModule.Attach(_connection.Api.Game.Player);
+                _inventoryModule.Attach(_connection.Api.Game.Inventory);
+                _questModule.Attach(_connection.Api.Game.Quest);
 
                 _account = $"{_owner.Account}-{Index + 1}";
                 var loginRequest = new LoginRequest
@@ -683,7 +682,7 @@ namespace Rpc.Testing
                 _cts.Cancel();
 
                 if (_connection is not null)
-                    _connection.Client.Disconnected -= OnDisconnected;
+                    _connection.Disconnected -= OnDisconnected;
             }
 
             public async ValueTask DisposeAsync()

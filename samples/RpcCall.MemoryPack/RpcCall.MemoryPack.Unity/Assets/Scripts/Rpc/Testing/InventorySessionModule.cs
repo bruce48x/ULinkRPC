@@ -4,10 +4,11 @@ using System;
 using System.Threading.Tasks;
 using Game.Rpc.Contracts;
 using Rpc.Generated;
+using ULinkRPC.Client;
 
 namespace Rpc.Testing
 {
-    internal sealed class InventorySessionModule : RpcConnection.InventoryCallbackBase
+    internal sealed class InventorySessionModule : RpcClient.InventoryCallbackBase
     {
         private readonly IConnectionSessionHost _host;
         private IInventoryService? _service;

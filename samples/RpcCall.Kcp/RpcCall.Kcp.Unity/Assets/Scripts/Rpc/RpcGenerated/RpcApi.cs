@@ -5,7 +5,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections;
 using System.Collections.Generic;
 using Game.Rpc.Contracts;
 using ULinkRPC.Client;
@@ -35,31 +34,28 @@ namespace Rpc.Generated
         public IPlayerService Player { get; }
     }
 
-    public sealed class RpcConnection : IAsyncDisposable
+}
+
+namespace ULinkRPC.Client
+{
+    public sealed class RpcClient : IAsyncDisposable
     {
-        public RpcConnection(RpcClient client)
+        private readonly RpcClientRuntime _runtime;
+        private readonly RpcCallbackBindings? _callbacks;
+        private global::Rpc.Generated.RpcApi? _api;
+
+        public RpcClient(RpcClientOptions options)
         {
-            Client = client ?? throw new ArgumentNullException(nameof(client));
-            Api = new RpcApi(client);
+            Options = options ?? throw new ArgumentNullException(nameof(options));
+            _runtime = new RpcClientRuntime(options.Transport, options.Serializer);
         }
 
-        public RpcApi Api { get; }
-        public RpcClient Client { get; }
-
-        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)
+        public RpcClient(RpcClientOptions options, RpcCallbackBindings callbacks) : this(options)
         {
-            if (builder is null) throw new ArgumentNullException(nameof(builder));
-            return builder.ConnectTypedAsync(static client => new RpcConnection(client), configureClient: null, ct);
+            _callbacks = callbacks ?? throw new ArgumentNullException(nameof(callbacks));
         }
 
-        public static ValueTask<RpcConnection> ConnectAsync(RpcClientBuilder builder, RpcCallbackBindings callbacks, CancellationToken ct = default)
-        {
-            if (builder is null) throw new ArgumentNullException(nameof(builder));
-            if (callbacks is null) throw new ArgumentNullException(nameof(callbacks));
-            return builder.ConnectTypedAsync(static client => new RpcConnection(client), callbacks.Bind, ct);
-        }
-
-        public sealed class RpcCallbackBindings : IEnumerable<object>
+        public sealed class RpcCallbackBindings
         {
             private IPlayerCallback? _playerCallback;
             public void Add(IPlayerCallback playerCallback)
@@ -77,20 +73,9 @@ namespace Rpc.Generated
                 if (client is null) throw new ArgumentNullException(nameof(client));
                 if (_playerCallback is not null)
                 {
-                    PlayerCallbackBinder.Bind(client, _playerCallback);
+                    global::Rpc.Generated.PlayerCallbackBinder.Bind(client, _playerCallback);
                 }
             }
-
-            public IEnumerator<object> GetEnumerator()
-            {
-                yield break;
-            }
-
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return GetEnumerator();
-            }
-
         }
 
         public abstract class PlayerCallbackBase : IPlayerCallback
@@ -101,48 +86,25 @@ namespace Rpc.Generated
             }
         }
 
-        public ValueTask DisposeAsync()
+        public event Action<Exception?>? Disconnected
         {
-            return Client.DisposeAsync();
-        }
-    }
-
-    public static class RpcApiExtensions
-    {
-        public static RpcApi CreateRpcApi(this IRpcClient client)
-        {
-            if (client is null) throw new ArgumentNullException(nameof(client));
-            return new RpcApi(client);
-        }
-    }
-
-    public sealed class GameRpcClient : IAsyncDisposable
-    {
-        private GameRpcClient(RpcConnection connection)
-        {
-            Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+            add => _runtime.Disconnected += value;
+            remove => _runtime.Disconnected -= value;
         }
 
-        public RpcConnection Connection { get; }
-        public RpcApi Api => Connection.Api;
-        public RpcClient Client => Connection.Client;
-        public GameRpcGroup Game => Api.Game;
+        public RpcClientOptions Options { get; }
+        public global::Rpc.Generated.RpcApi Api => _api ??= new global::Rpc.Generated.RpcApi(_runtime);
 
-        public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, CancellationToken ct = default)
+        public ValueTask ConnectAsync(CancellationToken ct = default)
         {
-            var connection = await RpcConnection.ConnectAsync(builder, ct);
-            return new GameRpcClient(connection);
-        }
-
-        public static async ValueTask<GameRpcClient> ConnectAsync(RpcClientBuilder builder, RpcConnection.RpcCallbackBindings callbacks, CancellationToken ct = default)
-        {
-            var connection = await RpcConnection.ConnectAsync(builder, callbacks, ct);
-            return new GameRpcClient(connection);
+            if (_callbacks is not null)
+                _callbacks.Bind(_runtime);
+            return _runtime.StartAsync(ct);
         }
 
         public ValueTask DisposeAsync()
         {
-            return Connection.DisposeAsync();
+            return _runtime.DisposeAsync();
         }
     }
 }

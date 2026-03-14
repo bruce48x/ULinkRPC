@@ -1,58 +1,39 @@
-# RpcCall.Json (Minimal Tutorial)
+# RpcCall.Json
 
-最简 RPC 示例，基于 WebSocket 传输 + JSON 序列化。
-仓库里与 WebSocket 相关的 sample 示例和传输测试现在都集中在这里。
+Minimal RPC sample over WebSocket with JSON serialization.
 
-## 结构
+## Structure
 
-- `RpcCall.Server`：.NET 10.0 服务端
-- `RpcCall.Unity`：Unity 2022 LTS 客户端
+- `RpcCall.Json.Server`: .NET 10 WebSocket server
+- `RpcCall.Json.Unity`: Unity 2022 LTS client
 
-## 快速开始
+## Quick Start
 
-1. 运行服务端
-
-```bash
-cd samples/RpcCall.Json/RpcCall.Json.Server
-dotnet build
-dotnet run --project RpcCall.Json.Server
-```
-
-也可以在仓库根目录直接执行，默认会先生成代码再构建：
+Build or regenerate the sample from the repository root:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json
 ```
 
-直接启动服务端：
+Run the server:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 ```
 
-重新生成客户端/服务端代码：
+Open `samples/RpcCall.Json/RpcCall.Json.Unity`, load `Assets/Scenes/WsConnectionTest.unity`, and press Play.
 
-```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -SkipBuild
-```
+The Unity client opens multiple WebSocket connections to `ws://127.0.0.1:20000/ws`, logs in, then keeps calling `IncrStep()`. The server maintains one counter per connection and pushes updates through `IPlayerCallback.OnNotify(...)`.
 
-2. 打开 Unity 项目
-
-打开 `samples/RpcCall.Json/RpcCall.Json.Unity`，进入场景 `Assets/Scenes/TcpConnectionTest.unity`，点击 Play。
-
-默认会自动建立多个 WebSocket 连接到 `ws://127.0.0.1:20000/ws`。每个连接会先执行 `Login`，然后按固定间隔持续调用 `IncrStep()`；服务端会为每个连接分别累加计数，并通过 `IPlayerCallback.OnNotify` 推送当前步数。
-
-Unity 客户端接入方式已与其它 sample 对齐：
-
-- 统一使用 `RpcEndpointSettings` 描述地址
-- 统一使用 `RpcClientBuilder` 建立客户端
-- 统一使用 codegen 生成的 `RpcConnection.ConnectAsync(...)`
-- 共用 `RpcConnectionTesterBase` 处理多连接、回调日志和 Game 视图面板
-
-当前 sample 只需要指定 WebSocket + JSON：
+The Unity client entry now uses `RpcClientOptions` plus the generated `RpcClient.Api` facade:
 
 ```csharp
-return RpcClientBuilder.Create()
-    .UseJson()
-    .UseWebSocket(_endpoint.GetWebSocketUrl());
+var options = new RpcClientOptions(
+    new WsTransport(_endpoint.GetWebSocketUrl()),
+    new JsonRpcSerializer());
+
+await using var client = new RpcClient(options, callbacks);
+await client.ConnectAsync();
+
+var player = client.Api.Game.Player;
 ```

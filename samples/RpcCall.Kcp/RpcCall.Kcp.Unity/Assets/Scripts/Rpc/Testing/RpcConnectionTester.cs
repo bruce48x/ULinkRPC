@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Game.Rpc.Contracts;
 using Rpc.Generated;
 using ULinkRPC.Client;
+using ULinkRPC.Transport.Kcp;
+using ULinkRPC.Serializer.MemoryPack;
 using UnityEngine;
 
 namespace Rpc.Testing
@@ -37,8 +39,8 @@ namespace Rpc.Testing
         public bool AutoConnect = true;
 
         private readonly CancellationTokenSource _cts = new();
-        private readonly RpcConnection.RpcCallbackBindings _callbacks;
-        private GameRpcClient? _connection;
+        private readonly RpcClient.RpcCallbackBindings _callbacks;
+        private RpcClient? _connection;
         private IPlayerService? _player;
         private Task? _pollingTask;
         private bool _cleanupStarted;
@@ -46,10 +48,8 @@ namespace Rpc.Testing
 
         public RpcConnectionTester()
         {
-            _callbacks = new RpcConnection.RpcCallbackBindings
-            {
-                new PlayerCallbacks(this)
-            };
+            _callbacks = new RpcClient.RpcCallbackBindings();
+            _callbacks.Add(new PlayerCallbacks(this));
         }
 
         private async void Start()
@@ -81,15 +81,14 @@ namespace Rpc.Testing
 
             try
             {
-                _connection = await GameRpcClient.ConnectAsync(
-                    RpcClientBuilder.Create()
-                        .UseMemoryPack()
-                        .UseKcp(_endpoint.Host, _endpoint.Port),
-                    _callbacks,
-                    _cts.Token);
-
-                _connection.Client.Disconnected += OnDisconnected;
-                _player = _connection.Game.Player;
+                _connection = new RpcClient(
+                    new RpcClientOptions(
+                        new KcpTransport(_endpoint.Host, _endpoint.Port),
+                        new MemoryPackRpcSerializer()),
+                    _callbacks);
+                await _connection.ConnectAsync(_cts.Token);
+                _connection.Disconnected += OnDisconnected;
+                _player = _connection.Api.Game.Player;
 
                 var reply = await _player.LoginAsync(new LoginRequest
                 {
@@ -152,7 +151,7 @@ namespace Rpc.Testing
             _cts.Cancel();
 
             if (_connection is not null)
-                _connection.Client.Disconnected -= OnDisconnected;
+                _connection.Disconnected -= OnDisconnected;
 
             _ = CleanupAsync();
         }
@@ -191,7 +190,7 @@ namespace Rpc.Testing
                 Debug.LogWarning($"[KCP] Disconnected: {ex.Message}");
         }
 
-        private sealed class PlayerCallbacks : RpcConnection.PlayerCallbackBase
+        private sealed class PlayerCallbacks : RpcClient.PlayerCallbackBase
         {
             private readonly RpcConnectionTester _owner;
 
