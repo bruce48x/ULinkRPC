@@ -112,10 +112,18 @@ Build or regenerate a sample from the repository root:
 pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json
 ```
 
+```bash
+./scripts/sample.sh --sample RpcCall.Json
+```
+
 Run a sample server:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
+```
+
+```bash
+./scripts/sample.sh --sample RpcCall.Json --run
 ```
 
 ## Documentation
