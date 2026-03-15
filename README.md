@@ -102,9 +102,9 @@ var reply = await player.LoginAsync(new LoginRequest
 
 ## Samples
 
-- `samples/RpcCall.Json`: minimal WebSocket + JSON sample
+- `samples/RpcCall.Json`: WebSocket + JSON sample
 - `samples/RpcCall.MemoryPack`: TCP + MemoryPack sample with multiple services
-- `samples/RpcCall.Kcp`: KCP transport sample
+- `samples/RpcCall.Kcp`: most minimal sample, based on KCP + MemoryPack
 
 Build or regenerate a sample from the repository root:
 
