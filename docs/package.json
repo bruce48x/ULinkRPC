@@ -4,10 +4,10 @@
   "private": true,
   "description": "Hexo documentation site for ULinkRPC",
   "scripts": {
-    "clean": "hexo clean",
-    "build": "hexo generate",
-    "server": "hexo server",
-    "deploy": "hexo generate"
+    "clean": "node ./node_modules/hexo-cli/bin/hexo clean",
+    "build": "node ./node_modules/hexo-cli/bin/hexo generate",
+    "server": "node ./node_modules/hexo-cli/bin/hexo server",
+    "deploy": "node ./node_modules/hexo-cli/bin/hexo generate"
   },
   "dependencies": {
     "hexo": "^7.3.0",
