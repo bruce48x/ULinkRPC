@@ -1,136 +1,134 @@
 # ULinkRPC
 
-This repository is a starter skeleton for a **strongly-typed RPC** framework for **Unity + .NET**, designed to work with:
-- iOS (IL2CPP) and HybridCLR (hot-update)
-- Shared Contracts (`interface` + DTO) between client and server
-- Transport switchability (TCP / WebSocket / KCP) behind a single abstraction
-- Pluggable DTO serialization (MemoryPack by default)
+ULinkRPC is a strongly-typed bidirectional RPC framework for Unity and .NET.
 
-## What is included
-- `samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Packages/com.samples.contracts`: Contracts (Git project; user-defined)
-- `samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Assets/Scripts/Rpc/RpcGenerated`: generated Unity client stubs + test binders (checked in)
-- `samples/RpcCall.Json`: minimal TCP-only tutorial sample (JSON serializer, no compression/encryption)
-- `src/ULinkRPC.Core`: shared abstractions, envelopes, framing/security helpers
-- `src/ULinkRPC.Client`: client runtime core
-- `src/ULinkRPC.Server`: server runtime core
-- `src/ULinkRPC.Transport.Tcp`: TCP transports (client + server)
-- `src/ULinkRPC.Transport.WebSocket`: WebSocket server transport
-- `src/ULinkRPC.Transport.Kcp`: KCP server transport
-- `src/ULinkRPC.Transport.Loopback`: in-memory loopback transport
-- `src/ULinkRPC.Serializer.MemoryPack`: MemoryPack payload serializer
-- `src/ULinkRPC.Serializer.Json`: System.Text.Json payload serializer
-- `src/ULinkRPC.CodeGen`: code generator (dotnet tool)
+It is designed for projects that need:
 
-## NuGet installation
-- Unity side uses NuGetForUnity (OpenUPM).
-- Packages:
-  - `ULinkRPC.Core`
-  - `ULinkRPC.Client`
-  - `ULinkRPC.Server`
-- Optional transport packages:
-  - `ULinkRPC.Transport.Tcp`
-  - `ULinkRPC.Transport.WebSocket`
-  - `ULinkRPC.Transport.Kcp`
-  - `ULinkRPC.Transport.Loopback`
-- Optional serializer packages:
-  - `ULinkRPC.Serializer.MemoryPack`
-  - `ULinkRPC.Serializer.Json`
-- Generated clients depend on `IRpcClient` in `ULinkRPC.Core`.
+- shared contracts between Unity clients and .NET servers
+- typed request/response calls instead of hand-written message ids
+- server-to-client push callbacks
+- transport switching behind one abstraction
+- serializer switching between MemoryPack and JSON
 
-## Serialization
-`ULinkRPC.Client` and `ULinkRPC.Server` do not assume a concrete serializer.
-Provide an `IRpcSerializer` explicitly to both client and server.
+## What It Solves
 
-MemoryPack and JSON serializers are provided in separate packages:
+With ULinkRPC, you define interfaces and DTOs once, generate the glue code, then use typed services on both sides.
+
+Typical stack:
+
+- Unity client
+- .NET server
+- TCP, WebSocket, or KCP transport
+- MemoryPack or JSON serializer
+
+## Packages
+
+Core packages:
+
+- `ULinkRPC.Core`
+- `ULinkRPC.Client`
+- `ULinkRPC.Server`
+
+Transport packages:
+
+- `ULinkRPC.Transport.Tcp`
+- `ULinkRPC.Transport.WebSocket`
+- `ULinkRPC.Transport.Kcp`
+- `ULinkRPC.Transport.Loopback`
+
+Serializer packages:
+
 - `ULinkRPC.Serializer.MemoryPack`
 - `ULinkRPC.Serializer.Json`
 
-Example (JSON):
-```
-using ULinkRPC.Serializer.Json;
+Code generation:
 
-var serializer = new JsonRpcSerializer();
-var client = new RpcClient(transport, serializer);
-var server = new RpcServer(transport, serializer);
-```
+- `ULinkRPC.CodeGen`
 
-Notes:
-- Client and server must use the same serializer.
-- DTOs still have `[MemoryPackable]` attributes; they are ignored by JSON.
+## Quick Start
 
-## Contracts (Git)
-Contracts should live in a user-defined Git repo (not NuGet). Keep client/server in sync.
+1. Define shared contracts with `[RpcService]`, `[RpcMethod]`, and optional callback contracts.
+2. Generate client and server glue code with `ULinkRPC.CodeGen`.
+3. Configure the same transport and serializer on both sides.
+4. Connect the client and call generated typed services.
 
-For bidirectional contracts, define service as `IRpcService<TSelf, TCallback>`.
-Recommended pattern:
-- On server, use generated binder overload `Bind(RpcServer, Func<TCallback, TSelf>)`.
-- The binder creates callback proxy (`TCallback`) for current connection and passes it to your service factory.
-- On Unity client, implement `TCallback` and register generated callback binder once after creating `RpcClient`.
+Example contract:
 
-## Transport security (compression / encryption)
-Enable compression and/or encryption by wrapping the concrete transport with `TransformingTransport`:
+```csharp
+using System.Threading.Tasks;
+using ULinkRPC.Core;
 
-```
-var security = new TransportSecurityConfig
+namespace Game.Rpc.Contracts
 {
-    EnableCompression = true,
-    CompressionThresholdBytes = 1024,
-    EnableEncryption = true,
-    EncryptionKeyBase64 = "BASE64_KEY_32_BYTES"
-};
+    [RpcService(1, Callback = typeof(IPlayerCallback))]
+    public interface IPlayerService
+    {
+        [RpcMethod(1)]
+        ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
-ITransport rawTransport = new TcpTransport("127.0.0.1", 20000);
-ITransport secureTransport = new TransformingTransport(rawTransport, security);
+        [RpcMethod(2)]
+        ValueTask<int> IncrStep();
+    }
+
+    [RpcCallback(typeof(IPlayerService))]
+    public interface IPlayerCallback
+    {
+        [RpcPush(1)]
+        void OnNotify(string message);
+    }
+}
 ```
 
-Notes:
-- Client and server must use the same compression/encryption settings and key.
-- Encryption uses AES-CBC + HMAC-SHA256; compression uses GZip.
+Example client setup:
 
-## Code Generation
-Stubs are generated by a standalone CLI tool so you can run it from the command line:
+```csharp
+var options = new RpcClientOptions(
+    new WsTransport("ws://127.0.0.1:20000/ws"),
+    new JsonRpcSerializer());
 
-```
-dotnet run --project src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj --
-# or, if installed as a tool:
-ulinkrpc-codegen
-```
+var callbacks = new RpcClient.RpcCallbackBindings();
+callbacks.Add(new PlayerCallbackReceiver());
 
-Helper scripts:
-- `scripts/gen.ps1`
-- `scripts/gen.sh`
+await using var client = new RpcClient(options, callbacks);
+await client.ConnectAsync();
 
-Generated files are written to:
-- `samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated/` or `samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Assets/Scripts/Rpc/RpcGenerated/` (auto-detected)
-They should be committed.
-
-If Unity samples fail after generator/runtime API upgrades, update NuGetForUnity packages in `Assets/packages.config` to the matching ULinkRPC version (for this release: `0.4.0`) and run package restore/reinstall.
-
-When contracts include callbacks (`IRpcService<TSelf, TCallback>`), generated code includes:
-- Typed method descriptors (`RpcMethod<TArg, TResult>` / `RpcPushMethod<TArg>`) so generated calls avoid raw `(serviceId, methodId)` pairs.
-- Client factory extensions on `IRpcClient` (for example `client.CreatePlayerService()`) for business-level entry points.
-- Mandatory grouped business facade (`RpcApi`): access services via named groups, e.g. `client.CreateRpcApi().Game.Player`.
-- Unity callback binder for `client.RegisterPushHandler(...)` wiring.
-- Server callback proxy (`TCallback` implementation) that pushes to client.
-- Server binder overload `Bind(RpcServer, Func<TCallback, TSelf>)` (recommended entry).
-
-## Packing NuGet packages
-```
-dotnet pack src/ULinkRPC.Core/ULinkRPC.Core.csproj -c Release
-dotnet pack src/ULinkRPC.Client/ULinkRPC.Client.csproj -c Release
-dotnet pack src/ULinkRPC.Server/ULinkRPC.Server.csproj -c Release
-dotnet pack src/ULinkRPC.Transport.Tcp/ULinkRPC.Transport.Tcp.csproj -c Release
-dotnet pack src/ULinkRPC.Transport.WebSocket/ULinkRPC.Transport.WebSocket.csproj -c Release
-dotnet pack src/ULinkRPC.Transport.Kcp/ULinkRPC.Transport.Kcp.csproj -c Release
-dotnet pack src/ULinkRPC.Transport.Loopback/ULinkRPC.Transport.Loopback.csproj -c Release
-dotnet pack src/ULinkRPC.Serializer.MemoryPack/ULinkRPC.Serializer.MemoryPack.csproj -c Release
-dotnet pack src/ULinkRPC.Serializer.Json/ULinkRPC.Serializer.Json.csproj -c Release
-dotnet pack src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj -c Release
+var player = client.Api.Game.Player;
+var reply = await player.LoginAsync(new LoginRequest
+{
+    Account = "demo",
+    Password = "123456"
+});
 ```
 
-## Tests
-1. Open `samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity` in Unity 2022 LTS.
-2. Ensure packages resolve (MemoryPack should be present).
-3. open `Window` -> `General` -> `Test Runner` ， click `EditMode`, click `Run All`
+## Samples
 
-See CONTRIBUTING.md for architecture, testing, and platform constraints.
+- `samples/RpcCall.Json`: minimal WebSocket + JSON sample
+- `samples/RpcCall.MemoryPack`: TCP + MemoryPack sample with multiple services
+- `samples/RpcCall.Kcp`: KCP transport sample
+
+Build or regenerate a sample from the repository root:
+
+```powershell
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json
+```
+
+Run a sample server:
+
+```powershell
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
+```
+
+## Documentation
+
+- Getting started tutorial: https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
+- Project docs site: https://bruce48x.github.io/ULinkRPC/
+
+## Repository Layout
+
+- `src/ULinkRPC.*`: runtime, transports, serializers, and code generator
+- `samples/`: runnable Unity + .NET samples
+- `docs/`: Hugo documentation site for GitHub Pages
+
+## For Contributors
+
+Developer-facing rules, architecture notes, testing constraints, publishing steps, and AI agent instructions live in [CONTRIBUTING.md](/Users/wangql/workspace/ULinkRPC/CONTRIBUTING.md).
