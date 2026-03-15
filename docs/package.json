@@ -4,8 +4,8 @@
   "private": true,
   "description": "Hexo documentation site for ULinkRPC",
   "scripts": {
-    "clean": "node ./node_modules/hexo-cli/bin/hexo clean",
-    "build": "node ./node_modules/hexo-cli/bin/hexo generate",
+    "clean": "node build.js",
+    "build": "node build.js",
     "server": "node ./node_modules/hexo-cli/bin/hexo server",
     "deploy": "node ./node_modules/hexo-cli/bin/hexo generate"
   },
