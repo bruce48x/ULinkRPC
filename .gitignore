@@ -183,3 +183,9 @@ pack.cmd
 .dotnet/
 # Local NuGet cache
 .nuget/
+
+# Hexo site
+/docs/node_modules/
+/docs/public/
+/docs/.deploy_git/
+/docs/db.json
