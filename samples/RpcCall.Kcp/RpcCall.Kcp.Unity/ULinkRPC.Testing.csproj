@@ -224,7 +224,7 @@
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\PlaybackEngines\WindowsStandaloneSupport\UnityEditor.WindowsStandalone.Extensions.dll</HintPath>
     </Reference>
     <Reference Include="ULinkRPC.Client">
-      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Client.0.6.1\lib\netstandard2.1\ULinkRPC.Client.dll</HintPath>
+      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Client.0.6.2\lib\netstandard2.1\ULinkRPC.Client.dll</HintPath>
     </Reference>
     <Reference Include="Kcp">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\Kcp.2.7.0\lib\netstandard2.1\Kcp.dll</HintPath>
@@ -233,7 +233,7 @@
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Transport.Kcp.0.7.2\lib\netstandard2.1\ULinkRPC.Transport.Kcp.dll</HintPath>
     </Reference>
     <Reference Include="ULinkRPC.Core">
-      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Core.0.5.0\lib\netstandard2.1\ULinkRPC.Core.dll</HintPath>
+      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Core.0.5.1\lib\netstandard2.1\ULinkRPC.Core.dll</HintPath>
     </Reference>
     <Reference Include="System.Collections.Immutable">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\System.Collections.Immutable.6.0.0\lib\netstandard2.0\System.Collections.Immutable.dll</HintPath>

@@ -73,7 +73,7 @@ namespace ULinkRPC.Client
                 if (client is null) throw new ArgumentNullException(nameof(client));
                 if (_playerCallback is not null)
                 {
-                    PlayerCallbackBinder.Bind(client, _playerCallback);
+                    global::Rpc.Generated.PlayerCallbackBinder.Bind(client, _playerCallback);
                 }
             }
         }
