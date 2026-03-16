@@ -1,5 +1,5 @@
 ---
-title: 用 ULinkRPC 从零搭一个 Unity + .NET 的双向 RPC
+title: 用 ULinkRPC 从零搭一个 Unity 和 .NET 的共享代码、双向通信项目
 date: 2026-03-15T12:30:00+08:00
 tags:
   - ulinkrpc
@@ -11,9 +11,9 @@ categories:
   - Tutorial
 ---
 
-如果你想在 Unity 客户端和 .NET 服务端之间建立一套类型安全、可生成代码、支持服务端主动推送的通信层，`ULinkRPC` 这套结构就是为这个目标准备的。
+如果你想在 Unity 客户端和 .NET 服务端之间建立一套类型安全、可生成代码、支持服务端主动推送的通信层，`ULinkRPC` 库就是为这个目标准备的。
 
-这篇文章不讲抽象概念，直接带你走通一个可运行版本：
+这篇文章带你从头到尾理解如何使用：
 
 - Unity 作为客户端
 - .NET 作为服务端
@@ -28,19 +28,19 @@ categories:
 
 `ULinkRPC` 的关键点只有三个：
 
-1. 先定义共享契约
+1. 先定义共享契约 Contracts（前后端的业务协议）
 2. 再用代码生成器产出客户端桩代码和服务端绑定代码
 3. 最后把传输层和序列化器接进去
 
-也就是说，你平时主要维护的是接口和 DTO，不是手写一堆字符串协议，也不是自己拼 method id。
+也就是说，你平时主要维护的是 C# 接口和 DTO，不需要手写一堆字符串协议。
 
 在这个仓库里，最重要的事实是：
 
-- 契约是单一事实来源
-- Unity 和服务端共用同一份 contracts
-- 客户端调用入口和服务端 binder 都是生成的
+- 契约 Contracts 是单一事实来源
+- Unity 和服务端共用同一份契约
+- 客户端调用入口和服务端 binder 都是用 CodeGen 工具生成的
 
-这和很多“先写 socket 再写协议再手工分发消息”的做法不同，维护成本会低很多。
+这和很多“手工维护”的做法不同，维护成本会低很多。
 
 ## 项目结构
 
@@ -55,10 +55,10 @@ samples/RpcCall.Json/
 其中：
 
 - `RpcCall.Json.Unity/Packages/com.samples.contracts` 放共享契约
-- `RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated` 放生成出来的 Unity 客户端代码
-- `RpcCall.Json.Server/Generated` 放生成出来的服务端 binder 和 callback proxy
+- `RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated` 生成出来的 Unity 客户端代码
+- `RpcCall.Json.Server/Generated` 生成出来的服务端 binder 和 callback proxy
 
-也就是说，真正需要你长期维护的业务入口，首先是 contracts。
+也就是说，真正需要你长期维护的业务入口，首先是契约 contracts。
 
 ## 第一步：定义共享契约
 
@@ -142,6 +142,11 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json
 dotnet run --project src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj --
 ```
 
+在你的实际项目中，你会需要下载代码生成器，再使用来生成代码
+```sh
+dotnet tool install --global ULinkRPC.CodeGen
+```
+
 生成之后，客户端会拿到一个统一入口 `RpcClient.Api`，服务端会拿到类似 `PlayerServiceBinder` 这样的绑定代码。
 
 这一步非常关键，因为它把“接口定义”和“网络调用细节”彻底隔离开了。
@@ -166,7 +171,7 @@ await RpcServerHostBuilder.Create()
 
 - 用 `ULinkRPC.Server` 启服务
 - 序列化选 `JsonRpcSerializer`
-- 传输层选 WebSocket
+- 传输层选 `WebSocket`
 - 默认监听 `20000`
 - 路径是 `/ws`
 
@@ -276,7 +281,7 @@ namespace Rpc.Testing
 
 ### 客户端怎么拿到业务服务
 
-生成代码后，客户端不是自己 new `PlayerServiceClient`，而是通过统一入口访问：
+生成代码后，客户端通过统一入口访问：
 
 ```csharp
 await using var client = new RpcClient(options, callbacks);
@@ -285,7 +290,7 @@ await client.ConnectAsync();
 var player = client.Api.Game.Player;
 ```
 
-这里的体验很像调用本地业务 facade：
+这里的体验很像调用本地业务：
 
 - `client.Api` 是生成出来的总入口
 - `Game` 是按业务分组组织的 service group
@@ -349,7 +354,7 @@ await client.ConnectAsync();
 
 从这里开始，只要服务端调用 `_callback.OnNotify(...)`，客户端就会收到推送。
 
-这套模型比自己维护“请求通道 + 推送通道 + 消息路由器”更简单，因为整个反向推送已经被折叠成 typed callback contract。
+这套模型比自己维护“请求通道 + 推送通道 + 消息路由器”更简单。
 
 ## 第六步：跑起来验证
 
@@ -374,7 +379,7 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 - 客户端继续调用 `IncrStep`
 - 服务端维护每个连接自己的计数状态
 
-也就是说，它不是一个只能 request/response 的单向 RPC，而是一个天然支持双向事件回流的结构。
+也就是说，它不是一个只能 request/response 的单向 RPC，而是一个天然支持双向数据流的结构。
 
 ## 为什么这套方式适合 Unity
 
@@ -387,17 +392,17 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 
 `ULinkRPC` 这套设计本质上是在解决这些问题：
 
-- 契约先行，接口就是协议
+- 契约先行，代码就是协议
 - transport 可切换，业务代码不依赖 TCP / WebSocket / KCP
 - serializer 可切换，JSON 和 MemoryPack 都能接
 - 生成代码替你屏蔽样板逻辑
-- callback contract 让双向通信保持强类型
+- 让双向通信保持强类型
 
 特别是 Unity + .NET 混合开发时，这种“shared contracts + generated stubs + typed callbacks”的结构，比裸 socket 或自定义消息总线更容易持续演进。
 
 ## 如果你要开始自己的项目，建议这样落地
 
-第一版不要一上来就做很复杂的业务，先照这个顺序走：
+第一版照这个顺序走：
 
 1. 新建一份 contracts 仓库或目录
 2. 定义一个最小服务，例如 `IPlayerService`
@@ -416,8 +421,8 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 
 如果这篇文章帮你跑通了第一条链路，下一步建议继续看仓库里的两个方向：
 
+- `RpcCall.Kcp`：看最简化版本是如何编写的
 - `RpcCall.MemoryPack`：看多服务、多回调、TCP 场景
-- `RpcCall.Kcp`：看 KCP 传输版本
 
 等你把最小链路跑通之后，再考虑这些增强项：
 
@@ -440,5 +445,3 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 - 服务端主动推送
 
 如果你准备在 Unity 里做一套长期维护的客户端通信层，这种模式会比手写消息协议轻松很多。
-
-下一篇可以继续写 `MemoryPack + TCP` 版本，把性能和多服务组织方式也补上。
