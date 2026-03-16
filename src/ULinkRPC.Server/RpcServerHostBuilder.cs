@@ -6,6 +6,7 @@ namespace ULinkRPC.Server;
 public sealed class RpcServerHostBuilder
 {
     private Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>>? _acceptorFactory;
+    private RpcKeepAliveOptions _keepAlive = RpcKeepAliveOptions.Disabled;
     private Action<string> _logger = Console.WriteLine;
     private bool _servicesConfigured;
     private IRpcSerializer? _serializer;
@@ -15,6 +16,8 @@ public sealed class RpcServerHostBuilder
     public RpcServiceRegistry ServiceRegistry { get; } = new();
 
     public TransportSecurityConfig Security { get; } = new();
+
+    public RpcKeepAliveOptions KeepAlive => _keepAlive;
 
     public static RpcServerHostBuilder Create()
     {
@@ -81,6 +84,36 @@ public sealed class RpcServerHostBuilder
 
                 continue;
             }
+
+            if (arg.Equals("--keepalive", StringComparison.OrdinalIgnoreCase))
+            {
+                UseKeepAlive(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45));
+                continue;
+            }
+
+            if (arg.StartsWith("--keepalive-interval", StringComparison.OrdinalIgnoreCase))
+            {
+                var current = _keepAlive.Enabled ? _keepAlive : CreateDefaultKeepAlive();
+
+                if (TryReadInlineValue(arg, out var inlineInterval))
+                    _keepAlive = CopyKeepAlive(current, ParseTimeSpan(inlineInterval, "--keepalive-interval"), current.Timeout);
+                else if (TryReadNext(args, ref i, out var nextInterval))
+                    _keepAlive = CopyKeepAlive(current, ParseTimeSpan(nextInterval, "--keepalive-interval"), current.Timeout);
+
+                continue;
+            }
+
+            if (arg.StartsWith("--keepalive-timeout", StringComparison.OrdinalIgnoreCase))
+            {
+                var current = _keepAlive.Enabled ? _keepAlive : CreateDefaultKeepAlive();
+
+                if (TryReadInlineValue(arg, out var inlineTimeout))
+                    _keepAlive = CopyKeepAlive(current, current.Interval, ParseTimeSpan(inlineTimeout, "--keepalive-timeout"));
+                else if (TryReadNext(args, ref i, out var nextTimeout))
+                    _keepAlive = CopyKeepAlive(current, current.Interval, ParseTimeSpan(nextTimeout, "--keepalive-timeout"));
+
+                continue;
+            }
         }
 
         if (Port is null && positional.Count > 0 && int.TryParse(positional[0], out var positionalPort))
@@ -124,6 +157,24 @@ public sealed class RpcServerHostBuilder
         return this;
     }
 
+    public RpcServerHostBuilder UseKeepAlive(RpcKeepAliveOptions keepAlive)
+    {
+        _keepAlive = keepAlive ?? throw new ArgumentNullException(nameof(keepAlive));
+        return this;
+    }
+
+    public RpcServerHostBuilder UseKeepAlive(TimeSpan interval, TimeSpan timeout)
+    {
+        _keepAlive = new RpcKeepAliveOptions
+        {
+            Enabled = true,
+            Interval = interval,
+            Timeout = timeout,
+            MeasureRtt = false
+        };
+        return this;
+    }
+
     public RpcServerHostBuilder ConfigureServices(Action<RpcServiceRegistry> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
@@ -163,7 +214,7 @@ public sealed class RpcServerHostBuilder
         if (!_servicesConfigured && ServiceRegistry.IsEmpty)
             BindGeneratedServicesFromEntryAssembly();
 
-        return new RpcServerHost(_serializer, ServiceRegistry, Security, _acceptorFactory, _logger);
+        return new RpcServerHost(_serializer, ServiceRegistry, Security, _keepAlive, _acceptorFactory, _logger);
     }
 
     public ValueTask RunAsync(CancellationToken ct = default)
@@ -218,5 +269,36 @@ public sealed class RpcServerHostBuilder
         }
 
         return result;
+    }
+
+    private static TimeSpan ParseTimeSpan(string value, string optionName)
+    {
+        if (TimeSpan.TryParse(value, out var timeSpan) && timeSpan > TimeSpan.Zero)
+            return timeSpan;
+
+        throw new InvalidOperationException(
+            $"Option '{optionName}' expects a positive TimeSpan value, but received '{value}'.");
+    }
+
+    private static RpcKeepAliveOptions CopyKeepAlive(RpcKeepAliveOptions current, TimeSpan interval, TimeSpan timeout)
+    {
+        return new RpcKeepAliveOptions
+        {
+            Enabled = true,
+            Interval = interval,
+            Timeout = timeout,
+            MeasureRtt = current.MeasureRtt
+        };
+    }
+
+    private static RpcKeepAliveOptions CreateDefaultKeepAlive()
+    {
+        return new RpcKeepAliveOptions
+        {
+            Enabled = true,
+            Interval = TimeSpan.FromSeconds(15),
+            Timeout = TimeSpan.FromSeconds(45),
+            MeasureRtt = false
+        };
     }
 }

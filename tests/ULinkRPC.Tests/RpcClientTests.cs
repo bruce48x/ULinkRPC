@@ -260,4 +260,91 @@ public class RpcClientRuntimeTests
         await client.DisposeAsync();
         await server.StopAsync();
     }
+
+    [Fact]
+    public async Task KeepAlive_WithServerPong_UpdatesLastRtt()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcSession(serverTransport, serializer);
+        await server.StartAsync();
+
+        var client = new RpcClientRuntime(clientTransport, serializer, new RpcKeepAliveOptions
+        {
+            Enabled = true,
+            Interval = TimeSpan.FromMilliseconds(50),
+            Timeout = TimeSpan.FromMilliseconds(250),
+            MeasureRtt = true
+        });
+
+        await client.StartAsync();
+
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (client.LastRtt is null && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+
+        Assert.NotNull(client.LastRtt);
+        Assert.False(client.TimedOutByKeepAlive);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task KeepAlive_TimeoutDisconnectsClient()
+    {
+        var transport = new IdleClientTransport();
+        var serializer = new JsonRpcSerializer();
+        var client = new RpcClientRuntime(transport, serializer, new RpcKeepAliveOptions
+        {
+            Enabled = true,
+            Interval = TimeSpan.FromMilliseconds(40),
+            Timeout = TimeSpan.FromMilliseconds(120),
+            MeasureRtt = true
+        });
+
+        var disconnectedTcs = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.Disconnected += ex => disconnectedTcs.TrySetResult(ex);
+
+        await client.StartAsync();
+
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var registration = timeoutCts.Token.Register(() => disconnectedTcs.TrySetCanceled());
+        var error = await disconnectedTcs.Task;
+
+        var timeout = Assert.IsType<TimeoutException>(error);
+        Assert.Contains("keepalive", timeout.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(client.TimedOutByKeepAlive);
+
+        await client.DisposeAsync();
+    }
+
+    private sealed class IdleClientTransport : ITransport
+    {
+        public bool IsConnected { get; private set; }
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            IsConnected = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return ReadOnlyMemory<byte>.Empty;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsConnected = false;
+            return ValueTask.CompletedTask;
+        }
+    }
 }

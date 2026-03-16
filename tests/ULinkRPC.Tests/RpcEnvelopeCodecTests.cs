@@ -191,6 +191,34 @@ public class RpcEnvelopeCodecTests
     }
 
     [Fact]
+    public void KeepAlivePingRoundTrip_PreservesTimestamp()
+    {
+        var original = new RpcKeepAlivePingEnvelope
+        {
+            TimestampTicksUtc = DateTimeOffset.UtcNow.UtcTicks
+        };
+
+        var encoded = RpcEnvelopeCodec.EncodeKeepAlivePing(original);
+        var decoded = RpcEnvelopeCodec.DecodeKeepAlivePing(encoded);
+
+        Assert.Equal(original.TimestampTicksUtc, decoded.TimestampTicksUtc);
+    }
+
+    [Fact]
+    public void KeepAlivePongRoundTrip_PreservesTimestamp()
+    {
+        var original = new RpcKeepAlivePongEnvelope
+        {
+            TimestampTicksUtc = DateTimeOffset.UtcNow.UtcTicks
+        };
+
+        var encoded = RpcEnvelopeCodec.EncodeKeepAlivePong(original);
+        var decoded = RpcEnvelopeCodec.DecodeKeepAlivePong(encoded);
+
+        Assert.Equal(original.TimestampTicksUtc, decoded.TimestampTicksUtc);
+    }
+
+    [Fact]
     public void PeekFrameType_ReturnsCorrectType()
     {
         var req = RpcEnvelopeCodec.EncodeRequest(new RpcRequestEnvelope
@@ -199,10 +227,16 @@ public class RpcEnvelopeCodecTests
             { RequestId = 1, Status = RpcStatus.Ok });
         var push = RpcEnvelopeCodec.EncodePush(new RpcPushEnvelope
             { ServiceId = 1, MethodId = 1 });
+        var ping = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
+            { TimestampTicksUtc = 1 });
+        var pong = RpcEnvelopeCodec.EncodeKeepAlivePong(new RpcKeepAlivePongEnvelope
+            { TimestampTicksUtc = 2 });
 
         Assert.Equal(RpcFrameType.Request, RpcEnvelopeCodec.PeekFrameType(req));
         Assert.Equal(RpcFrameType.Response, RpcEnvelopeCodec.PeekFrameType(resp));
         Assert.Equal(RpcFrameType.Push, RpcEnvelopeCodec.PeekFrameType(push));
+        Assert.Equal(RpcFrameType.KeepAlivePing, RpcEnvelopeCodec.PeekFrameType(ping));
+        Assert.Equal(RpcFrameType.KeepAlivePong, RpcEnvelopeCodec.PeekFrameType(pong));
     }
 
     [Fact]

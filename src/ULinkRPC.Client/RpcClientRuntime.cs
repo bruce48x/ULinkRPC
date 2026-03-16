@@ -12,20 +12,48 @@ namespace ULinkRPC.Client
         private readonly CancellationTokenSource _cts = new();
         private readonly ConcurrentDictionary<uint, TaskCompletionSource<RpcResponseEnvelope>> _pending = new();
         private readonly ConcurrentDictionary<(int serviceId, int methodId), RpcPushPayloadHandler> _pushHandlers = new();
+        private readonly SemaphoreSlim _sendLock = new(1, 1);
         private readonly ITransport _transport;
         private readonly IRpcSerializer _serializer;
+        private readonly RpcKeepAliveOptions _keepAlive;
         private int _nextId;
         private int _started;
+        private int _keepAliveTimedOut;
+        private long _lastReceiveTicksUtc;
+        private long _lastRttTicks;
+        private long _lastSendTicksUtc;
+        private long _pendingPingSentAtTicksUtc;
+        private long _disconnectReasonSet;
 
         private Task? _recvLoop;
+        private Task? _keepAliveLoop;
+        private Exception? _disconnectReason;
 
-        public RpcClientRuntime(ITransport transport, IRpcSerializer serializer)
+        public RpcClientRuntime(ITransport transport, IRpcSerializer serializer, RpcKeepAliveOptions? keepAlive = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            _keepAlive = keepAlive ?? RpcKeepAliveOptions.Disabled;
+            UpdateSendActivityUtc();
+            UpdateReceiveActivityUtc();
         }
 
         public event Action<Exception?>? Disconnected;
+
+        public DateTimeOffset LastSendAt => new(GetTimestampOrNow(_lastSendTicksUtc), TimeSpan.Zero);
+
+        public DateTimeOffset LastReceiveAt => new(GetTimestampOrNow(_lastReceiveTicksUtc), TimeSpan.Zero);
+
+        public TimeSpan? LastRtt
+        {
+            get
+            {
+                var ticks = Volatile.Read(ref _lastRttTicks);
+                return ticks <= 0 ? null : TimeSpan.FromTicks(ticks);
+            }
+        }
+
+        public bool TimedOutByKeepAlive => Volatile.Read(ref _keepAliveTimedOut) != 0;
 
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
@@ -35,7 +63,11 @@ namespace ULinkRPC.Client
             try
             {
                 await _transport.ConnectAsync(ct);
+                UpdateSendActivityUtc();
+                UpdateReceiveActivityUtc();
                 _recvLoop = Task.Run(ReceiveLoopAsync);
+                if (_keepAlive.Enabled)
+                    _keepAliveLoop = Task.Run(KeepAliveLoopAsync);
             }
             catch
             {
@@ -80,7 +112,7 @@ namespace ULinkRPC.Client
                 };
 
                 var reqBytes = RpcEnvelopeCodec.EncodeRequest(req);
-                await _transport.SendFrameAsync(reqBytes, ct);
+                await SendFrameAsyncSerialized(reqBytes, ct).ConfigureAwait(false);
 
                 using var reg = ct.Register(() =>
                 {
@@ -116,7 +148,17 @@ namespace ULinkRPC.Client
                 {
                 }
 
+            if (_keepAliveLoop is not null)
+                try
+                {
+                    await _keepAliveLoop.ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+
             await _transport.DisposeAsync().ConfigureAwait(false);
+            _sendLock.Dispose();
             try { _cts.Dispose(); } catch (ObjectDisposedException) { }
         }
 
@@ -133,6 +175,8 @@ namespace ULinkRPC.Client
                     if (frame.IsEmpty)
                         throw new InvalidOperationException("Transport closed.");
 
+                    UpdateReceiveActivityUtc();
+                    ClearPendingPing();
                     var frameType = RpcEnvelopeCodec.PeekFrameType(frame.Span);
                     switch (frameType)
                     {
@@ -150,6 +194,12 @@ namespace ULinkRPC.Client
                                 handler(push.Payload.AsSpan());
                             break;
                         }
+                        case RpcFrameType.KeepAlivePong:
+                        {
+                            var pong = RpcEnvelopeCodec.DecodeKeepAlivePong(frame.Span);
+                            UpdateRttFromPong(pong.TimestampTicksUtc);
+                            break;
+                        }
                     }
                 }
             }
@@ -163,10 +213,95 @@ namespace ULinkRPC.Client
             }
             finally
             {
+                if (err is null)
+                    err = _disconnectReason;
                 if (err is not null)
                     FailAllPending(err);
 
                 Disconnected?.Invoke(err);
+            }
+        }
+
+        private async Task KeepAliveLoopAsync()
+        {
+            var interval = _keepAlive.Interval;
+            var timeout = _keepAlive.Timeout;
+            if (interval <= TimeSpan.Zero || timeout <= TimeSpan.Zero)
+                return;
+
+            while (!_cts.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(interval, _cts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                var nowTicks = DateTimeOffset.UtcNow.UtcTicks;
+                var pendingPingSentAt = Volatile.Read(ref _pendingPingSentAtTicksUtc);
+                if (pendingPingSentAt > 0)
+                {
+                    if (new TimeSpan(nowTicks - pendingPingSentAt) >= timeout)
+                    {
+                        Volatile.Write(ref _keepAliveTimedOut, 1);
+                        SetDisconnectReason(new TimeoutException("RPC keepalive timed out."));
+                        try
+                        {
+                            _cts.Cancel();
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                        }
+                        return;
+                    }
+
+                    continue;
+                }
+
+                var lastActivity = Math.Max(Volatile.Read(ref _lastReceiveTicksUtc), Volatile.Read(ref _lastSendTicksUtc));
+                if (new TimeSpan(nowTicks - lastActivity) < interval)
+                    continue;
+
+                var pingTimestamp = DateTimeOffset.UtcNow.UtcTicks;
+                var ping = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
+                {
+                    TimestampTicksUtc = pingTimestamp
+                });
+
+                try
+                {
+                    await SendFrameAsyncSerialized(ping, _cts.Token).ConfigureAwait(false);
+                    Volatile.Write(ref _pendingPingSentAtTicksUtc, pingTimestamp);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+                catch (InvalidOperationException) when (!_transport.IsConnected)
+                {
+                    return;
+                }
+            }
+        }
+
+        private async ValueTask SendFrameAsyncSerialized(ReadOnlyMemory<byte> frame, CancellationToken ct)
+        {
+            await _sendLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await _transport.SendFrameAsync(frame, ct).ConfigureAwait(false);
+                UpdateSendActivityUtc();
+            }
+            finally
+            {
+                _sendLock.Release();
             }
         }
 
@@ -187,5 +322,49 @@ namespace ULinkRPC.Client
 
             return id;
         }
+
+        private void UpdateSendActivityUtc()
+        {
+            UpdateSendActivityUtc(DateTimeOffset.UtcNow.UtcTicks);
+        }
+
+        private void UpdateSendActivityUtc(long utcTicks)
+        {
+            Volatile.Write(ref _lastSendTicksUtc, utcTicks);
+        }
+
+        private void UpdateReceiveActivityUtc()
+        {
+            Volatile.Write(ref _lastReceiveTicksUtc, DateTimeOffset.UtcNow.UtcTicks);
+        }
+
+        private void ClearPendingPing()
+        {
+            Volatile.Write(ref _pendingPingSentAtTicksUtc, 0);
+        }
+
+        private void UpdateRttFromPong(long pongTimestampTicksUtc)
+        {
+            if (!_keepAlive.MeasureRtt)
+                return;
+
+            if (pongTimestampTicksUtc <= 0)
+                return;
+
+            var nowTicks = DateTimeOffset.UtcNow.UtcTicks;
+            if (nowTicks <= pongTimestampTicksUtc)
+                return;
+
+            Volatile.Write(ref _lastRttTicks, nowTicks - pongTimestampTicksUtc);
+        }
+
+        private void SetDisconnectReason(Exception ex)
+        {
+            if (Interlocked.CompareExchange(ref _disconnectReasonSet, 1, 0) == 0)
+                _disconnectReason = ex;
+        }
+
+        private static long GetTimestampOrNow(long utcTicks) =>
+            utcTicks > 0 ? utcTicks : DateTimeOffset.UtcNow.UtcTicks;
     }
 }

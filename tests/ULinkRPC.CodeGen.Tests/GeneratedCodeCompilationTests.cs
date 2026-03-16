@@ -40,6 +40,10 @@ public class GeneratedCodeCompilationTests
 
             public interface ITransport { }
 
+            public sealed class RpcKeepAliveOptions
+            {
+            }
+
             public interface IRpcSerializer
             {
                 byte[] Serialize<T>(T value);
@@ -69,6 +73,7 @@ public class GeneratedCodeCompilationTests
                     Serializer = serializer;
                 }
 
+                public RpcKeepAliveOptions KeepAlive { get; } = new();
                 public ITransport Transport { get; }
                 public IRpcSerializer Serializer { get; }
             }
@@ -77,7 +82,7 @@ public class GeneratedCodeCompilationTests
             {
                 public event Action<Exception?>? Disconnected;
 
-                public RpcClientRuntime(ITransport transport, IRpcSerializer serializer) { }
+                public RpcClientRuntime(ITransport transport, IRpcSerializer serializer, RpcKeepAliveOptions keepAlive) { }
 
                 public ValueTask StartAsync(CancellationToken ct = default) => default;
                 public ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg arg, CancellationToken ct) => default;

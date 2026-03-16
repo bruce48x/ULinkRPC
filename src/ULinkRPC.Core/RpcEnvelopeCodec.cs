@@ -171,6 +171,62 @@ namespace ULinkRPC.Core
             };
         }
 
+        public static byte[] EncodeKeepAlivePing(RpcKeepAlivePingEnvelope ping)
+        {
+            if (ping is null) throw new ArgumentNullException(nameof(ping));
+
+            var data = new byte[1 + 8];
+            var offset = 0;
+            data[offset++] = (byte)RpcFrameType.KeepAlivePing;
+            WriteInt64(data, ref offset, ping.TimestampTicksUtc);
+            return data;
+        }
+
+        public static RpcKeepAlivePingEnvelope DecodeKeepAlivePing(ReadOnlySpan<byte> data)
+        {
+            var offset = 0;
+            var frameType = (RpcFrameType)ReadByte(data, ref offset);
+            if (frameType != RpcFrameType.KeepAlivePing)
+                throw new InvalidOperationException($"Expected KeepAlivePing frame, got {frameType}.");
+
+            var timestampTicksUtc = ReadInt64(data, ref offset);
+            if (offset != data.Length)
+                throw new InvalidOperationException("KeepAlivePing envelope has extra trailing bytes.");
+
+            return new RpcKeepAlivePingEnvelope
+            {
+                TimestampTicksUtc = timestampTicksUtc
+            };
+        }
+
+        public static byte[] EncodeKeepAlivePong(RpcKeepAlivePongEnvelope pong)
+        {
+            if (pong is null) throw new ArgumentNullException(nameof(pong));
+
+            var data = new byte[1 + 8];
+            var offset = 0;
+            data[offset++] = (byte)RpcFrameType.KeepAlivePong;
+            WriteInt64(data, ref offset, pong.TimestampTicksUtc);
+            return data;
+        }
+
+        public static RpcKeepAlivePongEnvelope DecodeKeepAlivePong(ReadOnlySpan<byte> data)
+        {
+            var offset = 0;
+            var frameType = (RpcFrameType)ReadByte(data, ref offset);
+            if (frameType != RpcFrameType.KeepAlivePong)
+                throw new InvalidOperationException($"Expected KeepAlivePong frame, got {frameType}.");
+
+            var timestampTicksUtc = ReadInt64(data, ref offset);
+            if (offset != data.Length)
+                throw new InvalidOperationException("KeepAlivePong envelope has extra trailing bytes.");
+
+            return new RpcKeepAlivePongEnvelope
+            {
+                TimestampTicksUtc = timestampTicksUtc
+            };
+        }
+
         private static uint ReadUInt32(ReadOnlySpan<byte> data, ref int offset)
         {
             EnsureRemaining(data, offset, 4);
@@ -184,6 +240,14 @@ namespace ULinkRPC.Core
             EnsureRemaining(data, offset, 4);
             var value = BinaryPrimitives.ReadInt32BigEndian(data.Slice(offset, 4));
             offset += 4;
+            return value;
+        }
+
+        private static long ReadInt64(ReadOnlySpan<byte> data, ref int offset)
+        {
+            EnsureRemaining(data, offset, 8);
+            var value = BinaryPrimitives.ReadInt64BigEndian(data.Slice(offset, 8));
+            offset += 8;
             return value;
         }
 
@@ -203,6 +267,12 @@ namespace ULinkRPC.Core
         {
             BinaryPrimitives.WriteInt32BigEndian(data.Slice(offset, 4), value);
             offset += 4;
+        }
+
+        private static void WriteInt64(Span<byte> data, ref int offset, long value)
+        {
+            BinaryPrimitives.WriteInt64BigEndian(data.Slice(offset, 8), value);
+            offset += 8;
         }
 
         private static void EnsureRemaining(ReadOnlySpan<byte> data, int offset, int count)

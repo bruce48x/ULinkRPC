@@ -33,7 +33,15 @@ Typical Unity-side usage now looks like this:
 ```csharp
 var options = new RpcClientOptions(
     new TcpTransport("127.0.0.1", 20000),
-    new MemoryPackRpcSerializer());
+    new MemoryPackRpcSerializer())
+{
+    KeepAlive = new RpcKeepAliveOptions
+    {
+        Enabled = true,
+        Interval = TimeSpan.FromSeconds(15),
+        Timeout = TimeSpan.FromSeconds(45)
+    }
+};
 
 var callbacks = new RpcClient.RpcCallbackBindings();
 callbacks.Add(new PlayerCallbacks());

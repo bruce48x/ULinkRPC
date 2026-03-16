@@ -74,7 +74,7 @@ internal static class FacadeEmitter
 
         w.OpenBlock("public RpcClient(RpcClientOptions options)");
         w.Line("Options = options ?? throw new ArgumentNullException(nameof(options));");
-        w.Line("_runtime = new RpcClientRuntime(options.Transport, options.Serializer);");
+        w.Line("_runtime = new RpcClientRuntime(options.Transport, options.Serializer, options.KeepAlive);");
         w.CloseBlock();
         w.Line();
 

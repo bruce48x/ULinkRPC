@@ -441,6 +441,64 @@ public class RpcSessionTests
         Assert.Equal(1, transport.DisposeCount);
     }
 
+    [Fact]
+    public async Task KeepAlivePing_ReceivesPong()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var server = new RpcSession(serverTransport, serializer);
+
+        await server.StartAsync();
+        await clientTransport.ConnectAsync();
+
+        var ping = new RpcKeepAlivePingEnvelope
+        {
+            TimestampTicksUtc = DateTimeOffset.UtcNow.UtcTicks
+        };
+
+        await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeKeepAlivePing(ping));
+        var frame = await clientTransport.ReceiveFrameAsync();
+        var pong = RpcEnvelopeCodec.DecodeKeepAlivePong(frame.Span);
+
+        Assert.Equal(ping.TimestampTicksUtc, pong.TimestampTicksUtc);
+
+        await server.StopAsync();
+        await clientTransport.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task KeepAliveTimeout_DisconnectsIdleSession()
+    {
+        var transport = new IdleSessionTransport();
+        var server = new RpcSession(
+            transport,
+            new JsonRpcSerializer(),
+            registry: null,
+            contextId: "keepalive-test",
+            ownsTransport: false,
+            keepAlive: new RpcKeepAliveOptions
+            {
+                Enabled = true,
+                Interval = TimeSpan.FromMilliseconds(40),
+                Timeout = TimeSpan.FromMilliseconds(120),
+                MeasureRtt = false
+            });
+
+        var disconnectedTcs = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.Disconnected += ex => disconnectedTcs.TrySetResult(ex);
+
+        await server.StartAsync();
+
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var registration = timeoutCts.Token.Register(() => disconnectedTcs.TrySetCanceled());
+        var error = await disconnectedTcs.Task;
+
+        var timeout = Assert.IsType<TimeoutException>(error);
+        Assert.Contains("keepalive", timeout.Message, StringComparison.OrdinalIgnoreCase);
+
+        await server.DisposeAsync();
+    }
+
     private sealed class ConcurrentSendDetectTransport : ITransport
     {
         private int _currentSends;
@@ -513,6 +571,34 @@ public class RpcSessionTests
         {
             IsConnected = false;
             return ValueTask.FromResult<ReadOnlyMemory<byte>>(ReadOnlyMemory<byte>.Empty);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsConnected = false;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class IdleSessionTransport : ITransport
+    {
+        public bool IsConnected { get; private set; }
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            IsConnected = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return ReadOnlyMemory<byte>.Empty;
         }
 
         public ValueTask DisposeAsync()

@@ -22,6 +22,30 @@ public class RpcServerHostBuilderTests
     }
 
     [Fact]
+    public void UseKeepAlive_SetsBuilderOptions()
+    {
+        var builder = RpcServerHostBuilder.Create()
+            .UseKeepAlive(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15));
+
+        Assert.True(builder.KeepAlive.Enabled);
+        Assert.Equal(TimeSpan.FromSeconds(5), builder.KeepAlive.Interval);
+        Assert.Equal(TimeSpan.FromSeconds(15), builder.KeepAlive.Timeout);
+        Assert.False(builder.KeepAlive.MeasureRtt);
+    }
+
+    [Fact]
+    public void UseCommandLine_ParsesKeepAliveOptions()
+    {
+        var builder = RpcServerHostBuilder.Create()
+            .UseCommandLine(["--keepalive-interval", "00:00:05", "--keepalive-timeout", "00:00:15"]);
+
+        Assert.True(builder.KeepAlive.Enabled);
+        Assert.Equal(TimeSpan.FromSeconds(5), builder.KeepAlive.Interval);
+        Assert.Equal(TimeSpan.FromSeconds(15), builder.KeepAlive.Timeout);
+        Assert.False(builder.KeepAlive.MeasureRtt);
+    }
+
+    [Fact]
     public void Build_WhenServicesConfiguredExplicitly_DoesNotRequireGeneratedBinderDiscovery()
     {
         var builder = RpcServerHostBuilder.Create()

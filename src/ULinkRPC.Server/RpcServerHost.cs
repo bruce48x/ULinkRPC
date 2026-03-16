@@ -7,6 +7,7 @@ public sealed class RpcServerHost
 {
     private readonly Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>> _acceptorFactory;
     private readonly Action<string> _logger;
+    private readonly RpcKeepAliveOptions _keepAlive;
     private readonly RpcServiceRegistry _registry;
     private readonly TransportSecurityConfig _security;
     private readonly IRpcSerializer _serializer;
@@ -16,12 +17,14 @@ public sealed class RpcServerHost
         IRpcSerializer serializer,
         RpcServiceRegistry registry,
         TransportSecurityConfig security,
+        RpcKeepAliveOptions keepAlive,
         Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>> acceptorFactory,
         Action<string> logger)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _security = security ?? throw new ArgumentNullException(nameof(security));
+        _keepAlive = keepAlive ?? throw new ArgumentNullException(nameof(keepAlive));
         _acceptorFactory = acceptorFactory ?? throw new ArgumentNullException(nameof(acceptorFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -85,7 +88,13 @@ public sealed class RpcServerHost
     private async Task RunConnectionAsync(RpcAcceptedConnection connection, CancellationToken hostCt)
     {
         var transport = WrapSecurity(connection.Transport);
-        await using var session = new RpcSession(transport, _serializer, _registry, ownsTransport: true);
+        await using var session = new RpcSession(
+            transport,
+            _serializer,
+            _registry,
+            connection.DisplayName,
+            ownsTransport: true,
+            keepAlive: _keepAlive);
 
         try
         {

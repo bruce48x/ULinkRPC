@@ -4,7 +4,9 @@ namespace ULinkRPC.Core
     {
         Request = 1,
         Response = 2,
-        Push = 3
+        Push = 3,
+        KeepAlivePing = 4,
+        KeepAlivePong = 5
     }
 
     public enum RpcStatus : byte
@@ -35,6 +37,16 @@ namespace ULinkRPC.Core
         public int ServiceId { get; set; }
         public int MethodId { get; set; }
         public byte[] Payload { get; set; } = Array.Empty<byte>();
+    }
+
+    public sealed class RpcKeepAlivePingEnvelope
+    {
+        public long TimestampTicksUtc { get; set; }
+    }
+
+    public sealed class RpcKeepAlivePongEnvelope
+    {
+        public long TimestampTicksUtc { get; set; }
     }
 
     public sealed class RpcVoid

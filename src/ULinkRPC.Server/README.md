@@ -30,6 +30,7 @@ Use `RpcServerHostBuilder` to compose serializer, transport, generated binders, 
 await RpcServerHostBuilder.Create()
     .UseCommandLine(args)
     .UseMemoryPack()
+    .UseKeepAlive(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45))
     .UseTcp(defaultPort: 20000)
     .RunAsync();
 ```
@@ -51,3 +52,10 @@ await using var session = new RpcSession(transport, serializer, ownsTransport: t
 ```
 
 When `ownsTransport` is `true`, disposing the session also disposes the transport.
+
+## KeepAlive
+
+`RpcServerHostBuilder.UseKeepAlive(...)` enables connection-level idle timeout handling for accepted sessions.
+
+- The server automatically replies to client keepalive pings with pong.
+- When enabled on the host, each `RpcSession` also tracks idle time and disconnects sessions that remain inactive longer than the configured timeout.

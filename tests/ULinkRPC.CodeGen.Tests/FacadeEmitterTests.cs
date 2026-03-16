@@ -41,6 +41,7 @@ public class FacadeEmitterTests
         Assert.Contains("public sealed class RpcClient : IAsyncDisposable", code);
         Assert.Contains("private readonly RpcClientRuntime _runtime;", code);
         Assert.Contains("public RpcClient(RpcClientOptions options)", code);
+        Assert.Contains("_runtime = new RpcClientRuntime(options.Transport, options.Serializer, options.KeepAlive);", code);
         Assert.Contains("public global::Gen.RpcApi Api => _api ??= new global::Gen.RpcApi(_runtime);", code);
         Assert.Contains("public RpcClient(RpcClientOptions options, RpcCallbackBindings callbacks) : this(options)", code);
         Assert.Contains("public ValueTask ConnectAsync(CancellationToken ct = default)", code);

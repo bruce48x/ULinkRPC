@@ -10,6 +10,8 @@ public sealed class RpcClientOptions
         Serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
     }
 
+    public RpcKeepAliveOptions KeepAlive { get; set; } = RpcKeepAliveOptions.Disabled;
+
     public IRpcSerializer Serializer { get; }
 
     public ITransport Transport { get; }
