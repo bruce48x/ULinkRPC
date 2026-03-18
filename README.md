@@ -129,6 +129,7 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 ## Documentation
 
 - Getting started tutorial: https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
+- Architecture deep dive: https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-design-and-implementation/
 - Project docs site: https://bruce48x.github.io/ULinkRPC/
 
 ## Repository Layout
