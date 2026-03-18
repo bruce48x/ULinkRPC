@@ -1,5 +1,7 @@
 # ULinkRPC
 
+[中文说明](./README.zh-CN.md)
+
 ULinkRPC is a strongly-typed bidirectional RPC framework for Unity and .NET.
 
 It is designed for projects that need:
