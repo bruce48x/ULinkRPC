@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: read
   pages: write
@@ -21,13 +24,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v3
-        with:
-          hugo-version: "0.147.0"
-          extended: true
+        run: |
+          set -eux
+          HUGO_VERSION="0.147.0"
+          ARCHIVE="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
+          curl -fsSL -o "$ARCHIVE" "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${ARCHIVE}"
+          sudo tar -C /usr/local/bin -xzf "$ARCHIVE" hugo
+          hugo version
 
       - name: Build Hugo site
         working-directory: docs
@@ -40,7 +46,7 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./docs/public
 
