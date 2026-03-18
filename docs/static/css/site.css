@@ -34,7 +34,7 @@ a:hover {
 }
 
 .wrap {
-  width: min(920px, calc(100% - 32px));
+  width: min(1160px, calc(100% - 32px));
   margin: 0 auto;
 }
 
