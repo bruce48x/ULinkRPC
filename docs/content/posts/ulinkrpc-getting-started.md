@@ -448,4 +448,4 @@ ULinkRPC 的思路，本质上就是在解决这些问题：
 
 如果你要在 Unity 里做一套能长期维护的通信层，这种写法会比手写协议省事很多。
 
-下一篇可以接着看：[从零搭一个最小可跑的 ULinkRPC Server / Client Sample](/posts/ulinkrpc-sample-server-client-from-zero/)
+下一篇可以接着看：[从零搭一个最小可跑的 ULinkRPC Server / Client Sample](/ULinkRPC/posts/ulinkrpc-sample-server-client-from-zero/)
