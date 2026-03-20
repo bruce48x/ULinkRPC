@@ -69,6 +69,20 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
+    public class StepRequest
+    {
+    }
+
+    public class StepReply
+    {
+        public int Step { get; set; }
+    }
+
+    public class PlayerNotify
+    {
+        public string Message { get; set; } = "";
+    }
+
     [RpcService(1, Callback = typeof(IPlayerCallback))]
     public interface IPlayerService
     {
@@ -76,14 +90,14 @@ namespace Game.Rpc.Contracts
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
         [RpcMethod(2)]
-        ValueTask<int> IncrStep();
+        ValueTask<StepReply> IncrStepAsync(StepRequest req);
     }
 
     [RpcCallback(typeof(IPlayerService))]
     public interface IPlayerCallback
     {
         [RpcPush(1)]
-        void OnNotify(string message);
+        void OnNotify(PlayerNotify notify);
     }
 }
 ```
@@ -117,6 +131,23 @@ namespace Game.Rpc.Contracts
 ```
 
 很普通，没什么花样。接口负责行为，DTO 负责传输数据，就这么简单。
+
+这里顺便说明一下 ULinkRPC 现在的一个明确约束：
+
+- `RpcMethod` 只接受一个请求 DTO
+- `RpcPush` 也只接受一个推送 DTO
+
+这么做不是为了把写法变啰嗦，而是为了把协议形状固定下来。  
+如果直接让方法参数列表上网，那参数个数一变、顺序一变，生成代码和序列化结果都会跟着变，长期演进时很容易把兼容性搞乱。改成单 DTO 之后，方法签名本身就稳定多了，后面要加字段，也是在 DTO 里加，而不是去改 RPC 方法的参数表。
+
+这个取舍的代价也很明确：
+
+- 写法会比 `Foo(int a, string b)` 多一层 DTO
+- 但 codegen 更简单
+- 协议更稳定
+- 前后端协作时也更容易对齐
+
+考虑如果项目上线后要面对新老版本兼容的问题，这么约束的收益是很明显的。
 
 ## 第二步：跑代码生成
 
@@ -212,11 +243,18 @@ public class PlayerService : IPlayerService
         });
     }
 
-    public ValueTask<int> IncrStep()
+    public ValueTask<StepReply> IncrStepAsync(StepRequest req)
     {
         _step++;
-        _callback.OnNotify($"IncrStep => {_step}");
-        return new ValueTask<int>(_step);
+        _callback.OnNotify(new PlayerNotify
+        {
+            Message = $"IncrStep => {_step}"
+        });
+
+        return new ValueTask<StepReply>(new StepReply
+        {
+            Step = _step
+        });
     }
 }
 ```
@@ -304,7 +342,7 @@ var reply = await player.LoginAsync(new LoginRequest
     Password = "123456"
 });
 
-var step = await player.IncrStep();
+var step = await player.IncrStepAsync(new StepRequest());
 ```
 
 这也是 typed RPC 最实用的地方：
@@ -323,7 +361,7 @@ var step = await player.IncrStep();
 ```csharp
 public abstract class PlayerCallbackBase : IPlayerCallback
 {
-    public virtual void OnNotify(string message)
+    public virtual void OnNotify(PlayerNotify notify)
     {
     }
 }
@@ -334,9 +372,9 @@ public abstract class PlayerCallbackBase : IPlayerCallback
 ```csharp
 public sealed class PlayerCallbackReceiver : RpcClient.PlayerCallbackBase
 {
-    public override void OnNotify(string message)
+    public override void OnNotify(PlayerNotify notify)
     {
-        Debug.Log($"[Push] {message}");
+        Debug.Log($"[Push] {notify.Message}");
     }
 }
 ```

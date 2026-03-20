@@ -62,14 +62,14 @@ public class ContractParserTests : IDisposable
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
 
+            public class LoginRequest { public string Account { get; set; } = ""; }
+            public class LoginReply { public string Token { get; set; } = ""; }
+
             [RpcService(1)]
             public interface IPlayerService
             {
                 [RpcMethod(1)]
-                ValueTask<string> GetName(int playerId);
-
-                [RpcMethod(2)]
-                ValueTask SetName(string name);
+                ValueTask<LoginReply> LoginAsync(LoginRequest request);
             }
             """);
 
@@ -79,48 +79,42 @@ public class ContractParserTests : IDisposable
         var svc = services[0];
         Assert.Equal("IPlayerService", svc.InterfaceName);
         Assert.Equal(1, svc.ServiceId);
-        Assert.Equal(2, svc.Methods.Count);
+        Assert.Single(svc.Methods);
 
-        var getName = svc.Methods[0];
-        Assert.Equal("GetName", getName.Name);
-        Assert.Equal(1, getName.MethodId);
-        Assert.False(getName.IsVoid);
-        Assert.Equal("string", getName.RetTypeName);
-        Assert.Single(getName.Parameters);
-        Assert.Equal("int", getName.Parameters[0].TypeName);
-        Assert.Equal("playerId", getName.Parameters[0].Name);
-
-        var setName = svc.Methods[1];
-        Assert.Equal("SetName", setName.Name);
-        Assert.True(setName.IsVoid);
-        Assert.Null(setName.RetTypeName);
+        var login = svc.Methods[0];
+        Assert.Equal("LoginAsync", login.Name);
+        Assert.Equal(1, login.MethodId);
+        Assert.False(login.IsVoid);
+        Assert.Equal("LoginReply", login.RetTypeName);
+        Assert.Single(login.Parameters);
+        Assert.Equal("LoginRequest", login.Parameters[0].TypeName);
+        Assert.Equal("request", login.Parameters[0].Name);
     }
 
     [Fact]
-    public void MultipleParameters_ParsedCorrectly()
+    public void MultipleParameters_ThrowInvalidOperation()
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
+
+            public class CheckRequest { }
+            public class CheckReply { }
 
             [RpcService(10)]
             public interface IMultiSvc
             {
                 [RpcMethod(5)]
-                ValueTask<bool> Check(int a, string b, float c);
+                ValueTask<CheckReply> Check(CheckRequest request, string extra);
             }
             """);
 
-        var services = ContractParser.FindRpcServicesFromSource(dir);
-        var method = Assert.Single(services).Methods[0];
-
-        Assert.Equal(3, method.Parameters.Count);
-        Assert.Equal("int", method.Parameters[0].TypeName);
-        Assert.Equal("string", method.Parameters[1].TypeName);
-        Assert.Equal("float", method.Parameters[2].TypeName);
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("exactly one request DTO parameter", ex.Message);
     }
 
     [Fact]
-    public void ZeroParameterMethod_ParsedCorrectly()
+    public void ZeroParameterMethod_ThrowsInvalidOperation()
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
@@ -129,15 +123,13 @@ public class ContractParserTests : IDisposable
             public interface ISvc
             {
                 [RpcMethod(1)]
-                ValueTask Ping();
+                ValueTask PingAsync();
             }
             """);
 
-        var services = ContractParser.FindRpcServicesFromSource(dir);
-        var method = Assert.Single(services).Methods[0];
-
-        Assert.Empty(method.Parameters);
-        Assert.True(method.IsVoid);
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("exactly one request DTO parameter", ex.Message);
     }
 
     #endregion
@@ -163,12 +155,13 @@ public class ContractParserTests : IDisposable
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
+            public class TaggedRequest { }
 
             [RpcService(1)]
             public interface ISvc
             {
                 [RpcMethod(1)]
-                ValueTask Tagged();
+                ValueTask Tagged(TaggedRequest request);
 
                 ValueTask Untagged();
             }
@@ -205,19 +198,21 @@ public class ContractParserTests : IDisposable
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
+            public class RequestA { }
+            public class RequestB { }
 
             [RpcService(1)]
             public interface IServiceA
             {
                 [RpcMethod(1)]
-                ValueTask DoA();
+                ValueTask DoA(RequestA request);
             }
 
             [RpcService(2)]
             public interface IServiceB
             {
                 [RpcMethod(1)]
-                ValueTask DoB();
+                ValueTask DoB(RequestB request);
             }
             """);
 
@@ -234,20 +229,22 @@ public class ContractParserTests : IDisposable
             AttributeDefinitions,
             """
             using System.Threading.Tasks;
+            public class RequestOne { }
             [RpcService(1)]
             public interface IFileOneService
             {
                 [RpcMethod(1)]
-                ValueTask Do1();
+                ValueTask Do1(RequestOne request);
             }
             """,
             """
             using System.Threading.Tasks;
+            public class RequestTwo { }
             [RpcService(2)]
             public interface IFileTwoService
             {
                 [RpcMethod(1)]
-                ValueTask Do2();
+                ValueTask Do2(RequestTwo request);
             }
             """);
 
@@ -268,21 +265,25 @@ public class ContractParserTests : IDisposable
             using System;
             using System.Threading.Tasks;
 
+            public class JoinedNotice { public int PlayerId { get; set; } }
+            public class MessageNotice { public string Message { get; set; } = ""; }
+            public class StartRequest { }
+
             [RpcCallback(typeof(IGameService))]
             public interface IGameCallback
             {
                 [RpcPush(1)]
-                void OnPlayerJoined(int playerId);
+                void OnPlayerJoined(JoinedNotice notice);
 
                 [RpcPush(2)]
-                void OnMessage(string msg);
+                void OnMessage(MessageNotice notice);
             }
 
             [RpcService(5, Callback = typeof(IGameCallback))]
             public interface IGameService
             {
                 [RpcMethod(1)]
-                ValueTask Start();
+                ValueTask Start(StartRequest request);
             }
             """);
 
@@ -297,15 +298,18 @@ public class ContractParserTests : IDisposable
         Assert.Equal("OnPlayerJoined", svc.CallbackMethods[0].Name);
         Assert.Equal(1, svc.CallbackMethods[0].MethodId);
         Assert.Single(svc.CallbackMethods[0].Parameters);
+        Assert.Equal("JoinedNotice", svc.CallbackMethods[0].Parameters[0].TypeName);
         Assert.Equal("OnMessage", svc.CallbackMethods[1].Name);
     }
 
     [Fact]
-    public void CallbackInterface_ZeroParamMethod()
+    public void CallbackInterface_ZeroParamMethod_ThrowsInvalidOperation()
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System;
             using System.Threading.Tasks;
+
+            public class DoRequest { }
 
             [RpcCallback(typeof(ISvc))]
             public interface INotify
@@ -318,15 +322,13 @@ public class ContractParserTests : IDisposable
             public interface ISvc
             {
                 [RpcMethod(1)]
-                ValueTask Do();
+                ValueTask Do(DoRequest request);
             }
             """);
 
-        var services = ContractParser.FindRpcServicesFromSource(dir);
-        var svc = Assert.Single(services);
-        Assert.True(svc.HasCallback);
-        Assert.Single(svc.CallbackMethods);
-        Assert.Empty(svc.CallbackMethods[0].Parameters);
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("exactly one push DTO parameter", ex.Message);
     }
 
     [Fact]
@@ -338,21 +340,25 @@ public class ContractParserTests : IDisposable
             using System;
             using System.Threading.Tasks;
 
+            public class EventNotice { public int Code { get; set; } }
+
             [RpcCallback(typeof(IMySvc))]
             public interface IEvents
             {
                 [RpcPush(1)]
-                void OnEvent(int code);
+                void OnEvent(EventNotice notice);
             }
             """,
             """
             using System.Threading.Tasks;
 
+            public class ActRequest { }
+
             [RpcService(3, Callback = typeof(IEvents))]
             public interface IMySvc
             {
                 [RpcMethod(1)]
-                ValueTask Act();
+                ValueTask Act(ActRequest request);
             }
             """);
 
@@ -368,11 +374,12 @@ public class ContractParserTests : IDisposable
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
+            public class DoRequest { }
             [RpcService(1)]
             public interface IPlainSvc
             {
                 [RpcMethod(1)]
-                ValueTask Do();
+                ValueTask Do(DoRequest request);
             }
             """);
 
@@ -390,12 +397,13 @@ public class ContractParserTests : IDisposable
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
+            public class BadRequest { }
 
             [RpcService(1)]
             public interface IBadSvc
             {
                 [RpcMethod(1)]
-                Task<int> NotValueTask();
+                Task<int> NotValueTask(BadRequest request);
             }
             """);
 
@@ -409,11 +417,12 @@ public class ContractParserTests : IDisposable
     public void VoidReturnType_ThrowsInvalidOperation()
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
+            public class BadRequest { }
             [RpcService(1)]
             public interface IBadSvc
             {
                 [RpcMethod(1)]
-                void BadMethod();
+                void BadMethod(BadRequest request);
             }
             """);
 
@@ -428,18 +437,20 @@ public class ContractParserTests : IDisposable
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
 
+            public class DoRequest { }
+
             [RpcService(1)]
             public interface ISvcA
             {
                 [RpcMethod(1)]
-                ValueTask Do();
+                ValueTask Do(DoRequest request);
             }
 
             [RpcService(1)]
             public interface ISvcB
             {
                 [RpcMethod(1)]
-                ValueTask Do();
+                ValueTask Do(DoRequest request);
             }
             """);
 
@@ -456,14 +467,16 @@ public class ContractParserTests : IDisposable
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
 
+            public class DoRequest { }
+
             [RpcService(1)]
             public interface ISvc
             {
                 [RpcMethod(1)]
-                ValueTask DoA();
+                ValueTask DoA(DoRequest request);
 
                 [RpcMethod(1)]
-                ValueTask DoB();
+                ValueTask DoB(DoRequest request);
             }
             """);
 
@@ -496,7 +509,7 @@ public class ContractParserTests : IDisposable
                 public interface IPlayerSvc
                 {
                     [RpcMethod(1)]
-                    ValueTask<MyGame.Models.PlayerInfo> GetPlayer(int id);
+                    ValueTask<MyGame.Models.PlayerInfo> GetPlayer(MyGame.Models.PlayerInfo request);
                 }
             }
             """);
@@ -504,6 +517,77 @@ public class ContractParserTests : IDisposable
         var svc = Assert.Single(ContractParser.FindRpcServicesFromSource(dir));
         Assert.Contains("MyGame.Models", svc.UsingDirectives);
         Assert.Contains("MyGame.Contracts", svc.UsingDirectives);
+    }
+
+    [Fact]
+    public void PrimitiveRequestType_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            public class LoginReply { }
+
+            [RpcService(1)]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask<LoginReply> LoginAsync(string account);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("must be a DTO type", ex.Message);
+    }
+
+    [Fact]
+    public void PrimitiveResponseType_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            public class LoginRequest { }
+
+            [RpcService(1)]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask<int> LoginAsync(LoginRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("response type must be a DTO type", ex.Message);
+    }
+
+    [Fact]
+    public void PrimitiveCallbackType_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System;
+            using System.Threading.Tasks;
+
+            public class DoRequest { }
+
+            [RpcCallback(typeof(ISvc))]
+            public interface INotify
+            {
+                [RpcPush(1)]
+                void OnNotify(string message);
+            }
+
+            [RpcService(1, Callback = typeof(INotify))]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask Do(DoRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("must be a DTO type", ex.Message);
     }
 
     #endregion

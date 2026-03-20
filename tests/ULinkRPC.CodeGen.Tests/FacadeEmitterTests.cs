@@ -32,7 +32,7 @@ public class FacadeEmitterTests
         };
         svc.CallbackMethods =
         [
-            new RpcCallbackMethodInfo("OnNotify", 1, [new RpcParameterInfo("string", "message")])
+            new RpcCallbackMethodInfo("OnNotify", 1, [new RpcParameterInfo("PlayerNotify", "notify")])
         ];
 
         var code = FacadeEmitter.GenerateClientFacade([svc], "Gen", "ULinkRPC.Core", "ULinkRPC.Client");
@@ -50,7 +50,7 @@ public class FacadeEmitterTests
         Assert.Contains("public void Add(IPlayerCallback playerCallback)", code);
         Assert.Contains("PlayerCallbackBinder.Bind(client, _playerCallback);", code);
         Assert.Contains("public abstract class PlayerCallbackBase : IPlayerCallback", code);
-        Assert.Contains("public virtual void OnNotify(string message)", code);
+        Assert.Contains("public virtual void OnNotify(PlayerNotify notify)", code);
         Assert.DoesNotContain("public sealed class RpcConnection", code);
         Assert.DoesNotContain("public sealed class GameRpcClient", code);
         Assert.DoesNotContain("RpcClientBuilder", code);

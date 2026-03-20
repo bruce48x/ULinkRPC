@@ -15,4 +15,21 @@ namespace Game.Rpc.Contracts
         public int Code { get; set; }
         public string Token { get; set; } = "";
     }
+
+    [MemoryPackable]
+    public partial class StepRequest
+    {
+    }
+
+    [MemoryPackable]
+    public partial class StepReply
+    {
+        public int Step { get; set; }
+    }
+
+    [MemoryPackable]
+    public partial class PlayerNotify
+    {
+        public string Message { get; set; } = "";
+    }
 }

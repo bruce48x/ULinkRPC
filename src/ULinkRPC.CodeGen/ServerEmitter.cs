@@ -43,26 +43,15 @@ internal static class ServerEmitter
             var argType = NamingHelper.GetRequestPayloadType(m);
             w.OpenBlock($"registry.Register(ServiceId, {m.MethodId}, async (server, req, ct) =>");
             w.Line($"var impl = server.GetOrAddScopedService(ServiceId, implFactory);");
-
-            if (m.Parameters.Count == 1)
-            {
-                w.Line($"var arg1 = server.Serializer.Deserialize<{argType}>(req.Payload.AsSpan())!;");
-            }
-            else if (m.Parameters.Count > 1)
-            {
-                var deconstructVars = NamingHelper.GetDeconstructVariableList(m.Parameters.Count);
-                w.Line($"var ({deconstructVars}) = server.Serializer.Deserialize<{argType}>(req.Payload.AsSpan())!;");
-            }
-
-            var invokeArgs = NamingHelper.GetInvokeArguments(m.Parameters.Count);
+            w.Line($"var arg = server.Serializer.Deserialize<{argType}>(req.Payload.AsSpan())!;");
             if (m.IsVoid)
             {
-                w.Line($"await impl.{m.Name}({invokeArgs});");
+                w.Line($"await impl.{m.Name}(arg);");
                 w.Line("return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = Array.Empty<byte>() };");
             }
             else
             {
-                w.Line($"var resp = await impl.{m.Name}({invokeArgs});");
+                w.Line($"var resp = await impl.{m.Name}(arg);");
                 w.Line("return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };");
             }
 

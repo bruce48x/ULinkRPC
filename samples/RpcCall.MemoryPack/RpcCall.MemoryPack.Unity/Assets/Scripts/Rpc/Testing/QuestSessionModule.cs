@@ -23,26 +23,27 @@ namespace Rpc.Testing
             _service = service ?? throw new ArgumentNullException(nameof(service));
         }
 
-        public ValueTask<int> LoadAsync()
+        public async ValueTask<int> LoadAsync()
         {
-            return GetService().GetProgressAsync();
+            var progress = await GetService().GetProgressAsync(new ProgressRequest());
+            return progress.Progress;
         }
 
         public async ValueTask<int> PollAsync()
         {
-            var progress = await GetService().IncrProgress();
+            var progress = await GetService().IncrProgress(new ProgressRequest());
             if (!_host.IsStopping)
-                _host.UpdateQuestProgress(progress);
-            return progress;
+                _host.UpdateQuestProgress(progress.Progress);
+            return progress.Progress;
         }
 
-        public override void OnQuestNotify(string message)
+        public override void OnQuestNotify(QuestNotify notify)
         {
             if (_host.IsStopping)
                 return;
 
-            _host.UpdateLastMessage(message);
-            _host.AppendLog($"Session[{_host.Index}] quest push: {message}");
+            _host.UpdateLastMessage(notify.Message);
+            _host.AppendLog($"Session[{_host.Index}] quest push: {notify.Message}");
         }
 
         private IQuestService GetService()

@@ -115,7 +115,7 @@ namespace ULinkRPC.Client
         public abstract class InventoryCallbackBase : IInventoryCallback
         {
 
-            public virtual void OnInventoryNotify(string message)
+            public virtual void OnInventoryNotify(InventoryNotify notify)
             {
             }
         }
@@ -123,7 +123,7 @@ namespace ULinkRPC.Client
         public abstract class PlayerCallbackBase : IPlayerCallback
         {
 
-            public virtual void OnPlayerNotify(string message)
+            public virtual void OnPlayerNotify(PlayerNotify notify)
             {
             }
         }
@@ -131,7 +131,7 @@ namespace ULinkRPC.Client
         public abstract class QuestCallbackBase : IQuestCallback
         {
 
-            public virtual void OnQuestNotify(string message)
+            public virtual void OnQuestNotify(QuestNotify notify)
             {
             }
         }

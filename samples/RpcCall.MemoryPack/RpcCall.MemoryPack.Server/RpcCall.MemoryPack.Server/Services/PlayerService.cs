@@ -14,7 +14,10 @@ public class PlayerService: IPlayerService
 
     public ValueTask<LoginReply> LoginAsync(LoginRequest req)
     {
-        _callback.OnPlayerNotify($"Welcome {req.Account}, player login accepted.");
+        _callback.OnPlayerNotify(new PlayerNotify
+        {
+            Message = $"Welcome {req.Account}, player login accepted."
+        });
 
         // Example: accept any account, return a dummy token.
         // Replace with your own auth logic.
@@ -25,10 +28,16 @@ public class PlayerService: IPlayerService
         });
     }
 
-    public ValueTask<int> IncrStep()
+    public ValueTask<StepReply> IncrStep(StepRequest req)
     {
         _step++;
-        _callback.OnPlayerNotify($"Player step => {_step}");
-        return new ValueTask<int>(_step);
+        _callback.OnPlayerNotify(new PlayerNotify
+        {
+            Message = $"Player step => {_step}"
+        });
+        return new ValueTask<StepReply>(new StepReply
+        {
+            Step = _step
+        });
     }
 }

@@ -11,4 +11,18 @@ namespace Game.Rpc.Contracts
         public int Code { get; set; }
         public string Token { get; set; } = "";
     }
+
+    public class StepRequest
+    {
+    }
+
+    public class StepReply
+    {
+        public int Step { get; set; }
+    }
+
+    public class PlayerNotify
+    {
+        public string Message { get; set; } = "";
+    }
 }

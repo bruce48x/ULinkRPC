@@ -114,11 +114,11 @@ namespace Rpc.Testing
             {
                 try
                 {
-                    var step = await _player!.IncrStep();
+                    var step = await _player!.IncrStep(new StepRequest());
                     if (_cts.IsCancellationRequested || _stopped)
                         return;
 
-                    Debug.Log($"[KCP] {Account} step={step}");
+                    Debug.Log($"[KCP] {Account} step={step.Step}");
                     await Task.Delay(TimeSpan.FromSeconds(interval), _cts.Token);
                 }
                 catch (OperationCanceledException)
@@ -133,7 +133,7 @@ namespace Rpc.Testing
             }
         }
 
-        private void HandleNotify(string message)
+            private void HandleNotify(string message)
         {
             if (_stopped)
                 return;
@@ -199,9 +199,9 @@ namespace Rpc.Testing
                 _owner = owner;
             }
 
-            public override void OnNotify(string message)
+            public override void OnNotify(PlayerNotify notify)
             {
-                _owner.HandleNotify(message);
+                _owner.HandleNotify(notify.Message);
             }
         }
     }

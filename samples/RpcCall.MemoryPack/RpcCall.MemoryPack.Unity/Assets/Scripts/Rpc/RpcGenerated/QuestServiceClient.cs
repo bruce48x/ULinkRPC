@@ -13,31 +13,31 @@ namespace Rpc.Generated
     public sealed class QuestServiceClient : IQuestService
     {
         private const int ServiceId = 3;
-        private static readonly RpcMethod<RpcVoid, int> getProgressAsyncRpcMethod = new(ServiceId, 1);
-        private static readonly RpcMethod<RpcVoid, int> incrProgressRpcMethod = new(ServiceId, 2);
+        private static readonly RpcMethod<ProgressRequest, ProgressReply> getProgressAsyncRpcMethod = new(ServiceId, 1);
+        private static readonly RpcMethod<ProgressRequest, ProgressReply> incrProgressRpcMethod = new(ServiceId, 2);
 
         private readonly IRpcClient _client;
 
         public QuestServiceClient(IRpcClient client) { _client = client; }
 
-        public ValueTask<int> GetProgressAsync()
+        public ValueTask<ProgressReply> GetProgressAsync(ProgressRequest req)
         {
-            return GetProgressAsync(CancellationToken.None);
+            return GetProgressAsync(req, CancellationToken.None);
         }
 
-        public ValueTask<int> GetProgressAsync(CancellationToken ct)
+        public ValueTask<ProgressReply> GetProgressAsync(ProgressRequest req, CancellationToken ct)
         {
-            return _client.CallAsync(getProgressAsyncRpcMethod, default, ct);
+            return _client.CallAsync(getProgressAsyncRpcMethod, req, ct);
         }
 
-        public ValueTask<int> IncrProgress()
+        public ValueTask<ProgressReply> IncrProgress(ProgressRequest req)
         {
-            return IncrProgress(CancellationToken.None);
+            return IncrProgress(req, CancellationToken.None);
         }
 
-        public ValueTask<int> IncrProgress(CancellationToken ct)
+        public ValueTask<ProgressReply> IncrProgress(ProgressRequest req, CancellationToken ct)
         {
-            return _client.CallAsync(incrProgressRpcMethod, default, ct);
+            return _client.CallAsync(incrProgressRpcMethod, req, ct);
         }
 
     }

@@ -705,17 +705,17 @@ namespace Rpc.Testing
                 {
                     try
                     {
-                        var step = await _proxy!.IncrStep();
+                        var step = await _proxy!.IncrStep(new StepRequest());
                         if (_cts.IsCancellationRequested || _stopped || _owner._isShuttingDown)
                             return;
 
                         _owner.UpdateSession(Index, snapshot =>
                         {
                             snapshot.Account = account;
-                            snapshot.LastStep = step;
+                            snapshot.LastStep = step.Step;
                             snapshot.State = "Polling";
                         });
-                        _owner.AppendLog($"Session[{Index}] {account} step={step}");
+                        _owner.AppendLog($"Session[{Index}] {account} step={step.Step}");
                         await Task.Delay(TimeSpan.FromSeconds(interval), _cts.Token);
                     }
                     catch (OperationCanceledException)
@@ -743,7 +743,7 @@ namespace Rpc.Testing
                     _owner = owner;
                 }
 
-                public override void OnNotify(string message) => _owner.HandleNotify(message);
+                public override void OnNotify(PlayerNotify notify) => _owner.HandleNotify(notify.Message);
             }
         }
     }

@@ -13,21 +13,33 @@ public class QuestService : IQuestService
         _callback = callback;
     }
 
-    public ValueTask<int> GetProgressAsync()
+    public ValueTask<ProgressReply> GetProgressAsync(ProgressRequest req)
     {
         if (!_announced)
         {
             _announced = true;
-            _callback.OnQuestNotify("Quest tracker ready.");
+            _callback.OnQuestNotify(new QuestNotify
+            {
+                Message = "Quest tracker ready."
+            });
         }
 
-        return new ValueTask<int>(_progress);
+        return new ValueTask<ProgressReply>(new ProgressReply
+        {
+            Progress = _progress
+        });
     }
 
-    public ValueTask<int> IncrProgress()
+    public ValueTask<ProgressReply> IncrProgress(ProgressRequest req)
     {
         _progress++;
-        _callback.OnQuestNotify($"Quest progress => {_progress}");
-        return new ValueTask<int>(_progress);
+        _callback.OnQuestNotify(new QuestNotify
+        {
+            Message = $"Quest progress => {_progress}"
+        });
+        return new ValueTask<ProgressReply>(new ProgressReply
+        {
+            Progress = _progress
+        });
     }
 }

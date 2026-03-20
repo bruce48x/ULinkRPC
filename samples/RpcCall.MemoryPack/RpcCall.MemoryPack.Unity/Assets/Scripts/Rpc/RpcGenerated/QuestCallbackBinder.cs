@@ -12,7 +12,7 @@ namespace Rpc.Generated
     {
         private const int ServiceId = 3;
 
-        private static readonly RpcPushMethod<string> onQuestNotifyPushMethod = new(ServiceId, 1);
+        private static readonly RpcPushMethod<QuestNotify> onQuestNotifyPushMethod = new(ServiceId, 1);
 
         public static void Bind(IRpcClient client, IQuestCallback receiver)
         {

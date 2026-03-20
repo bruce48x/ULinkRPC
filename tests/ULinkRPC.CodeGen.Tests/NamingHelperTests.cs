@@ -149,91 +149,64 @@ public class NamingHelperTests
     #region Payload types
 
     [Fact]
-    public void GetRequestPayloadType_ZeroParams_ReturnsRpcVoid()
+    public void GetRequestPayloadType_OneParam_ReturnsDtoType()
+    {
+        var m = new RpcMethodInfo("T", 1, [new RpcParameterInfo("LoginRequest", "request")], null, true);
+        Assert.Equal("LoginRequest", NamingHelper.GetRequestPayloadType(m));
+    }
+
+    [Fact]
+    public void GetRequestPayloadType_ZeroParams_Throws()
     {
         var m = new RpcMethodInfo("T", 1, [], null, true);
-        Assert.Equal("RpcVoid", NamingHelper.GetRequestPayloadType(m));
+        var ex = Assert.Throws<InvalidOperationException>(() => NamingHelper.GetRequestPayloadType(m));
+        Assert.Contains("must declare exactly one DTO parameter", ex.Message);
     }
 
     [Fact]
-    public void GetRequestPayloadType_OneParam_ReturnsParamType()
-    {
-        var m = new RpcMethodInfo("T", 1, [new RpcParameterInfo("int", "x")], null, true);
-        Assert.Equal("int", NamingHelper.GetRequestPayloadType(m));
-    }
-
-    [Fact]
-    public void GetRequestPayloadType_MultipleParams_ReturnsTuple()
+    public void GetRequestPayloadType_MultipleParams_Throws()
     {
         var m = new RpcMethodInfo("T", 1,
             [new RpcParameterInfo("int", "x"), new RpcParameterInfo("string", "y")], null, true);
-        Assert.Equal("(int, string)", NamingHelper.GetRequestPayloadType(m));
-    }
-
-    [Fact]
-    public void GetRequestPayloadValue_ZeroParams_ReturnsDefault()
-    {
-        var m = new RpcMethodInfo("T", 1, [], null, true);
-        Assert.Equal("default", NamingHelper.GetRequestPayloadValue(m));
+        var ex = Assert.Throws<InvalidOperationException>(() => NamingHelper.GetRequestPayloadType(m));
+        Assert.Contains("must declare exactly one DTO parameter", ex.Message);
     }
 
     [Fact]
     public void GetRequestPayloadValue_OneParam_ReturnsName()
     {
-        var m = new RpcMethodInfo("T", 1, [new RpcParameterInfo("int", "x")], null, true);
-        Assert.Equal("x", NamingHelper.GetRequestPayloadValue(m));
+        var m = new RpcMethodInfo("T", 1, [new RpcParameterInfo("LoginRequest", "request")], null, true);
+        Assert.Equal("request", NamingHelper.GetRequestPayloadValue(m));
     }
 
     [Fact]
-    public void GetRequestPayloadValue_MultipleParams_ReturnsTuple()
+    public void GetRequestPayloadValue_ZeroParams_Throws()
     {
-        var m = new RpcMethodInfo("T", 1,
-            [new RpcParameterInfo("int", "x"), new RpcParameterInfo("string", "y")], null, true);
-        Assert.Equal("(x, y)", NamingHelper.GetRequestPayloadValue(m));
+        var m = new RpcMethodInfo("T", 1, [], null, true);
+        var ex = Assert.Throws<InvalidOperationException>(() => NamingHelper.GetRequestPayloadValue(m));
+        Assert.Contains("must declare exactly one DTO parameter", ex.Message);
     }
 
     [Fact]
-    public void GetCallbackPayloadType_ZeroParams_ReturnsRpcVoid()
+    public void GetCallbackPayloadType_OneParam_ReturnsDtoType()
     {
-        var m = new RpcCallbackMethodInfo("T", 1, []);
-        Assert.Equal("RpcVoid", NamingHelper.GetCallbackPayloadType(m));
+        var m = new RpcCallbackMethodInfo("T", 1, [new RpcParameterInfo("PlayerNotify", "notify")]);
+        Assert.Equal("PlayerNotify", NamingHelper.GetCallbackPayloadType(m));
     }
 
     [Fact]
-    public void GetCallbackPayloadType_OneParam_ReturnsParamType()
-    {
-        var m = new RpcCallbackMethodInfo("T", 1, [new RpcParameterInfo("float", "v")]);
-        Assert.Equal("float", NamingHelper.GetCallbackPayloadType(m));
-    }
-
-    [Fact]
-    public void GetCallbackPayloadType_MultipleParams_ReturnsTuple()
-    {
-        var m = new RpcCallbackMethodInfo("T", 1,
-            [new RpcParameterInfo("int", "a"), new RpcParameterInfo("bool", "b")]);
-        Assert.Equal("(int, bool)", NamingHelper.GetCallbackPayloadType(m));
-    }
-
-    [Fact]
-    public void GetCallbackPayloadValue_ZeroParams_ReturnsDefaultBang()
+    public void GetCallbackPayloadType_ZeroParams_Throws()
     {
         var m = new RpcCallbackMethodInfo("T", 1, []);
-        Assert.Equal("default!", NamingHelper.GetCallbackPayloadValue(m));
+        var ex = Assert.Throws<InvalidOperationException>(() => NamingHelper.GetCallbackPayloadType(m));
+        Assert.Contains("must declare exactly one DTO parameter", ex.Message);
     }
 
     [Fact]
     public void GetCallbackPayloadValue_OneParam_ReturnsName()
     {
-        var m = new RpcCallbackMethodInfo("T", 1, [new RpcParameterInfo("float", "v")]);
-        Assert.Equal("v", NamingHelper.GetCallbackPayloadValue(m));
-    }
-
-    [Fact]
-    public void GetCallbackPayloadValue_MultipleParams_ReturnsTuple()
-    {
-        var m = new RpcCallbackMethodInfo("T", 1,
-            [new RpcParameterInfo("int", "a"), new RpcParameterInfo("bool", "b")]);
-        Assert.Equal("(a, b)", NamingHelper.GetCallbackPayloadValue(m));
+        var m = new RpcCallbackMethodInfo("T", 1, [new RpcParameterInfo("PlayerNotify", "notify")]);
+        Assert.Equal("notify", NamingHelper.GetCallbackPayloadValue(m));
     }
 
     #endregion
@@ -302,24 +275,7 @@ public class NamingHelperTests
 
     #endregion
 
-    #region Deconstruct and invoke arguments
-
-    [Theory]
-    [InlineData(1, "arg1")]
-    [InlineData(3, "arg1, arg2, arg3")]
-    public void GetDeconstructVariableList_ReturnsArgList(int count, string expected)
-    {
-        Assert.Equal(expected, NamingHelper.GetDeconstructVariableList(count));
-    }
-
-    [Theory]
-    [InlineData(0, "")]
-    [InlineData(1, "arg1")]
-    [InlineData(2, "arg1, arg2")]
-    public void GetInvokeArguments_ReturnsArgList(int count, string expected)
-    {
-        Assert.Equal(expected, NamingHelper.GetInvokeArguments(count));
-    }
+    #region Forward arguments
 
     [Fact]
     public void GetForwardArguments_WithCt()

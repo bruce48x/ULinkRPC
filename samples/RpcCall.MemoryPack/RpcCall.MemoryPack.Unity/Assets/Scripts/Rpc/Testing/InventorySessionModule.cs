@@ -23,26 +23,27 @@ namespace Rpc.Testing
             _service = service ?? throw new ArgumentNullException(nameof(service));
         }
 
-        public ValueTask<int> LoadAsync()
+        public async ValueTask<int> LoadAsync()
         {
-            return GetService().GetRevisionAsync();
+            var revision = await GetService().GetRevisionAsync(new RevisionRequest());
+            return revision.Revision;
         }
 
         public async ValueTask<int> PollAsync()
         {
-            var revision = await GetService().IncrRevision();
+            var revision = await GetService().IncrRevision(new RevisionRequest());
             if (!_host.IsStopping)
-                _host.UpdateInventoryRevision(revision);
-            return revision;
+                _host.UpdateInventoryRevision(revision.Revision);
+            return revision.Revision;
         }
 
-        public override void OnInventoryNotify(string message)
+        public override void OnInventoryNotify(InventoryNotify notify)
         {
             if (_host.IsStopping)
                 return;
 
-            _host.UpdateLastMessage(message);
-            _host.AppendLog($"Session[{_host.Index}] inventory push: {message}");
+            _host.UpdateLastMessage(notify.Message);
+            _host.AppendLog($"Session[{_host.Index}] inventory push: {notify.Message}");
         }
 
         private IInventoryService GetService()

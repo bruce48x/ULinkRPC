@@ -7,16 +7,16 @@ namespace Game.Rpc.Contracts
     public interface IInventoryService
     {
         [RpcMethod(1)]
-        ValueTask<int> GetRevisionAsync();
+        ValueTask<RevisionReply> GetRevisionAsync(RevisionRequest req);
 
         [RpcMethod(2)]
-        ValueTask<int> IncrRevision();
+        ValueTask<RevisionReply> IncrRevision(RevisionRequest req);
     }
 
     [RpcCallback(typeof(IInventoryService))]
     public interface IInventoryCallback
     {
         [RpcPush(1)]
-        void OnInventoryNotify(string message);
+        void OnInventoryNotify(InventoryNotify notify);
     }
 }

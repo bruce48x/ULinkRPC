@@ -14,30 +14,30 @@ namespace Game.Rpc.Server.Generated
     {
         private const int ServiceId = 2;
 
-        public static void Bind(RpcServiceRegistry registry, Func<ValueTask<int>> getRevisionAsyncHandler, Func<ValueTask<int>> incrRevisionHandler)
+        public static void Bind(RpcServiceRegistry registry, Func<RevisionRequest, ValueTask<RevisionReply>> getRevisionAsyncHandler, Func<RevisionRequest, ValueTask<RevisionReply>> incrRevisionHandler)
         {
             BindFactory(registry, _ => new DelegateImpl(getRevisionAsyncHandler, incrRevisionHandler));
         }
 
         private sealed class DelegateImpl : IInventoryService
         {
-            private readonly Func<ValueTask<int>> _getRevisionAsyncHandler;
-            private readonly Func<ValueTask<int>> _incrRevisionHandler;
+            private readonly Func<RevisionRequest, ValueTask<RevisionReply>> _getRevisionAsyncHandler;
+            private readonly Func<RevisionRequest, ValueTask<RevisionReply>> _incrRevisionHandler;
 
-            public DelegateImpl(Func<ValueTask<int>> getRevisionAsyncHandler, Func<ValueTask<int>> incrRevisionHandler)
+            public DelegateImpl(Func<RevisionRequest, ValueTask<RevisionReply>> getRevisionAsyncHandler, Func<RevisionRequest, ValueTask<RevisionReply>> incrRevisionHandler)
             {
                 _getRevisionAsyncHandler = getRevisionAsyncHandler ?? throw new ArgumentNullException(nameof(getRevisionAsyncHandler));
                 _incrRevisionHandler = incrRevisionHandler ?? throw new ArgumentNullException(nameof(incrRevisionHandler));
             }
 
-            public ValueTask<int> GetRevisionAsync()
+            public ValueTask<RevisionReply> GetRevisionAsync(RevisionRequest req)
             {
-                return _getRevisionAsyncHandler();
+                return _getRevisionAsyncHandler(req);
             }
 
-            public ValueTask<int> IncrRevision()
+            public ValueTask<RevisionReply> IncrRevision(RevisionRequest req)
             {
-                return _incrRevisionHandler();
+                return _incrRevisionHandler(req);
             }
 
         }
@@ -63,14 +63,16 @@ namespace Game.Rpc.Server.Generated
             registry.Register(ServiceId, 1, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var resp = await impl.GetRevisionAsync();
+                var arg = server.Serializer.Deserialize<RevisionRequest>(req.Payload.AsSpan())!;
+                var resp = await impl.GetRevisionAsync(arg);
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 
             registry.Register(ServiceId, 2, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var resp = await impl.IncrRevision();
+                var arg = server.Serializer.Deserialize<RevisionRequest>(req.Payload.AsSpan())!;
+                var resp = await impl.IncrRevision(arg);
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 

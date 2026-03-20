@@ -12,7 +12,7 @@ namespace Rpc.Generated
     {
         private const int ServiceId = 1;
 
-        private static readonly RpcPushMethod<string> onPlayerNotifyPushMethod = new(ServiceId, 1);
+        private static readonly RpcPushMethod<PlayerNotify> onPlayerNotifyPushMethod = new(ServiceId, 1);
 
         public static void Bind(IRpcClient client, IPlayerCallback receiver)
         {

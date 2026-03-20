@@ -16,9 +16,9 @@ namespace Game.Rpc.Server.Generated
 
         public InventoryCallbackProxy(RpcSession session) { _session = session; }
 
-        public void OnInventoryNotify(string message)
+        public void OnInventoryNotify(InventoryNotify notify)
         {
-            _ = _session.PushAsync<string>(ServiceId, 1, message).AsTask();
+            _ = _session.PushAsync<InventoryNotify>(ServiceId, 1, notify).AsTask();
         }
 
     }

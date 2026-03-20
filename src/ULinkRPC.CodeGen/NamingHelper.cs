@@ -76,47 +76,35 @@ internal static class NamingHelper
         return $"Func<{string.Join(", ", genericArgs)}>";
     }
 
-    #region Payload types (unified)
+    #region Payload types
 
     public static string GetRequestPayloadType(RpcMethodInfo method) =>
-        GetPayloadType(method.Parameters);
+        GetSinglePayloadType(method.Parameters, method.Name, "RPC method");
 
     public static string GetRequestPayloadValue(RpcMethodInfo method) =>
-        GetPayloadValue(method.Parameters, "default");
+        GetSinglePayloadValue(method.Parameters, method.Name, "RPC method");
 
     public static string GetCallbackPayloadType(RpcCallbackMethodInfo method) =>
-        GetPayloadType(method.Parameters);
+        GetSinglePayloadType(method.Parameters, method.Name, "RPC callback");
 
     public static string GetCallbackPayloadValue(RpcCallbackMethodInfo method) =>
-        GetPayloadValue(method.Parameters, "default!");
+        GetSinglePayloadValue(method.Parameters, method.Name, "RPC callback");
 
-    private static string GetPayloadType(IReadOnlyList<RpcParameterInfo> parameters) =>
-        parameters.Count switch
-        {
-            0 => "RpcVoid",
-            1 => parameters[0].TypeName,
-            _ => $"({string.Join(", ", parameters.Select(p => p.TypeName))})"
-        };
+    private static string GetSinglePayloadType(IReadOnlyList<RpcParameterInfo> parameters, string methodName, string kind)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException($"{kind} '{methodName}' must declare exactly one DTO parameter.");
 
-    private static string GetPayloadValue(IReadOnlyList<RpcParameterInfo> parameters, string zeroParamDefault) =>
-        parameters.Count switch
-        {
-            0 => zeroParamDefault,
-            1 => parameters[0].Name,
-            _ => $"({string.Join(", ", parameters.Select(p => p.Name))})"
-        };
+        return parameters[0].TypeName;
+    }
 
-    #endregion
+    private static string GetSinglePayloadValue(IReadOnlyList<RpcParameterInfo> parameters, string methodName, string kind)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException($"{kind} '{methodName}' must declare exactly one DTO parameter.");
 
-    #region Arguments
-
-    public static string GetDeconstructVariableList(int parameterCount) =>
-        string.Join(", ", Enumerable.Range(1, parameterCount).Select(i => $"arg{i}"));
-
-    public static string GetInvokeArguments(int parameterCount) =>
-        parameterCount == 0
-            ? string.Empty
-            : string.Join(", ", Enumerable.Range(1, parameterCount).Select(i => $"arg{i}"));
+        return parameters[0].Name;
+    }
 
     public static string GetForwardArguments(IReadOnlyList<RpcParameterInfo> parameters, bool includeCt)
     {

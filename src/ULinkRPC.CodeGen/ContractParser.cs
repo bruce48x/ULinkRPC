@@ -180,6 +180,7 @@ internal static partial class ContractParser
                 continue;
 
             var parameters = ParseParameters(method.ParameterList.Parameters);
+            ValidateSingleDtoRequestParameter(method, iface, methodSymbol);
             foreach (var parameterSymbol in methodSymbol.Parameters)
                 AddTypeNamespaces(requiredNamespaces, parameterSymbol.Type);
 
@@ -192,6 +193,8 @@ internal static partial class ContractParser
             }
 
             var retType = isVoid ? null : parsedReturnType;
+            if (!isVoid)
+                ValidateDtoResponseType(method, iface, methodSymbol);
 
             if (methodSymbol.ReturnType is INamedTypeSymbol returnTypeSymbol && returnTypeSymbol.TypeArguments.Length == 1)
                 AddTypeNamespaces(requiredNamespaces, returnTypeSymbol.TypeArguments[0]);
@@ -222,6 +225,7 @@ internal static partial class ContractParser
                 continue;
 
             var parameters = ParseParameters(method.ParameterList.Parameters);
+            ValidateSingleDtoCallbackParameter(method, iface, methodSymbol);
             foreach (var parameterSymbol in methodSymbol.Parameters)
                 AddTypeNamespaces(requiredNamespaces, parameterSymbol.Type);
 
@@ -283,6 +287,102 @@ internal static partial class ContractParser
                     $"Duplicate MethodId {m.MethodId} found on '{existingName}' and '{m.Name}' in {interfaceName}. Each [RpcMethod] within a callback interface must have a unique id.");
             seen[m.MethodId] = m.Name;
         }
+    }
+
+    private static void ValidateSingleDtoRequestParameter(
+        MethodDeclarationSyntax method,
+        InterfaceDeclarationSyntax iface,
+        IMethodSymbol methodSymbol)
+    {
+        if (methodSymbol.Parameters.Length != 1)
+            throw new InvalidOperationException(
+                BuildContractShapeError(
+                    method,
+                    iface,
+                    methodSymbol,
+                    "RPC methods must declare exactly one request DTO parameter."));
+
+        if (!IsDtoContractType(methodSymbol.Parameters[0].Type))
+            throw new InvalidOperationException(
+                BuildContractShapeError(
+                    method,
+                    iface,
+                    methodSymbol,
+                    $"RPC request parameter '{methodSymbol.Parameters[0].Name}' must be a DTO type, not '{methodSymbol.Parameters[0].Type.ToDisplayString()}'."));
+    }
+
+    private static void ValidateDtoResponseType(
+        MethodDeclarationSyntax method,
+        InterfaceDeclarationSyntax iface,
+        IMethodSymbol methodSymbol)
+    {
+        if (methodSymbol.ReturnType is not INamedTypeSymbol returnTypeSymbol ||
+            returnTypeSymbol.TypeArguments.Length != 1)
+            return;
+
+        var resultType = returnTypeSymbol.TypeArguments[0];
+        if (!IsDtoContractType(resultType))
+            throw new InvalidOperationException(
+                BuildContractShapeError(
+                    method,
+                    iface,
+                    methodSymbol,
+                    $"RPC response type must be a DTO type, not '{resultType.ToDisplayString()}'."));
+    }
+
+    private static void ValidateSingleDtoCallbackParameter(
+        MethodDeclarationSyntax method,
+        InterfaceDeclarationSyntax iface,
+        IMethodSymbol methodSymbol)
+    {
+        if (methodSymbol.Parameters.Length != 1)
+            throw new InvalidOperationException(
+                BuildContractShapeError(
+                    method,
+                    iface,
+                    methodSymbol,
+                    "RPC callback methods must declare exactly one push DTO parameter."));
+
+        if (!IsDtoContractType(methodSymbol.Parameters[0].Type))
+            throw new InvalidOperationException(
+                BuildContractShapeError(
+                    method,
+                    iface,
+                    methodSymbol,
+                    $"RPC push parameter '{methodSymbol.Parameters[0].Name}' must be a DTO type, not '{methodSymbol.Parameters[0].Type.ToDisplayString()}'."));
+    }
+
+    private static bool IsDtoContractType(ITypeSymbol type)
+    {
+        if (type is INamedTypeSymbol nullableType &&
+            nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+        {
+            type = nullableType.TypeArguments[0];
+        }
+
+        if (type is not INamedTypeSymbol namedType)
+            return false;
+
+        if (namedType.IsTupleType)
+            return false;
+
+        if (namedType.SpecialType != SpecialType.None ||
+            namedType.TypeKind is TypeKind.Enum or TypeKind.Delegate or TypeKind.Interface)
+            return false;
+
+        var ns = namedType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+        return !ns.StartsWith("System", StringComparison.Ordinal);
+    }
+
+    private static string BuildContractShapeError(
+        MethodDeclarationSyntax method,
+        InterfaceDeclarationSyntax iface,
+        IMethodSymbol methodSymbol,
+        string reason)
+    {
+        var location = method.GetLocation().GetLineSpan();
+        var line = location.StartLinePosition.Line + 1;
+        return $"{reason} Offending member: {iface.Identifier.ValueText}.{methodSymbol.Name} in {location.Path}:{line}.";
     }
 
     #endregion

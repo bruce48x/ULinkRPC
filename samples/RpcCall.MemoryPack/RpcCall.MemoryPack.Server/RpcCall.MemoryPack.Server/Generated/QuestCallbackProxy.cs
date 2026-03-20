@@ -16,9 +16,9 @@ namespace Game.Rpc.Server.Generated
 
         public QuestCallbackProxy(RpcSession session) { _session = session; }
 
-        public void OnQuestNotify(string message)
+        public void OnQuestNotify(QuestNotify notify)
         {
-            _ = _session.PushAsync<string>(ServiceId, 1, message).AsTask();
+            _ = _session.PushAsync<QuestNotify>(ServiceId, 1, notify).AsTask();
         }
 
     }

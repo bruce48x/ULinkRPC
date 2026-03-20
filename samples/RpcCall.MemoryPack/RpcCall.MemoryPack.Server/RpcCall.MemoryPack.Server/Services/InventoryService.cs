@@ -13,21 +13,33 @@ public class InventoryService : IInventoryService
         _callback = callback;
     }
 
-    public ValueTask<int> GetRevisionAsync()
+    public ValueTask<RevisionReply> GetRevisionAsync(RevisionRequest req)
     {
         if (!_announced)
         {
             _announced = true;
-            _callback.OnInventoryNotify("Inventory ready.");
+            _callback.OnInventoryNotify(new InventoryNotify
+            {
+                Message = "Inventory ready."
+            });
         }
 
-        return new ValueTask<int>(_revision);
+        return new ValueTask<RevisionReply>(new RevisionReply
+        {
+            Revision = _revision
+        });
     }
 
-    public ValueTask<int> IncrRevision()
+    public ValueTask<RevisionReply> IncrRevision(RevisionRequest req)
     {
         _revision++;
-        _callback.OnInventoryNotify($"Inventory revision => {_revision}");
-        return new ValueTask<int>(_revision);
+        _callback.OnInventoryNotify(new InventoryNotify
+        {
+            Message = $"Inventory revision => {_revision}"
+        });
+        return new ValueTask<RevisionReply>(new RevisionReply
+        {
+            Revision = _revision
+        });
     }
 }

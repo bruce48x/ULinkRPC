@@ -10,13 +10,13 @@ namespace Game.Rpc.Contracts
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
         [RpcMethod(2)]
-        ValueTask<int> IncrStep();
+        ValueTask<StepReply> IncrStep(StepRequest req);
     }
 
     [RpcCallback(typeof(IPlayerService))]
     public interface IPlayerCallback
     {
         [RpcPush(1)]
-        void OnNotify(string message);
+        void OnNotify(PlayerNotify notify);
     }
 }

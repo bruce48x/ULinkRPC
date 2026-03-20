@@ -192,20 +192,28 @@ public class GeneratedCodeCompilationTests
 
     #endregion
 
-    #region Simple service (void + non-void, 0/1/multi params)
+    #region Simple service
 
     private static readonly string SimpleContracts = """
         using System.Threading.Tasks;
 
         namespace MyGame.Contracts
         {
+            public class PingRequest { }
+            public class SetNameRequest { public string Name { get; set; } = ""; }
+            public class MoveRequest { public float X { get; set; } public float Y { get; set; } public float Z { get; set; } }
+            public class GetNameRequest { public int PlayerId { get; set; } }
+            public class GetNameReply { public string Name { get; set; } = ""; }
+            public class CheckRequest { public int A { get; set; } public string B { get; set; } = ""; }
+            public class CheckReply { public bool Ok { get; set; } }
+
             public interface IPlayerService
             {
-                ValueTask Ping();
-                ValueTask SetName(string name);
-                ValueTask Move(float x, float y, float z);
-                ValueTask<string> GetName(int playerId);
-                ValueTask<bool> Check(int a, string b);
+                ValueTask Ping(PingRequest request);
+                ValueTask SetName(SetNameRequest request);
+                ValueTask Move(MoveRequest request);
+                ValueTask<GetNameReply> GetName(GetNameRequest request);
+                ValueTask<CheckReply> Check(CheckRequest request);
             }
         }
         """;
@@ -214,14 +222,11 @@ public class GeneratedCodeCompilationTests
     {
         return new RpcServiceInfo("IPlayerService", "MyGame.Contracts.IPlayerService", 1,
             [
-                new RpcMethodInfo("Ping", 1, [], null, true),
-                new RpcMethodInfo("SetName", 2, [new RpcParameterInfo("string", "name")], null, true),
-                new RpcMethodInfo("Move", 3,
-                    [new RpcParameterInfo("float", "x"), new RpcParameterInfo("float", "y"), new RpcParameterInfo("float", "z")],
-                    null, true),
-                new RpcMethodInfo("GetName", 4, [new RpcParameterInfo("int", "playerId")], "string", false),
-                new RpcMethodInfo("Check", 5,
-                    [new RpcParameterInfo("int", "a"), new RpcParameterInfo("string", "b")], "bool", false),
+                new RpcMethodInfo("Ping", 1, [new RpcParameterInfo("PingRequest", "request")], null, true),
+                new RpcMethodInfo("SetName", 2, [new RpcParameterInfo("SetNameRequest", "request")], null, true),
+                new RpcMethodInfo("Move", 3, [new RpcParameterInfo("MoveRequest", "request")], null, true),
+                new RpcMethodInfo("GetName", 4, [new RpcParameterInfo("GetNameRequest", "request")], "GetNameReply", false),
+                new RpcMethodInfo("Check", 5, [new RpcParameterInfo("CheckRequest", "request")], "CheckReply", false),
             ],
             ["MyGame.Contracts"]);
     }
@@ -269,17 +274,25 @@ public class GeneratedCodeCompilationTests
         {
             public interface IGameCallback
             {
-                void OnPlayerJoined(int playerId);
-                void OnMessage(string sender, string text);
-                void OnPing();
+                void OnPlayerJoined(PlayerJoinedNotify notify);
+                void OnMessage(MessageNotify notify);
+                void OnPing(PingNotify notify);
             }
 
             public interface IGameService
             {
-                ValueTask Start();
-                ValueTask<int> GetPlayerCount();
-                ValueTask Send(string message);
+                ValueTask Start(StartRequest request);
+                ValueTask<GetPlayerCountReply> GetPlayerCount(GetPlayerCountRequest request);
+                ValueTask Send(SendRequest request);
             }
+
+            public class StartRequest { }
+            public class GetPlayerCountRequest { }
+            public class GetPlayerCountReply { public int Count { get; set; } }
+            public class SendRequest { public string Message { get; set; } = ""; }
+            public class PlayerJoinedNotify { public int PlayerId { get; set; } }
+            public class MessageNotify { public string Sender { get; set; } = ""; public string Text { get; set; } = ""; }
+            public class PingNotify { public string Message { get; set; } = ""; }
         }
         """;
 
@@ -287,9 +300,9 @@ public class GeneratedCodeCompilationTests
     {
         var svc = new RpcServiceInfo("IGameService", "MyGame.Contracts.IGameService", 5,
             [
-                new RpcMethodInfo("Start", 1, [], null, true),
-                new RpcMethodInfo("GetPlayerCount", 2, [], "int", false),
-                new RpcMethodInfo("Send", 3, [new RpcParameterInfo("string", "message")], null, true),
+                new RpcMethodInfo("Start", 1, [new RpcParameterInfo("StartRequest", "request")], null, true),
+                new RpcMethodInfo("GetPlayerCount", 2, [new RpcParameterInfo("GetPlayerCountRequest", "request")], "GetPlayerCountReply", false),
+                new RpcMethodInfo("Send", 3, [new RpcParameterInfo("SendRequest", "request")], null, true),
             ],
             ["MyGame.Contracts"])
         {
@@ -298,10 +311,9 @@ public class GeneratedCodeCompilationTests
         };
         svc.CallbackMethods =
         [
-            new RpcCallbackMethodInfo("OnPlayerJoined", 1, [new RpcParameterInfo("int", "playerId")]),
-            new RpcCallbackMethodInfo("OnMessage", 2,
-                [new RpcParameterInfo("string", "sender"), new RpcParameterInfo("string", "text")]),
-            new RpcCallbackMethodInfo("OnPing", 3, []),
+            new RpcCallbackMethodInfo("OnPlayerJoined", 1, [new RpcParameterInfo("PlayerJoinedNotify", "notify")]),
+            new RpcCallbackMethodInfo("OnMessage", 2, [new RpcParameterInfo("MessageNotify", "notify")]),
+            new RpcCallbackMethodInfo("OnPing", 3, [new RpcParameterInfo("PingNotify", "notify")]),
         ];
         return svc;
     }
@@ -349,14 +361,14 @@ public class GeneratedCodeCompilationTests
     public void MultipleFacadeGroups_CompilesCleanly()
     {
         var svc1 = new RpcServiceInfo("IPlayerService", "Game.IPlayerService", 1,
-            [new RpcMethodInfo("Do", 1, [], null, true)], ["Game"]);
+            [new RpcMethodInfo("Do", 1, [new RpcParameterInfo("Game.DoRequest", "request")], null, true)], ["Game"]);
         var svc2 = new RpcServiceInfo("IAuthService", "Auth.IAuthService", 2,
-            [new RpcMethodInfo("Login", 1, [new RpcParameterInfo("string", "token")], "bool", false)], ["Auth"]);
+            [new RpcMethodInfo("Login", 1, [new RpcParameterInfo("Auth.LoginRequest", "request")], "Auth.LoginReply", false)], ["Auth"]);
 
         var contracts = """
             using System.Threading.Tasks;
-            namespace Game { public interface IPlayerService { ValueTask Do(); } }
-            namespace Auth { public interface IAuthService { ValueTask<bool> Login(string token); } }
+            namespace Game { public class DoRequest { } public interface IPlayerService { ValueTask Do(DoRequest request); } }
+            namespace Auth { public class LoginRequest { public string Token { get; set; } = ""; } public class LoginReply { public bool Ok { get; set; } } public interface IAuthService { ValueTask<LoginReply> Login(LoginRequest request); } }
             """;
 
         var client1 = ClientEmitter.GenerateClient(svc1, "Gen", "ULinkRPC.Core");
@@ -391,17 +403,22 @@ public class GeneratedCodeCompilationTests
 
             namespace Demo.Contracts
             {
+                public class EchoRequest { public string Input { get; set; } = ""; }
+                public class EchoReply { public string Output { get; set; } = ""; }
+                public class FireRequest { public int X { get; set; } public int Y { get; set; } }
+                public class NoopRequest { }
+
                 [RpcService(42)]
                 public interface IDemoService
                 {
                     [RpcMethod(1)]
-                    ValueTask<string> Echo(string input);
+                    ValueTask<EchoReply> Echo(EchoRequest request);
 
                     [RpcMethod(2)]
-                    ValueTask Fire(int x, int y);
+                    ValueTask Fire(FireRequest request);
 
                     [RpcMethod(3)]
-                    ValueTask Noop();
+                    ValueTask Noop(NoopRequest request);
                 }
             }
             """;
@@ -424,11 +441,15 @@ public class GeneratedCodeCompilationTests
                 using System.Threading.Tasks;
                 namespace Demo.Contracts
                 {
+                    public class EchoRequest { public string Input { get; set; } = ""; }
+                    public class EchoReply { public string Output { get; set; } = ""; }
+                    public class FireRequest { public int X { get; set; } public int Y { get; set; } }
+                    public class NoopRequest { }
                     public interface IDemoService
                     {
-                        ValueTask<string> Echo(string input);
-                        ValueTask Fire(int x, int y);
-                        ValueTask Noop();
+                        ValueTask<EchoReply> Echo(EchoRequest request);
+                        ValueTask Fire(FireRequest request);
+                        ValueTask Noop(NoopRequest request);
                     }
                 }
                 """;
@@ -462,14 +483,18 @@ public class GeneratedCodeCompilationTests
 
             namespace Demo.Contracts
             {
+                public class AddRequest { public int A { get; set; } public int B { get; set; } }
+                public class AddReply { public int Sum { get; set; } }
+                public class ResetRequest { }
+
                 [RpcService(10)]
                 public interface ICalcService
                 {
                     [RpcMethod(1)]
-                    ValueTask<int> Add(int a, int b);
+                    ValueTask<AddReply> Add(AddRequest request);
 
                     [RpcMethod(2)]
-                    ValueTask Reset();
+                    ValueTask Reset(ResetRequest request);
                 }
             }
             """;
@@ -489,10 +514,13 @@ public class GeneratedCodeCompilationTests
                 using System.Threading.Tasks;
                 namespace Demo.Contracts
                 {
+                    public class AddRequest { public int A { get; set; } public int B { get; set; } }
+                    public class AddReply { public int Sum { get; set; } }
+                    public class ResetRequest { }
                     public interface ICalcService
                     {
-                        ValueTask<int> Add(int a, int b);
-                        ValueTask Reset();
+                        ValueTask<AddReply> Add(AddRequest request);
+                        ValueTask Reset(ResetRequest request);
                     }
                 }
                 """;

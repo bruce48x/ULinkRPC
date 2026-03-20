@@ -30,19 +30,19 @@ namespace Rpc.Testing
 
         public async ValueTask<int> PollAsync()
         {
-            var step = await GetService().IncrStep();
+            var step = await GetService().IncrStep(new StepRequest());
             if (!_host.IsStopping)
-                _host.UpdatePlayerStep(step);
-            return step;
+                _host.UpdatePlayerStep(step.Step);
+            return step.Step;
         }
 
-        public override void OnPlayerNotify(string message)
+        public override void OnPlayerNotify(PlayerNotify notify)
         {
             if (_host.IsStopping)
                 return;
 
-            _host.UpdateLastMessage(message);
-            _host.AppendLog($"Session[{_host.Index}] player push: {message}");
+            _host.UpdateLastMessage(notify.Message);
+            _host.AppendLog($"Session[{_host.Index}] player push: {notify.Message}");
         }
 
         private IPlayerService GetService()

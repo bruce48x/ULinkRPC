@@ -120,23 +120,7 @@ internal static class ClientEmitter
         {
             var fieldName = NamingHelper.GetCallbackMethodFieldName(m.Name);
             w.OpenBlock($"client.RegisterPushHandler({fieldName}, (arg) =>");
-
-            if (m.Parameters.Count == 1)
-            {
-                w.Line($"receiver.{m.Name}(arg);");
-            }
-            else if (m.Parameters.Count > 1)
-            {
-                var deconstructVars = NamingHelper.GetDeconstructVariableList(m.Parameters.Count);
-                var invokeArgs = NamingHelper.GetInvokeArguments(m.Parameters.Count);
-                w.Line($"var ({deconstructVars}) = arg;");
-                w.Line($"receiver.{m.Name}({invokeArgs});");
-            }
-            else
-            {
-                w.Line($"receiver.{m.Name}();");
-            }
-
+            w.Line($"receiver.{m.Name}(arg);");
             w.CloseBlock(");");
             w.Line();
         }

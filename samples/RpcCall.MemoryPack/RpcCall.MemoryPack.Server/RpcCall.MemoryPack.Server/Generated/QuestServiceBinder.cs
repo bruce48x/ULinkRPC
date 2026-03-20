@@ -14,30 +14,30 @@ namespace Game.Rpc.Server.Generated
     {
         private const int ServiceId = 3;
 
-        public static void Bind(RpcServiceRegistry registry, Func<ValueTask<int>> getProgressAsyncHandler, Func<ValueTask<int>> incrProgressHandler)
+        public static void Bind(RpcServiceRegistry registry, Func<ProgressRequest, ValueTask<ProgressReply>> getProgressAsyncHandler, Func<ProgressRequest, ValueTask<ProgressReply>> incrProgressHandler)
         {
             BindFactory(registry, _ => new DelegateImpl(getProgressAsyncHandler, incrProgressHandler));
         }
 
         private sealed class DelegateImpl : IQuestService
         {
-            private readonly Func<ValueTask<int>> _getProgressAsyncHandler;
-            private readonly Func<ValueTask<int>> _incrProgressHandler;
+            private readonly Func<ProgressRequest, ValueTask<ProgressReply>> _getProgressAsyncHandler;
+            private readonly Func<ProgressRequest, ValueTask<ProgressReply>> _incrProgressHandler;
 
-            public DelegateImpl(Func<ValueTask<int>> getProgressAsyncHandler, Func<ValueTask<int>> incrProgressHandler)
+            public DelegateImpl(Func<ProgressRequest, ValueTask<ProgressReply>> getProgressAsyncHandler, Func<ProgressRequest, ValueTask<ProgressReply>> incrProgressHandler)
             {
                 _getProgressAsyncHandler = getProgressAsyncHandler ?? throw new ArgumentNullException(nameof(getProgressAsyncHandler));
                 _incrProgressHandler = incrProgressHandler ?? throw new ArgumentNullException(nameof(incrProgressHandler));
             }
 
-            public ValueTask<int> GetProgressAsync()
+            public ValueTask<ProgressReply> GetProgressAsync(ProgressRequest req)
             {
-                return _getProgressAsyncHandler();
+                return _getProgressAsyncHandler(req);
             }
 
-            public ValueTask<int> IncrProgress()
+            public ValueTask<ProgressReply> IncrProgress(ProgressRequest req)
             {
-                return _incrProgressHandler();
+                return _incrProgressHandler(req);
             }
 
         }
@@ -63,14 +63,16 @@ namespace Game.Rpc.Server.Generated
             registry.Register(ServiceId, 1, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var resp = await impl.GetProgressAsync();
+                var arg = server.Serializer.Deserialize<ProgressRequest>(req.Payload.AsSpan())!;
+                var resp = await impl.GetProgressAsync(arg);
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 
             registry.Register(ServiceId, 2, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var resp = await impl.IncrProgress();
+                var arg = server.Serializer.Deserialize<ProgressRequest>(req.Payload.AsSpan())!;
+                var resp = await impl.IncrProgress(arg);
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 

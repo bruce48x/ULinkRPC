@@ -16,9 +16,9 @@ namespace Game.Rpc.Server.Generated
 
         public PlayerCallbackProxy(RpcSession session) { _session = session; }
 
-        public void OnNotify(string message)
+        public void OnNotify(PlayerNotify notify)
         {
-            _ = _session.PushAsync<string>(ServiceId, 1, message).AsTask();
+            _ = _session.PushAsync<PlayerNotify>(ServiceId, 1, notify).AsTask();
         }
 
     }

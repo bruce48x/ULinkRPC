@@ -13,31 +13,31 @@ namespace Rpc.Generated
     public sealed class InventoryServiceClient : IInventoryService
     {
         private const int ServiceId = 2;
-        private static readonly RpcMethod<RpcVoid, int> getRevisionAsyncRpcMethod = new(ServiceId, 1);
-        private static readonly RpcMethod<RpcVoid, int> incrRevisionRpcMethod = new(ServiceId, 2);
+        private static readonly RpcMethod<RevisionRequest, RevisionReply> getRevisionAsyncRpcMethod = new(ServiceId, 1);
+        private static readonly RpcMethod<RevisionRequest, RevisionReply> incrRevisionRpcMethod = new(ServiceId, 2);
 
         private readonly IRpcClient _client;
 
         public InventoryServiceClient(IRpcClient client) { _client = client; }
 
-        public ValueTask<int> GetRevisionAsync()
+        public ValueTask<RevisionReply> GetRevisionAsync(RevisionRequest req)
         {
-            return GetRevisionAsync(CancellationToken.None);
+            return GetRevisionAsync(req, CancellationToken.None);
         }
 
-        public ValueTask<int> GetRevisionAsync(CancellationToken ct)
+        public ValueTask<RevisionReply> GetRevisionAsync(RevisionRequest req, CancellationToken ct)
         {
-            return _client.CallAsync(getRevisionAsyncRpcMethod, default, ct);
+            return _client.CallAsync(getRevisionAsyncRpcMethod, req, ct);
         }
 
-        public ValueTask<int> IncrRevision()
+        public ValueTask<RevisionReply> IncrRevision(RevisionRequest req)
         {
-            return IncrRevision(CancellationToken.None);
+            return IncrRevision(req, CancellationToken.None);
         }
 
-        public ValueTask<int> IncrRevision(CancellationToken ct)
+        public ValueTask<RevisionReply> IncrRevision(RevisionRequest req, CancellationToken ct)
         {
-            return _client.CallAsync(incrRevisionRpcMethod, default, ct);
+            return _client.CallAsync(incrRevisionRpcMethod, req, ct);
         }
 
     }

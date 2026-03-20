@@ -7,16 +7,16 @@ namespace Game.Rpc.Contracts
     public interface IQuestService
     {
         [RpcMethod(1)]
-        ValueTask<int> GetProgressAsync();
+        ValueTask<ProgressReply> GetProgressAsync(ProgressRequest req);
 
         [RpcMethod(2)]
-        ValueTask<int> IncrProgress();
+        ValueTask<ProgressReply> IncrProgress(ProgressRequest req);
     }
 
     [RpcCallback(typeof(IQuestService))]
     public interface IQuestCallback
     {
         [RpcPush(1)]
-        void OnQuestNotify(string message);
+        void OnQuestNotify(QuestNotify notify);
     }
 }

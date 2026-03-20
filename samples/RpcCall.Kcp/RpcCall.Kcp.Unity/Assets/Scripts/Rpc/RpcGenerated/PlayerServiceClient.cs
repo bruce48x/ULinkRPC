@@ -14,7 +14,7 @@ namespace Rpc.Generated
     {
         private const int ServiceId = 1;
         private static readonly RpcMethod<LoginRequest, LoginReply> loginAsyncRpcMethod = new(ServiceId, 1);
-        private static readonly RpcMethod<RpcVoid, int> incrStepRpcMethod = new(ServiceId, 2);
+        private static readonly RpcMethod<StepRequest, StepReply> incrStepRpcMethod = new(ServiceId, 2);
 
         private readonly IRpcClient _client;
 
@@ -30,14 +30,14 @@ namespace Rpc.Generated
             return _client.CallAsync(loginAsyncRpcMethod, req, ct);
         }
 
-        public ValueTask<int> IncrStep()
+        public ValueTask<StepReply> IncrStep(StepRequest req)
         {
-            return IncrStep(CancellationToken.None);
+            return IncrStep(req, CancellationToken.None);
         }
 
-        public ValueTask<int> IncrStep(CancellationToken ct)
+        public ValueTask<StepReply> IncrStep(StepRequest req, CancellationToken ct)
         {
-            return _client.CallAsync(incrStepRpcMethod, default, ct);
+            return _client.CallAsync(incrStepRpcMethod, req, ct);
         }
 
     }

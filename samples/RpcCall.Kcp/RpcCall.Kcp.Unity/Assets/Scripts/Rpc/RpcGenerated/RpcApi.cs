@@ -81,7 +81,7 @@ namespace ULinkRPC.Client
         public abstract class PlayerCallbackBase : IPlayerCallback
         {
 
-            public virtual void OnNotify(string message)
+            public virtual void OnNotify(PlayerNotify notify)
             {
             }
         }

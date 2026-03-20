@@ -14,7 +14,7 @@ namespace Game.Rpc.Server.Generated
     {
         private const int ServiceId = 1;
 
-        public static void Bind(RpcServiceRegistry registry, Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask<int>> incrStepHandler)
+        public static void Bind(RpcServiceRegistry registry, Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<StepRequest, ValueTask<StepReply>> incrStepHandler)
         {
             BindFactory(registry, _ => new DelegateImpl(loginAsyncHandler, incrStepHandler));
         }
@@ -22,9 +22,9 @@ namespace Game.Rpc.Server.Generated
         private sealed class DelegateImpl : IPlayerService
         {
             private readonly Func<LoginRequest, ValueTask<LoginReply>> _loginAsyncHandler;
-            private readonly Func<ValueTask<int>> _incrStepHandler;
+            private readonly Func<StepRequest, ValueTask<StepReply>> _incrStepHandler;
 
-            public DelegateImpl(Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<ValueTask<int>> incrStepHandler)
+            public DelegateImpl(Func<LoginRequest, ValueTask<LoginReply>> loginAsyncHandler, Func<StepRequest, ValueTask<StepReply>> incrStepHandler)
             {
                 _loginAsyncHandler = loginAsyncHandler ?? throw new ArgumentNullException(nameof(loginAsyncHandler));
                 _incrStepHandler = incrStepHandler ?? throw new ArgumentNullException(nameof(incrStepHandler));
@@ -35,9 +35,9 @@ namespace Game.Rpc.Server.Generated
                 return _loginAsyncHandler(req);
             }
 
-            public ValueTask<int> IncrStep()
+            public ValueTask<StepReply> IncrStep(StepRequest req)
             {
-                return _incrStepHandler();
+                return _incrStepHandler(req);
             }
 
         }
@@ -63,15 +63,16 @@ namespace Game.Rpc.Server.Generated
             registry.Register(ServiceId, 1, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var arg1 = server.Serializer.Deserialize<LoginRequest>(req.Payload.AsSpan())!;
-                var resp = await impl.LoginAsync(arg1);
+                var arg = server.Serializer.Deserialize<LoginRequest>(req.Payload.AsSpan())!;
+                var resp = await impl.LoginAsync(arg);
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 
             registry.Register(ServiceId, 2, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var resp = await impl.IncrStep();
+                var arg = server.Serializer.Deserialize<StepRequest>(req.Payload.AsSpan())!;
+                var resp = await impl.IncrStep(arg);
                 return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
             });
 
