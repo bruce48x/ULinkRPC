@@ -1,25 +1,11 @@
-using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 
 namespace ULinkRPC.Starter;
 
 internal static class Program
 {
     private static readonly HttpClient Http = new();
-
-    private enum TransportKind
-    {
-        Tcp,
-        WebSocket,
-        Kcp,
-        Loopback
-    }
-
-    private enum SerializerKind
-    {
-        Json,
-        MemoryPack
-    }
 
     private static async Task<int> Main(string[] args)
     {
@@ -43,7 +29,8 @@ internal static class Program
         Directory.CreateDirectory(rootPath);
 
         var versions = await ResolveVersionsAsync(transport.Value, serializer.Value);
-        GenerateTemplate(rootPath, projectName, transport.Value, serializer.Value, versions);
+        new StarterTemplateGenerator(RunDotNet)
+            .GenerateTemplate(rootPath, projectName, transport.Value, serializer.Value, versions);
 
         Console.WriteLine($"Created ULinkRPC starter template at: {rootPath}");
         Console.WriteLine("Next steps:");
@@ -239,242 +226,34 @@ internal static class Program
         _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
     };
 
-    private static void GenerateTemplate(string rootPath, string projectName, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
+    private static void RunDotNet(string workingDirectory, string arguments)
     {
-        const string sharedProjectName = "Shared";
-        const string serverProjectName = "Server";
-        const string clientProjectName = "Client";
-
-        var sharedPath = Path.Combine(rootPath, sharedProjectName);
-        var serverPath = Path.Combine(rootPath, serverProjectName);
-        var clientPath = Path.Combine(rootPath, clientProjectName);
-
-        Directory.CreateDirectory(sharedPath);
-        Directory.CreateDirectory(serverPath);
-        Directory.CreateDirectory(clientPath);
-
-        var companyId = MakeCompanyId(projectName);
-
-        GenerateShared(sharedPath, projectName, companyId);
-        GenerateServer(serverPath, projectName, sharedProjectName, transport, serializer, versions);
-        GenerateUnityClient(clientPath, sharedProjectName, companyId, transport, serializer, versions);
-    }
-
-    private static string MakeCompanyId(string projectName)
-    {
-        var filtered = new string(projectName.Where(char.IsLetterOrDigit).ToArray());
-        return string.IsNullOrWhiteSpace(filtered) ? "ulinkrpc.sample" : $"ulinkrpc.{filtered.ToLowerInvariant()}";
-    }
-
-    private static void GenerateShared(string sharedPath, string rootName, string companyId)
-    {
-        var projectName = Path.GetFileName(sharedPath);
-        var csproj = $$"""
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <LangVersion>9.0</LangVersion>
-  </PropertyGroup>
-</Project>
-""";
-
-        var contracts = $$"""
-namespace {{rootName}}.Shared;
-
-public sealed class PingRequest
-{
-    public string Message { get; set; } = string.Empty;
-}
-
-public sealed class PingReply
-{
-    public string Message { get; set; } = string.Empty;
-    public DateTimeOffset ServerTime { get; set; }
-}
-""";
-
-        var packageDir = Path.Combine(sharedPath, "UnityPackage");
-        Directory.CreateDirectory(packageDir);
-
-        var packageJson = $$"""
-{
-  "name": "com.{{companyId}}.shared",
-  "version": "1.0.0",
-  "displayName": "{{projectName}} Shared",
-  "description": "Shared DTO and utility code for {{rootName}}",
-  "unity": "2022.3",
-  "author": {
-    "name": "{{rootName}}"
-  }
-}
-""";
-
-        var asmdef = $$"""
-{
-  "name": "{{projectName}}",
-  "rootNamespace": "{{rootName}}.Shared",
-  "references": [],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": true
-}
-""";
-
-        WriteFile(Path.Combine(sharedPath, $"{projectName}.csproj"), csproj);
-        WriteFile(Path.Combine(sharedPath, "UnityPackage", "SharedDtos.cs"), contracts);
-        WriteFile(Path.Combine(sharedPath, "UnityPackage", $"{projectName}.asmdef"), asmdef);
-        WriteFile(Path.Combine(sharedPath, "UnityPackage", "package.json"), packageJson);
-    }
-
-    private static void GenerateServer(
-        string serverPath,
-        string rootName,
-        string sharedProjectName,
-        TransportKind transport,
-        SerializerKind serializer,
-        ResolvedVersions versions)
-    {
-        var serverProjectName = Path.GetFileName(serverPath);
-        var transportPackage = GetTransportPackage(transport);
-        var serializerPackage = GetSerializerPackage(serializer);
-
-        var csproj = $$"""
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\{{sharedProjectName}}\{{sharedProjectName}}.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="ULinkRPC.Server" Version="{{versions.Server}}" />
-    <PackageReference Include="{{transportPackage}}" Version="{{versions.Transport}}" />
-    <PackageReference Include="{{serializerPackage}}" Version="{{versions.Serializer}}" />
-  </ItemGroup>
-</Project>
-""";
-
-        var program = $$"""
-using {{rootName}}.Shared;
-
-Console.WriteLine("{{serverProjectName}} started.");
-Console.WriteLine("Selected transport: {{transport}}");
-Console.WriteLine("Selected serializer: {{serializer}}");
-
-var demo = new PingReply
-{
-    Message = "ULinkRPC starter is ready.",
-    ServerTime = DateTimeOffset.UtcNow
-};
-
-Console.WriteLine($"Demo shared DTO => {demo.Message} @ {demo.ServerTime:O}");
-""";
-
-        WriteFile(Path.Combine(serverPath, $"{serverProjectName}.csproj"), csproj);
-        WriteFile(Path.Combine(serverPath, "Program.cs"), program);
-    }
-
-    private static void GenerateUnityClient(string clientPath, string sharedProjectName, string companyId, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
-    {
-        Directory.CreateDirectory(Path.Combine(clientPath, "Assets"));
-        Directory.CreateDirectory(Path.Combine(clientPath, "Packages"));
-        Directory.CreateDirectory(Path.Combine(clientPath, "ProjectSettings"));
-
-        var manifest = $$"""
-{
-  "dependencies": {
-    "com.github-glitchenzo.nugetforunity": "4.5.0",
-    "com.unity.ide.rider": "3.0.39",
-    "com.unity.ide.visualstudio": "2.0.23",
-    "com.unity.modules.uielements": "1.0.0",
-    "com.unity.ugui": "1.0.0",
-    "com.{{companyId}}.shared": "file:../../{{sharedProjectName}}/UnityPackage"
-  },
-  "scopedRegistries": [
-    {
-      "name": "OpenUPM",
-      "url": "https://package.openupm.com",
-      "scopes": [
-        "com.github-glitchenzo.nugetforunity"
-      ]
-    }
-  ]
-}
-""";
-
-        var transportPackage = GetTransportPackage(transport);
-        var serializerPackage = GetSerializerPackage(serializer);
-        var packagesConfig = $$"""
-<?xml version="1.0" encoding="utf-8"?>
-<packages>
-  <package id="ULinkRPC.Client" version="{{versions.Client}}" />
-  <package id="{{transportPackage}}" version="{{versions.Transport}}" />
-  <package id="{{serializerPackage}}" version="{{versions.Serializer}}" />
-</packages>
-""";
-
-        var nugetConfig = """
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <clear />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" enableCredentialProvider="false" />
-  </packageSources>
-  <config>
-    <add key="packageInstallLocation" value="CustomWithinAssets" />
-    <add key="repositoryPath" value="./Packages" />
-    <add key="PackagesConfigDirectoryPath" value="." />
-    <add key="slimRestore" value="true" />
-    <add key="PreferNetStandardOverNetFramework" value="true" />
-  </config>
-</configuration>
-""";
-
-        var readme = $$"""
-# Unity Client Starter (Unity 2022 LTS)
-
-1. Open this folder with Unity 2022 LTS.
-2. Wait for `NuGetForUnity` import.
-3. In Unity: `NuGet -> Restore Packages` to install ULinkRPC latest packages.
-4. Shared code is provided by local UPM package:
-   - `com.{{companyId}}.shared` -> `../../{{sharedProjectName}}/UnityPackage`
-
-Selected transport: {{transport}}
-Selected serializer: {{serializer}}
-""";
-
-        var projectVersion = "m_EditorVersion: 2022.3.0f1\nm_EditorVersionWithRevision: 2022.3.0f1 (example)\n";
-
-        WriteFile(Path.Combine(clientPath, "Packages", "manifest.json"), manifest);
-        WriteFile(Path.Combine(clientPath, "Assets", "packages.config"), packagesConfig);
-        WriteFile(Path.Combine(clientPath, "Assets", "NuGet.config"), nugetConfig);
-        WriteFile(Path.Combine(clientPath, "README.md"), readme);
-        WriteFile(Path.Combine(clientPath, "ProjectSettings", "ProjectVersion.txt"), projectVersion);
-    }
-
-    private static void WriteFile(string path, string content)
-    {
-        var normalized = content.Replace("\r\n", "\n").TrimStart('\ufeff');
-        if (!normalized.EndsWith('\n'))
+        using var process = Process.Start(new ProcessStartInfo
         {
-            normalized += "\n";
+            FileName = "dotnet",
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        });
+
+        if (process is null)
+        {
+            throw new InvalidOperationException($"Failed to start 'dotnet {arguments}'.");
         }
 
-        File.WriteAllText(path, normalized, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode == 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Command failed: dotnet {arguments}{Environment.NewLine}{stdout}{stderr}".TrimEnd());
     }
 
-    private sealed record ResolvedVersions(string Server, string Client, string Transport, string Serializer);
 }
