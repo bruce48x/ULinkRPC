@@ -48,18 +48,20 @@ This generates:
 ```text
 samples/
   MyGame/
-    MyGame.slnx
     Shared/
     Server/
+      Server.slnx
+      Server/
+        Server.csproj
     Client/
 ```
 
 ## What Gets Generated
 
 - `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, and generated source stays within C# 9.0 for Unity 2022 compatibility.
-- `Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages.
+- `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
+- `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages.
 - `Client/`: Unity 2022 LTS skeleton with `NuGetForUnity`, `packages.config`, and a local reference to `Shared`.
-- `<ProjectName>.slnx`: solution file with `Shared` and `Server` projects added.
 
 The tool resolves the latest stable NuGet versions for:
 
@@ -71,6 +73,7 @@ The tool resolves the latest stable NuGet versions for:
 Default shared DTOs are generated under `Shared/Interfaces/`.
 Shared code must remain compatible with C# 9.0 because Unity 2022 supports up to C# 9.0.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
+In `Client/Assets/packages.config`, the user-selected transport and serializer packages are written with `manuallyInstalled="true"`.
 
 ## Next Steps
 
@@ -78,7 +81,7 @@ After generation:
 
 ```bash
 cd MyGame
-dotnet run --project Server/Server.csproj
+dotnet run --project Server/Server/Server.csproj
 ```
 
 Then open `Client/` with Unity 2022 LTS.

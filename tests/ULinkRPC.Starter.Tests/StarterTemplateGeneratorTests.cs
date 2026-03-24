@@ -48,14 +48,15 @@ public sealed class StarterTemplateGeneratorTests
 
             generator.GenerateTemplate(root, "Starter-App", TransportKind.Tcp, SerializerKind.Json, Versions);
 
-            var slnxPath = Path.Combine(root, "Starter-App.slnx");
+            var slnxPath = Path.Combine(root, "Server", "Server.slnx");
             var slnx = File.ReadAllText(slnxPath);
 
-            Assert.Contains("new sln -n \"Starter-App\"", commands);
-            Assert.Contains($"sln \"{slnxPath}\" add \"Shared{Path.DirectorySeparatorChar}Shared.csproj\"", commands);
+            Assert.Contains("new sln -n \"Server\"", commands);
+            Assert.Contains($"sln \"{slnxPath}\" add \"..{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}Shared.csproj\"", commands);
             Assert.Contains($"sln \"{slnxPath}\" add \"Server{Path.DirectorySeparatorChar}Server.csproj\"", commands);
-            Assert.Contains("<Project Path=\"Shared/Shared.csproj\" />", slnx);
+            Assert.Contains("<Project Path=\"../Shared/Shared.csproj\" />", slnx);
             Assert.Contains("<Project Path=\"Server/Server.csproj\" />", slnx);
+            Assert.True(File.Exists(Path.Combine(root, "Server", "Server", "Server.csproj")));
         }
         finally
         {
@@ -80,14 +81,18 @@ public sealed class StarterTemplateGeneratorTests
                 .GetProperty("com.ulinkrpc.badprojectname.shared")
                 .GetString();
 
-            var serverProgram = File.ReadAllText(Path.Combine(root, "Server", "Program.cs"));
-            var serverCsproj = File.ReadAllText(Path.Combine(root, "Server", "Server.csproj"));
+            var serverProgram = File.ReadAllText(Path.Combine(root, "Server", "Server", "Program.cs"));
+            var serverCsproj = File.ReadAllText(Path.Combine(root, "Server", "Server", "Server.csproj"));
+            var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
             var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
 
             Assert.Equal("file:../../Shared", sharedDependency);
             Assert.Contains("using Shared.Interfaces;", serverProgram);
             Assert.DoesNotContain("Bad Project Name", serverProgram, StringComparison.Ordinal);
             Assert.Contains("<RootNamespace>Server</RootNamespace>", serverCsproj);
+            Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", serverCsproj);
+            Assert.Contains("<package id=\"ULinkRPC.Transport.WebSocket\" version=\"3.4.5\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"ULinkRPC.Serializer.Json\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("m_EditorVersion: 2022.3.62f3c1", projectVersion);
             Assert.Contains("m_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)", projectVersion);
         }

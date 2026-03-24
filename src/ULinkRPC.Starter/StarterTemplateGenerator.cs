@@ -23,31 +23,32 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet)
     public void GenerateTemplate(string rootPath, string projectName, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
     {
         const string sharedProjectName = "Shared";
-        const string serverProjectName = "Server";
         const string clientProjectName = "Client";
 
         var sharedPath = Path.Combine(rootPath, sharedProjectName);
-        var serverPath = Path.Combine(rootPath, serverProjectName);
+        var serverPath = Path.Combine(rootPath, "Server");
+        var serverAppPath = Path.Combine(serverPath, "Server");
         var clientPath = Path.Combine(rootPath, clientProjectName);
 
         Directory.CreateDirectory(sharedPath);
         Directory.CreateDirectory(serverPath);
+        Directory.CreateDirectory(serverAppPath);
         Directory.CreateDirectory(clientPath);
 
         var companyId = MakeCompanyId(projectName);
 
         GenerateShared(sharedPath, companyId);
-        GenerateServer(serverPath, sharedProjectName, transport, serializer, versions);
-        GenerateSolution(rootPath, projectName, sharedProjectName, serverProjectName);
+        GenerateServer(serverAppPath, transport, serializer, versions);
+        GenerateSolution(serverPath);
         GenerateUnityClient(clientPath, sharedProjectName, companyId, transport, serializer, versions);
     }
 
-    private void GenerateSolution(string rootPath, string solutionName, string sharedProjectName, string serverProjectName)
+    private void GenerateSolution(string serverPath)
     {
-        var solutionPath = Path.Combine(rootPath, $"{solutionName}.slnx");
-        runDotNet(rootPath, $"new sln -n \"{solutionName}\"");
-        runDotNet(rootPath, $"sln \"{solutionPath}\" add \"{Path.Combine(sharedProjectName, $"{sharedProjectName}.csproj")}\"");
-        runDotNet(rootPath, $"sln \"{solutionPath}\" add \"{Path.Combine(serverProjectName, $"{serverProjectName}.csproj")}\"");
+        var solutionPath = Path.Combine(serverPath, "Server.slnx");
+        runDotNet(serverPath, "new sln -n \"Server\"");
+        runDotNet(serverPath, $"sln \"{solutionPath}\" add \"..{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}Shared.csproj\"");
+        runDotNet(serverPath, $"sln \"{solutionPath}\" add \"Server{Path.DirectorySeparatorChar}Server.csproj\"");
     }
 
     private static string MakeCompanyId(string projectName)
@@ -129,7 +130,6 @@ public sealed class PingReply
 
     private static void GenerateServer(
         string serverPath,
-        string sharedProjectName,
         TransportKind transport,
         SerializerKind serializer,
         ResolvedVersions versions)
@@ -149,7 +149,7 @@ public sealed class PingReply
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\{{sharedProjectName}}\{{sharedProjectName}}.csproj" />
+    <ProjectReference Include="..\..\Shared\Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -214,8 +214,8 @@ Console.WriteLine($"Demo shared DTO => {demo.Message} @ {demo.ServerTime:O}");
 <?xml version="1.0" encoding="utf-8"?>
 <packages>
   <package id="ULinkRPC.Client" version="{{versions.Client}}" />
-  <package id="{{transportPackage}}" version="{{versions.Transport}}" />
-  <package id="{{serializerPackage}}" version="{{versions.Serializer}}" />
+  <package id="{{transportPackage}}" version="{{versions.Transport}}" manuallyInstalled="true" />
+  <package id="{{serializerPackage}}" version="{{versions.Serializer}}" manuallyInstalled="true" />
 </packages>
 """;
 
