@@ -18,7 +18,7 @@ internal enum SerializerKind
 
 internal sealed record ResolvedVersions(string Server, string Client, string Transport, string Serializer);
 
-internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet)
+internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet, Action<string, string> runGit)
 {
     public void GenerateTemplate(string rootPath, string projectName, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
     {
@@ -37,10 +37,17 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet)
 
         var companyId = MakeCompanyId(projectName);
 
+        GenerateGitIgnore(rootPath);
         GenerateShared(sharedPath, companyId);
         GenerateServer(serverAppPath, transport, serializer, versions);
         GenerateSolution(serverPath);
         GenerateUnityClient(clientPath, sharedProjectName, companyId, transport, serializer, versions);
+        InitializeGit(rootPath);
+    }
+
+    private void InitializeGit(string rootPath)
+    {
+        runGit(rootPath, "init");
     }
 
     private void GenerateSolution(string serverPath)
@@ -75,17 +82,18 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet)
 """;
 
         var contracts = """
-namespace Shared.Interfaces;
-
-public sealed class PingRequest
+namespace Shared.Interfaces
 {
-    public string Message { get; set; } = string.Empty;
-}
+    public sealed class PingRequest
+    {
+        public string Message { get; set; } = string.Empty;
+    }
 
-public sealed class PingReply
-{
-    public string Message { get; set; } = string.Empty;
-    public DateTimeOffset ServerTime { get; set; }
+    public sealed class PingReply
+    {
+        public string Message { get; set; } = string.Empty;
+        public DateTimeOffset ServerTime { get; set; }
+    }
 }
 """;
 
@@ -126,6 +134,57 @@ public sealed class PingReply
         WriteFile(Path.Combine(sharedPath, "Interfaces", "SharedDtos.cs"), contracts);
         WriteFile(Path.Combine(sharedPath, $"{projectName}.asmdef"), asmdef);
         WriteFile(Path.Combine(sharedPath, "package.json"), packageJson);
+    }
+
+    private static void GenerateGitIgnore(string rootPath)
+    {
+        var gitIgnore = """
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vs/
+*.suo
+*.user
+*.userprefs
+*.DotSettings.user
+
+# .NET build outputs
+**/bin/
+**/obj/
+
+# Unity generated folders
+/Client/[Ll]ibrary/
+/Client/[Tt]emp/
+/Client/[Ll]ogs/
+/Client/[Uu]ser[Ss]ettings/
+/Client/[Oo]bj/
+/Client/[Bb]uild/
+/Client/[Bb]uilds/
+/Client/[Mm]emoryCaptures/
+/Client/[Rr]ecordings/
+
+# Unity generated project/IDE files
+/Client/*.csproj
+/Client/*.sln
+/Client/*.slnx
+/Client/*.unityproj
+/Client/*.pidb
+/Client/*.booproj
+/Client/*.svd
+/Client/*.pdb
+/Client/*.mdb
+/Client/*.opendb
+/Client/*.VC.db
+
+# NuGetForUnity restored packages
+/Client/Assets/Packages/
+
+# Logs
+*.log
+""";
+
+        WriteFile(Path.Combine(rootPath, ".gitignore"), gitIgnore);
     }
 
     private static void GenerateServer(

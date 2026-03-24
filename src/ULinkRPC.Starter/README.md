@@ -48,6 +48,7 @@ This generates:
 ```text
 samples/
   MyGame/
+    .gitignore
     Shared/
     Server/
       Server.slnx
@@ -62,6 +63,7 @@ samples/
 - `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages.
 - `Client/`: Unity 2022 LTS skeleton with `NuGetForUnity`, `packages.config`, and a local reference to `Shared`.
+- `.gitignore`: ignore rules for .NET build outputs, editor files, Unity generated folders, and NuGetForUnity restored packages.
 
 The tool resolves the latest stable NuGet versions for:
 
@@ -74,6 +76,7 @@ Default shared DTOs are generated under `Shared/Interfaces/`.
 Shared code must remain compatible with C# 9.0 because Unity 2022 supports up to C# 9.0.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
 In `Client/Assets/packages.config`, the user-selected transport and serializer packages are written with `manuallyInstalled="true"`.
+Project generation also runs `git init` at the project root.
 
 ## Next Steps
 

@@ -14,22 +14,28 @@ public sealed class StarterTemplateGeneratorTests
         var root = CreateTempRoot();
         try
         {
-            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner());
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
 
             generator.GenerateTemplate(root, "My Game!@#$", TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
 
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
             var sharedAsmdef = File.ReadAllText(Path.Combine(root, "Shared", "Shared.asmdef"));
             var sharedDtos = File.ReadAllText(Path.Combine(root, "Shared", "Interfaces", "SharedDtos.cs"));
+            var gitIgnore = File.ReadAllText(Path.Combine(root, ".gitignore"));
 
             Assert.Contains("<LangVersion>9.0</LangVersion>", sharedCsproj);
             Assert.Contains("<RootNamespace>Shared</RootNamespace>", sharedCsproj);
             Assert.Contains("\"rootNamespace\": \"Shared\"", sharedAsmdef);
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
-            Assert.Contains("namespace Shared.Interfaces;", sharedDtos);
+            Assert.Contains("namespace Shared.Interfaces", sharedDtos);
+            Assert.DoesNotContain("namespace Shared.Interfaces;", sharedDtos, StringComparison.Ordinal);
             Assert.True(File.Exists(Path.Combine(root, "Shared", "package.json")));
             Assert.False(File.Exists(Path.Combine(root, "Shared", "UnityPackage", "package.json")));
             Assert.False(File.Exists(Path.Combine(root, "Shared", "UnityPackage", "SharedDtos.cs")));
+            Assert.Contains("**/bin/", gitIgnore);
+            Assert.Contains("/Client/[Ll]ibrary/", gitIgnore);
+            Assert.Contains("/Client/Assets/Packages/", gitIgnore);
+            Assert.Contains(".vs/", gitIgnore);
         }
         finally
         {
@@ -44,7 +50,8 @@ public sealed class StarterTemplateGeneratorTests
         try
         {
             var commands = new List<string>();
-            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands));
+            var gitCommands = new List<string>();
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner(gitCommands));
 
             generator.GenerateTemplate(root, "Starter-App", TransportKind.Tcp, SerializerKind.Json, Versions);
 
@@ -57,6 +64,8 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<Project Path=\"../Shared/Shared.csproj\" />", slnx);
             Assert.Contains("<Project Path=\"Server/Server.csproj\" />", slnx);
             Assert.True(File.Exists(Path.Combine(root, "Server", "Server", "Server.csproj")));
+            Assert.Contains("init", gitCommands);
+            Assert.True(Directory.Exists(Path.Combine(root, ".git")));
         }
         finally
         {
@@ -70,7 +79,7 @@ public sealed class StarterTemplateGeneratorTests
         var root = CreateTempRoot();
         try
         {
-            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner());
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
 
             generator.GenerateTemplate(root, "Bad Project Name %$#", TransportKind.WebSocket, SerializerKind.Json, Versions);
 
@@ -136,6 +145,22 @@ public sealed class StarterTemplateGeneratorTests
             }
 
             throw new InvalidOperationException($"Unexpected dotnet command in test: {arguments}");
+        };
+    }
+
+    private static Action<string, string> CreateFakeGitRunner(List<string>? commands = null)
+    {
+        return (workingDirectory, arguments) =>
+        {
+            commands?.Add(arguments);
+
+            if (string.Equals(arguments, "init", StringComparison.Ordinal))
+            {
+                Directory.CreateDirectory(Path.Combine(workingDirectory, ".git"));
+                return;
+            }
+
+            throw new InvalidOperationException($"Unexpected git command in test: {arguments}");
         };
     }
 }

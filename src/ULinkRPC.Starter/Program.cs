@@ -29,7 +29,7 @@ internal static class Program
         Directory.CreateDirectory(rootPath);
 
         var versions = await ResolveVersionsAsync(transport.Value, serializer.Value);
-        new StarterTemplateGenerator(RunDotNet)
+        new StarterTemplateGenerator(RunDotNet, RunGit)
             .GenerateTemplate(rootPath, projectName, transport.Value, serializer.Value, versions);
 
         Console.WriteLine($"Created ULinkRPC starter template at: {rootPath}");
@@ -228,9 +228,19 @@ internal static class Program
 
     private static void RunDotNet(string workingDirectory, string arguments)
     {
+        RunProcess("dotnet", workingDirectory, arguments);
+    }
+
+    private static void RunGit(string workingDirectory, string arguments)
+    {
+        RunProcess("git", workingDirectory, arguments);
+    }
+
+    private static void RunProcess(string fileName, string workingDirectory, string arguments)
+    {
         using var process = Process.Start(new ProcessStartInfo
         {
-            FileName = "dotnet",
+            FileName = fileName,
             Arguments = arguments,
             WorkingDirectory = workingDirectory,
             RedirectStandardOutput = true,
@@ -240,7 +250,7 @@ internal static class Program
 
         if (process is null)
         {
-            throw new InvalidOperationException($"Failed to start 'dotnet {arguments}'.");
+            throw new InvalidOperationException($"Failed to start '{fileName} {arguments}'.");
         }
 
         var stdout = process.StandardOutput.ReadToEnd();
@@ -253,7 +263,7 @@ internal static class Program
         }
 
         throw new InvalidOperationException(
-            $"Command failed: dotnet {arguments}{Environment.NewLine}{stdout}{stderr}".TrimEnd());
+            $"Command failed: {fileName} {arguments}{Environment.NewLine}{stdout}{stderr}".TrimEnd());
     }
 
 }
