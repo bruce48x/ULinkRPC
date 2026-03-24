@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Diagnostics;
+using System.Xml.Linq;
 
 namespace ULinkRPC.Starter;
 
@@ -187,8 +188,24 @@ internal static class Program
         var transportVersion = await ResolveLatestStableVersionAsync(transportPackage);
         var serializerVersion = await ResolveLatestStableVersionAsync(serializerPackage);
         var codeGenVersion = await ResolveLatestStableVersionAsync("ULinkRPC.CodeGen");
+        var serializerRuntime = default(string);
+        var serializerRuntimeCore = default(string);
 
-        return new ResolvedVersions(coreVersion, serverVersion, clientVersion, transportVersion, serializerVersion, codeGenVersion);
+        if (serializer is SerializerKind.MemoryPack)
+        {
+            serializerRuntime = await ResolveDependencyVersionAsync(serializerPackage, serializerVersion, ".NETStandard2.1", "MemoryPack");
+            serializerRuntimeCore = await ResolveDependencyVersionAsync("MemoryPack", serializerRuntime, ".NETStandard2.1", "MemoryPack.Core");
+        }
+
+        return new ResolvedVersions(
+            coreVersion,
+            serverVersion,
+            clientVersion,
+            transportVersion,
+            serializerVersion,
+            codeGenVersion,
+            serializerRuntime,
+            serializerRuntimeCore);
     }
 
     private static async Task<string> ResolveLatestStableVersionAsync(string packageId)
@@ -207,6 +224,38 @@ internal static class Program
         }
 
         return versions[^1]!;
+    }
+
+    private static async Task<string> ResolveDependencyVersionAsync(string packageId, string packageVersion, string targetFramework, string dependencyId)
+    {
+        var nuspec = await LoadNuSpecAsync(packageId, packageVersion);
+        var dependency = nuspec
+            .Descendants()
+            .FirstOrDefault(element =>
+                element.Name.LocalName == "group" &&
+                string.Equals((string?)element.Attribute("targetFramework"), targetFramework, StringComparison.OrdinalIgnoreCase))
+            ?.Elements()
+            .FirstOrDefault(element =>
+                element.Name.LocalName == "dependency" &&
+                string.Equals((string?)element.Attribute("id"), dependencyId, StringComparison.OrdinalIgnoreCase));
+
+        var version = (string?)dependency?.Attribute("version");
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            throw new InvalidOperationException(
+                $"Unable to resolve dependency '{dependencyId}' from package '{packageId}' {packageVersion} for target framework '{targetFramework}'.");
+        }
+
+        return version;
+    }
+
+    private static async Task<XDocument> LoadNuSpecAsync(string packageId, string packageVersion)
+    {
+        var lowerId = packageId.ToLowerInvariant();
+        var lowerVersion = packageVersion.ToLowerInvariant();
+        var url = $"https://api.nuget.org/v3-flatcontainer/{lowerId}/{lowerVersion}/{lowerId}.nuspec";
+        using var stream = await Http.GetStreamAsync(url);
+        return XDocument.Load(stream);
     }
 
     private static string GetTransportPackage(TransportKind transport) => transport switch

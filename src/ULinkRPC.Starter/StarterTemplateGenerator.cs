@@ -15,7 +15,15 @@ internal enum SerializerKind
     MemoryPack
 }
 
-internal sealed record ResolvedVersions(string Core, string Server, string Client, string Transport, string Serializer, string CodeGen);
+internal sealed record ResolvedVersions(
+    string Core,
+    string Server,
+    string Client,
+    string Transport,
+    string Serializer,
+    string CodeGen,
+    string? SerializerRuntime,
+    string? SerializerRuntimeCore);
 
 internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet, Action<string, string> runGit)
 {
@@ -337,9 +345,10 @@ namespace Server.Services
 <?xml version="1.0" encoding="utf-8"?>
 <packages>
   <package id="ULinkRPC.Core" version="{{versions.Core}}" />
-  <package id="ULinkRPC.Client" version="{{versions.Client}}" />
+  <package id="ULinkRPC.Client" version="{{versions.Client}}" manuallyInstalled="true" />
   <package id="{{transportPackage}}" version="{{versions.Transport}}" manuallyInstalled="true" />
   <package id="{{serializerPackage}}" version="{{versions.Serializer}}" manuallyInstalled="true" />
+{{GetUnitySerializerDependencyPackages(serializer, versions)}}
 </packages>
 """;
 
@@ -400,6 +409,26 @@ Selected serializer: {{serializer}}
         SerializerKind.MemoryPack => "ULinkRPC.Serializer.MemoryPack",
         _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
     };
+
+    private static string GetUnitySerializerDependencyPackages(SerializerKind serializer, ResolvedVersions versions) => serializer switch
+    {
+        SerializerKind.Json => string.Empty,
+        SerializerKind.MemoryPack => BuildMemoryPackUnityDependencies(versions),
+        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
+    };
+
+    private static string BuildMemoryPackUnityDependencies(ResolvedVersions versions)
+    {
+        if (string.IsNullOrWhiteSpace(versions.SerializerRuntime) || string.IsNullOrWhiteSpace(versions.SerializerRuntimeCore))
+        {
+            throw new InvalidOperationException("MemoryPack serializer requires explicit Unity package dependencies, but they were not resolved.");
+        }
+
+        return string.Join(
+            Environment.NewLine,
+            $"  <package id=\"MemoryPack\" version=\"{versions.SerializerRuntime}\" manuallyInstalled=\"true\" />",
+            $"  <package id=\"MemoryPack.Core\" version=\"{versions.SerializerRuntimeCore}\" manuallyInstalled=\"true\" />");
+    }
 
     private static string GetServerSerializerSetup(SerializerKind serializer) => serializer switch
     {
