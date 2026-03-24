@@ -71,8 +71,10 @@ The tool resolves the latest stable NuGet versions for:
 - `ULinkRPC.Client`
 - the selected transport package
 - the selected serializer package
+- `ULinkRPC.CodeGen`
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
+Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and Unity output automatically.
 Shared code must remain compatible with C# 9.0 because Unity 2022 supports up to C# 9.0.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.

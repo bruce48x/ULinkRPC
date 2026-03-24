@@ -35,7 +35,7 @@ internal static class Program
         Console.WriteLine($"Created ULinkRPC starter template at: {rootPath}");
         Console.WriteLine("Next steps:");
         Console.WriteLine($"  1) cd \"{rootPath}\"");
-        Console.WriteLine("  2) dotnet run --project \"Server/Server.csproj\"");
+        Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
         Console.WriteLine("  3) Open \"Client\" with Unity 2022 LTS.");
 
         return 0;
@@ -181,12 +181,14 @@ internal static class Program
         var transportPackage = GetTransportPackage(transport);
         var serializerPackage = GetSerializerPackage(serializer);
 
+        var coreVersion = await ResolveLatestStableVersionAsync("ULinkRPC.Core");
         var serverVersion = await ResolveLatestStableVersionAsync("ULinkRPC.Server");
         var clientVersion = await ResolveLatestStableVersionAsync("ULinkRPC.Client");
         var transportVersion = await ResolveLatestStableVersionAsync(transportPackage);
         var serializerVersion = await ResolveLatestStableVersionAsync(serializerPackage);
+        var codeGenVersion = await ResolveLatestStableVersionAsync("ULinkRPC.CodeGen");
 
-        return new ResolvedVersions(serverVersion, clientVersion, transportVersion, serializerVersion);
+        return new ResolvedVersions(coreVersion, serverVersion, clientVersion, transportVersion, serializerVersion, codeGenVersion);
     }
 
     private static async Task<string> ResolveLatestStableVersionAsync(string packageId)

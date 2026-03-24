@@ -15,7 +15,7 @@ internal enum SerializerKind
     MemoryPack
 }
 
-internal sealed record ResolvedVersions(string Server, string Client, string Transport, string Serializer);
+internal sealed record ResolvedVersions(string Core, string Server, string Client, string Transport, string Serializer, string CodeGen);
 
 internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet, Action<string, string> runGit)
 {
@@ -37,10 +37,12 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         var companyId = MakeCompanyId(projectName);
 
         GenerateGitIgnore(rootPath);
-        GenerateShared(sharedPath, companyId);
+        GenerateShared(sharedPath, companyId, versions);
         GenerateServer(serverAppPath, transport, serializer, versions);
         GenerateSolution(serverPath);
         GenerateUnityClient(clientPath, sharedProjectName, companyId, transport, serializer, versions);
+        GenerateCodeGenToolManifest(rootPath, versions);
+        RunCodeGen(sharedPath, serverAppPath, clientPath);
         InitializeGit(rootPath);
     }
 
@@ -63,7 +65,24 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         return string.IsNullOrWhiteSpace(filtered) ? "ulinkrpc.sample" : $"ulinkrpc.{filtered.ToLowerInvariant()}";
     }
 
-    private static void GenerateShared(string sharedPath, string companyId)
+    private void GenerateCodeGenToolManifest(string rootPath, ResolvedVersions versions)
+    {
+        runDotNet(rootPath, "new tool-manifest");
+        runDotNet(rootPath, $"tool install ULinkRPC.CodeGen --version {versions.CodeGen}");
+    }
+
+    private void RunCodeGen(string sharedPath, string serverAppPath, string clientPath)
+    {
+        runDotNet(
+            serverAppPath,
+            $"tool run ulinkrpc-codegen -- --contracts \"{sharedPath}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"");
+
+        runDotNet(
+            clientPath,
+            $"tool run ulinkrpc-codegen -- --contracts \"{sharedPath}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}RpcGenerated\" --namespace \"Client.Generated\"");
+    }
+
+    private static void GenerateShared(string sharedPath, string companyId, ResolvedVersions versions)
     {
         var projectName = Path.GetFileName(sharedPath);
 
@@ -78,7 +97,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
 """;
 
         // Shared code is consumed by Unity 2022, so generated source must stay within C# 9.0.
-        var csproj = """
+        var csproj = $$"""
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
@@ -87,6 +106,10 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     <LangVersion>9.0</LangVersion>
     <RootNamespace>Shared</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ULinkRPC.Core" Version="{{versions.Core}}" />
+  </ItemGroup>
 </Project>
 """;
 
@@ -102,6 +125,21 @@ namespace Shared.Interfaces
     {
         public string Message { get; set; } = string.Empty;
         public string ServerTimeUtc { get; set; } = string.Empty;
+    }
+}
+""";
+
+        var serviceContract = """
+using System.Threading.Tasks;
+using ULinkRPC.Core;
+
+namespace Shared.Interfaces
+{
+    [RpcService(1)]
+    public interface IPingService
+    {
+        [RpcMethod(1)]
+        ValueTask<PingReply> PingAsync(PingRequest request);
     }
 }
 """;
@@ -130,18 +168,21 @@ namespace Shared.Interfaces
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "ULinkRPC.Core.dll"
+  ],
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": true
+  "noEngineReferences": false
 }
 """;
 
         WriteFile(Path.Combine(sharedPath, "Directory.Build.props"), directoryBuildProps);
         WriteFile(Path.Combine(sharedPath, $"{projectName}.csproj"), csproj);
         WriteFile(Path.Combine(sharedPath, "Interfaces", "SharedDtos.cs"), contracts);
+        WriteFile(Path.Combine(sharedPath, "Interfaces", "IPingService.cs"), serviceContract);
         WriteFile(Path.Combine(sharedPath, $"{projectName}.asmdef"), asmdef);
         WriteFile(Path.Combine(sharedPath, "package.json"), packageJson);
     }
@@ -232,9 +273,26 @@ Thumbs.db
 
         var programUsings = GetServerProgramUsings(serializer, transport);
         var programBody = GetServerProgramBody(serializer, transport);
+        var pingService = """
+using Shared.Interfaces;
+
+namespace Server.Services
+{
+    public sealed class PingService : IPingService
+    {
+        public ValueTask<PingReply> PingAsync(PingRequest request)
+        {
+            return ValueTask.FromResult(new PingReply
+            {
+                Message = string.IsNullOrWhiteSpace(request.Message) ? "pong" : "pong: " + request.Message,
+                ServerTimeUtc = DateTime.UtcNow.ToString("O")
+            });
+        }
+    }
+}
+""";
 
         var program = $$"""
-using Shared.Interfaces;
 {{programUsings}}
 
 {{programBody}}
@@ -242,6 +300,7 @@ using Shared.Interfaces;
 
         WriteFile(Path.Combine(serverPath, $"{serverProjectName}.csproj"), csproj);
         WriteFile(Path.Combine(serverPath, "Program.cs"), program);
+        WriteFile(Path.Combine(serverPath, "PingService.cs"), pingService);
     }
 
     private static void GenerateUnityClient(string clientPath, string sharedProjectName, string companyId, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
@@ -277,7 +336,7 @@ using Shared.Interfaces;
         var packagesConfig = $$"""
 <?xml version="1.0" encoding="utf-8"?>
 <packages>
-  <package id="ULinkRPC.Core" version="{{versions.Server}}" />
+  <package id="ULinkRPC.Core" version="{{versions.Core}}" />
   <package id="ULinkRPC.Client" version="{{versions.Client}}" />
   <package id="{{transportPackage}}" version="{{versions.Transport}}" manuallyInstalled="true" />
   <package id="{{serializerPackage}}" version="{{versions.Serializer}}" manuallyInstalled="true" />
@@ -291,6 +350,10 @@ using Shared.Interfaces;
     <clear />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" enableCredentialProvider="false" />
   </packageSources>
+  <disabledPackageSources />
+  <activePackageSource>
+    <add key="All" value="(Aggregate source)" />
+  </activePackageSource>
   <config>
     <add key="packageInstallLocation" value="CustomWithinAssets" />
     <add key="repositoryPath" value="./Packages" />
@@ -383,10 +446,10 @@ Selected serializer: {{serializer}}
         var serializerSetup = GetServerSerializerSetup(serializer);
         var transportSetup = GetServerTransportSetup(transport);
         return $$"""
-var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+var commandLineArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
 await RpcServerHostBuilder.Create()
-    .UseCommandLine(args)
+    .UseCommandLine(commandLineArgs)
     {{serializerSetup}}
     {{transportSetup}}
     .RunAsync();

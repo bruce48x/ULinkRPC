@@ -6,7 +6,7 @@ namespace ULinkRPC.Starter.Tests;
 
 public sealed class StarterTemplateGeneratorTests
 {
-    private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6");
+    private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6", "5.6.7", "6.7.8");
 
     [Fact]
     public void GenerateTemplate_CreatesSharedLayout_ForUnityCompatibilityRules()
@@ -27,15 +27,19 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<LangVersion>9.0</LangVersion>", sharedCsproj);
             Assert.Contains("<ImplicitUsings>disable</ImplicitUsings>", sharedCsproj);
             Assert.Contains("<RootNamespace>Shared</RootNamespace>", sharedCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Core\" Version=\"1.2.3\" />", sharedCsproj);
             Assert.Contains(@"<MSBuildProjectExtensionsPath>..\_artifacts\Shared\obj\</MSBuildProjectExtensionsPath>", sharedProps);
             Assert.Contains(@"<BaseIntermediateOutputPath>..\_artifacts\Shared\obj\</BaseIntermediateOutputPath>", sharedProps);
             Assert.Contains(@"<BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>", sharedProps);
             Assert.Contains("\"rootNamespace\": \"Shared\"", sharedAsmdef);
+            Assert.Contains("\"overrideReferences\": true", sharedAsmdef);
+            Assert.Contains("\"ULinkRPC.Core.dll\"", sharedAsmdef);
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("namespace Shared.Interfaces", sharedDtos);
             Assert.DoesNotContain("namespace Shared.Interfaces;", sharedDtos, StringComparison.Ordinal);
             Assert.DoesNotContain("DateTimeOffset", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("public string ServerTimeUtc { get; set; } = string.Empty;", sharedDtos);
+            Assert.True(File.Exists(Path.Combine(root, "Shared", "Interfaces", "IPingService.cs")));
             Assert.True(File.Exists(Path.Combine(root, "Shared", "package.json")));
             Assert.False(File.Exists(Path.Combine(root, "Shared", "UnityPackage", "package.json")));
             Assert.False(File.Exists(Path.Combine(root, "Shared", "UnityPackage", "SharedDtos.cs")));
@@ -69,9 +73,15 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("new sln -n \"Server\"", commands);
             Assert.Contains($"sln \"{slnxPath}\" add \"..{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}Shared.csproj\"", commands);
             Assert.Contains($"sln \"{slnxPath}\" add \"Server{Path.DirectorySeparatorChar}Server.csproj\"", commands);
+            Assert.Contains("new tool-manifest", commands);
+            Assert.Contains("tool install ULinkRPC.CodeGen --version 6.7.8", commands);
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}RpcGenerated\" --namespace \"Client.Generated\"", commands);
             Assert.Contains("<Project Path=\"../Shared/Shared.csproj\" />", slnx);
             Assert.Contains("<Project Path=\"Server/Server.csproj\" />", slnx);
             Assert.True(File.Exists(Path.Combine(root, "Server", "Server", "Server.csproj")));
+            Assert.True(File.Exists(Path.Combine(root, "Server", "Server", "Generated", "AllServicesBinder.cs")));
+            Assert.True(File.Exists(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "RpcGenerated", "RpcApi.cs")));
             Assert.Contains("init", gitCommands);
             Assert.True(Directory.Exists(Path.Combine(root, ".git")));
         }
@@ -100,27 +110,33 @@ public sealed class StarterTemplateGeneratorTests
 
             var serverProgram = File.ReadAllText(Path.Combine(root, "Server", "Server", "Program.cs"));
             var serverCsproj = File.ReadAllText(Path.Combine(root, "Server", "Server", "Server.csproj"));
+            var pingService = File.ReadAllText(Path.Combine(root, "Server", "Server", "PingService.cs"));
             var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
+            var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "NuGet.config"));
             var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
 
             Assert.Equal("file:../../Shared", sharedDependency);
-            Assert.Contains("using Shared.Interfaces;", serverProgram);
             Assert.DoesNotContain("Bad Project Name", serverProgram, StringComparison.Ordinal);
             Assert.DoesNotContain("DateTimeOffset", serverProgram, StringComparison.Ordinal);
             Assert.Contains("using ULinkRPC.Server;", serverProgram);
             Assert.Contains("using ULinkRPC.Serializer.Json;", serverProgram);
             Assert.Contains("using ULinkRPC.Transport.WebSocket;", serverProgram);
-            Assert.Contains("var args = Environment.GetCommandLineArgs().Skip(1).ToArray();", serverProgram);
+            Assert.Contains("var commandLineArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();", serverProgram);
             Assert.Contains("await RpcServerHostBuilder.Create()", serverProgram);
-            Assert.Contains(".UseCommandLine(args)", serverProgram);
+            Assert.Contains(".UseCommandLine(commandLineArgs)", serverProgram);
             Assert.Contains(".UseJson()", serverProgram);
             Assert.Contains(".UseWebSocket(defaultPort: 20000, path: \"/ws\")", serverProgram);
             Assert.Contains(".RunAsync();", serverProgram);
+            Assert.Contains("public sealed class PingService : IPingService", pingService);
+            Assert.Contains("ServerTimeUtc = DateTime.UtcNow.ToString(\"O\")", pingService);
             Assert.Contains("<RootNamespace>Server</RootNamespace>", serverCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", serverCsproj);
             Assert.Contains("<package id=\"ULinkRPC.Core\" version=\"1.2.3\" />", packagesConfig);
-            Assert.Contains("<package id=\"ULinkRPC.Transport.WebSocket\" version=\"3.4.5\" manuallyInstalled=\"true\" />", packagesConfig);
-            Assert.Contains("<package id=\"ULinkRPC.Serializer.Json\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"ULinkRPC.Transport.WebSocket\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"ULinkRPC.Serializer.Json\" version=\"5.6.7\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<disabledPackageSources />", nugetConfig);
+            Assert.Contains("<activePackageSource>", nugetConfig);
+            Assert.Contains("<add key=\"All\" value=\"(Aggregate source)\" />", nugetConfig);
             Assert.Contains("m_EditorVersion: 2022.3.62f3c1", projectVersion);
             Assert.Contains("m_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)", projectVersion);
         }
@@ -177,6 +193,19 @@ public sealed class StarterTemplateGeneratorTests
                 return;
             }
 
+            if (string.Equals(arguments, "new tool-manifest", StringComparison.Ordinal))
+            {
+                var toolDir = Path.Combine(workingDirectory, ".config");
+                Directory.CreateDirectory(toolDir);
+                File.WriteAllText(Path.Combine(toolDir, "dotnet-tools.json"), "{ }\n");
+                return;
+            }
+
+            if (arguments.StartsWith("tool install ULinkRPC.CodeGen --version ", StringComparison.Ordinal))
+            {
+                return;
+            }
+
             if (arguments.StartsWith("sln ", StringComparison.Ordinal) && arguments.Contains(" add ", StringComparison.Ordinal))
             {
                 var addIndex = arguments.IndexOf(" add ", StringComparison.Ordinal);
@@ -187,6 +216,25 @@ public sealed class StarterTemplateGeneratorTests
                 solution = solution.Replace("</Solution>\n", projectEntry + "</Solution>\n", StringComparison.Ordinal);
                 File.WriteAllText(slnxPath, solution);
                 return;
+            }
+
+            if (arguments.StartsWith("tool run ulinkrpc-codegen -- ", StringComparison.Ordinal))
+            {
+                if (arguments.Contains("--mode server", StringComparison.Ordinal))
+                {
+                    var outputDir = Path.Combine(workingDirectory, "Generated");
+                    Directory.CreateDirectory(outputDir);
+                    File.WriteAllText(Path.Combine(outputDir, "AllServicesBinder.cs"), "// generated\n");
+                    return;
+                }
+
+                if (arguments.Contains("--mode unity", StringComparison.Ordinal))
+                {
+                    var outputDir = Path.Combine(workingDirectory, "Assets", "Scripts", "Rpc", "RpcGenerated");
+                    Directory.CreateDirectory(outputDir);
+                    File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
+                    return;
+                }
             }
 
             throw new InvalidOperationException($"Unexpected dotnet command in test: {arguments}");
