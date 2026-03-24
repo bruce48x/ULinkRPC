@@ -25,6 +25,8 @@ public sealed class StarterTemplateGeneratorTests
 
             Assert.Contains("<LangVersion>9.0</LangVersion>", sharedCsproj);
             Assert.Contains("<RootNamespace>Shared</RootNamespace>", sharedCsproj);
+            Assert.Contains(@"<BaseIntermediateOutputPath>..\_artifacts\Shared\obj\</BaseIntermediateOutputPath>", sharedCsproj);
+            Assert.Contains(@"<BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>", sharedCsproj);
             Assert.Contains("\"rootNamespace\": \"Shared\"", sharedAsmdef);
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("namespace Shared.Interfaces", sharedDtos);
@@ -37,6 +39,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("**/bin/", gitIgnore);
             Assert.Contains("/Client/[Ll]ibrary/", gitIgnore);
             Assert.Contains("/Client/Assets/Packages/", gitIgnore);
+            Assert.Contains("/_artifacts/", gitIgnore);
             Assert.Contains(".vs/", gitIgnore);
         }
         finally
@@ -101,7 +104,15 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("using Shared.Interfaces;", serverProgram);
             Assert.DoesNotContain("Bad Project Name", serverProgram, StringComparison.Ordinal);
             Assert.DoesNotContain("DateTimeOffset", serverProgram, StringComparison.Ordinal);
-            Assert.Contains("ServerTimeUtc = DateTime.UtcNow.ToString(\"O\")", serverProgram);
+            Assert.Contains("using ULinkRPC.Server;", serverProgram);
+            Assert.Contains("using ULinkRPC.Serializer.Json;", serverProgram);
+            Assert.Contains("using ULinkRPC.Transport.WebSocket;", serverProgram);
+            Assert.Contains("var args = Environment.GetCommandLineArgs().Skip(1).ToArray();", serverProgram);
+            Assert.Contains("await RpcServerHostBuilder.Create()", serverProgram);
+            Assert.Contains(".UseCommandLine(args)", serverProgram);
+            Assert.Contains(".UseJson()", serverProgram);
+            Assert.Contains(".UseWebSocket(defaultPort: 20000, path: \"/ws\")", serverProgram);
+            Assert.Contains(".RunAsync();", serverProgram);
             Assert.Contains("<RootNamespace>Server</RootNamespace>", serverCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", serverCsproj);
             Assert.Contains("<package id=\"ULinkRPC.Core\" version=\"1.2.3\" />", packagesConfig);
@@ -115,6 +126,32 @@ public sealed class StarterTemplateGeneratorTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void GenerateTemplate_CreatesServerProgram_WithTransportAndSerializerSpecificBuilderChain()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Builder-Test", TransportKind.Tcp, SerializerKind.MemoryPack, Versions);
+
+            var serverProgram = File.ReadAllText(Path.Combine(root, "Server", "Server", "Program.cs"));
+
+            Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", serverProgram);
+            Assert.Contains("using ULinkRPC.Transport.Tcp;", serverProgram);
+            Assert.Contains(".UseMemoryPack()", serverProgram);
+            Assert.Contains(".UseTcp(defaultPort: 20000)", serverProgram);
+            Assert.DoesNotContain(".UseJson()", serverProgram, StringComparison.Ordinal);
+            Assert.DoesNotContain(".UseWebSocket(", serverProgram, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
 
     private static string CreateTempRoot()
     {

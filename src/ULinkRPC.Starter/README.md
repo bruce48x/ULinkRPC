@@ -17,14 +17,14 @@ dotnet tool install -g ULinkRPC.Starter
 ## Usage
 
 ```bash
-ulinkrpc-starter [--name MyGame] [--output ./out] [--transport tcp|websocket|kcp|loopback] [--serializer json|memorypack]
+ulinkrpc-starter [--name MyGame] [--output ./out] [--transport tcp|websocket|kcp] [--serializer json|memorypack]
 ```
 
 Options:
 
 - `--name` Project root folder name. Default is `ULinkApp`.
 - `--output` Parent directory for the generated project. Default is the current working directory.
-- `--transport` Transport package to use: `tcp`, `websocket`, `kcp`, `loopback`.
+- `--transport` Transport package to use: `tcp`, `websocket`, `kcp`.
 - `--serializer` Serializer package to use: `json`, `memorypack`.
 
 If `--transport` or `--serializer` is omitted, the tool enters interactive mode and asks you to choose them in the terminal.
@@ -61,7 +61,7 @@ samples/
 
 - `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, and generated source stays within C# 9.0 for Unity 2022 compatibility.
 - `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
-- `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages.
+- `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and appends the matching serializer/transport extensions for the selected template.
 - `Client/`: Unity 2022 LTS skeleton with `NuGetForUnity`, `packages.config`, and a local reference to `Shared`.
 - `.gitignore`: ignore rules for .NET build outputs, editor files, Unity generated folders, and NuGetForUnity restored packages.
 

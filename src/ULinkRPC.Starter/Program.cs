@@ -43,7 +43,7 @@ internal static class Program
 
     private static void PrintUsage()
     {
-        Console.WriteLine("Usage: ulinkrpc-starter [--name MyGame] [--output ./out] [--transport tcp|websocket|kcp|loopback] [--serializer json|memorypack]");
+        Console.WriteLine("Usage: ulinkrpc-starter [--name MyGame] [--output ./out] [--transport tcp|websocket|kcp] [--serializer json|memorypack]");
     }
 
     private static bool TryParseArgs(
@@ -121,7 +121,6 @@ internal static class Program
             case "websocket":
             case "ws": transport = TransportKind.WebSocket; return true;
             case "kcp": transport = TransportKind.Kcp; return true;
-            case "loopback": transport = TransportKind.Loopback; return true;
             default: transport = default; return false;
         }
     }
@@ -143,7 +142,6 @@ internal static class Program
         Console.WriteLine("  1) TCP");
         Console.WriteLine("  2) WebSocket");
         Console.WriteLine("  3) KCP");
-        Console.WriteLine("  4) Loopback");
         while (true)
         {
             Console.Write("> ");
@@ -153,10 +151,9 @@ internal static class Program
                 case "1": return TransportKind.Tcp;
                 case "2": return TransportKind.WebSocket;
                 case "3": return TransportKind.Kcp;
-                case "4": return TransportKind.Loopback;
             }
 
-            Console.WriteLine("Please enter 1-4.");
+            Console.WriteLine("Please enter 1-3.");
         }
     }
 
@@ -215,7 +212,6 @@ internal static class Program
         TransportKind.Tcp => "ULinkRPC.Transport.Tcp",
         TransportKind.WebSocket => "ULinkRPC.Transport.WebSocket",
         TransportKind.Kcp => "ULinkRPC.Transport.Kcp",
-        TransportKind.Loopback => "ULinkRPC.Transport.Loopback",
         _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
     };
 

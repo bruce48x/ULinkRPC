@@ -6,8 +6,7 @@ internal enum TransportKind
 {
     Tcp,
     WebSocket,
-    Kcp,
-    Loopback
+    Kcp
 }
 
 internal enum SerializerKind
@@ -77,6 +76,8 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     <Nullable>enable</Nullable>
     <LangVersion>9.0</LangVersion>
     <RootNamespace>Shared</RootNamespace>
+    <BaseIntermediateOutputPath>..\_artifacts\Shared\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>
   </PropertyGroup>
 </Project>
 """;
@@ -152,6 +153,7 @@ Thumbs.db
 # .NET build outputs
 **/bin/
 **/obj/
+/_artifacts/
 
 # Unity generated folders
 /Client/[Ll]ibrary/
@@ -219,20 +221,14 @@ Thumbs.db
 </Project>
 """;
 
+        var programUsings = GetServerProgramUsings(serializer, transport);
+        var programBody = GetServerProgramBody(serializer, transport);
+
         var program = $$"""
 using Shared.Interfaces;
+{{programUsings}}
 
-Console.WriteLine("{{serverProjectName}} started.");
-Console.WriteLine("Selected transport: {{transport}}");
-Console.WriteLine("Selected serializer: {{serializer}}");
-
-var demo = new PingReply
-{
-    Message = "ULinkRPC starter is ready.",
-    ServerTimeUtc = DateTime.UtcNow.ToString("O")
-};
-
-Console.WriteLine($"Demo shared DTO => {demo.Message} @ {demo.ServerTimeUtc}");
+{{programBody}}
 """;
 
         WriteFile(Path.Combine(serverPath, $"{serverProjectName}.csproj"), csproj);
@@ -323,7 +319,6 @@ Selected serializer: {{serializer}}
         TransportKind.Tcp => "ULinkRPC.Transport.Tcp",
         TransportKind.WebSocket => "ULinkRPC.Transport.WebSocket",
         TransportKind.Kcp => "ULinkRPC.Transport.Kcp",
-        TransportKind.Loopback => "ULinkRPC.Transport.Loopback",
         _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
     };
 
@@ -333,6 +328,61 @@ Selected serializer: {{serializer}}
         SerializerKind.MemoryPack => "ULinkRPC.Serializer.MemoryPack",
         _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
     };
+
+    private static string GetServerSerializerSetup(SerializerKind serializer) => serializer switch
+    {
+        SerializerKind.Json => ".UseJson()",
+        SerializerKind.MemoryPack => ".UseMemoryPack()",
+        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
+    };
+
+    private static string GetServerTransportSetup(TransportKind transport) => transport switch
+    {
+        TransportKind.Tcp => ".UseTcp(defaultPort: 20000)",
+        TransportKind.WebSocket => ".UseWebSocket(defaultPort: 20000, path: \"/ws\")",
+        TransportKind.Kcp => ".UseKcp(defaultPort: 20000)",
+        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+    };
+
+    private static string GetServerProgramUsings(SerializerKind serializer, TransportKind transport)
+    {
+        var lines = new List<string>
+        {
+            "using ULinkRPC.Server;"
+        };
+
+        lines.Add(serializer switch
+        {
+            SerializerKind.Json => "using ULinkRPC.Serializer.Json;",
+            SerializerKind.MemoryPack => "using ULinkRPC.Serializer.MemoryPack;",
+            _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
+        });
+
+        lines.Add(transport switch
+        {
+            TransportKind.Tcp => "using ULinkRPC.Transport.Tcp;",
+            TransportKind.WebSocket => "using ULinkRPC.Transport.WebSocket;",
+            TransportKind.Kcp => "using ULinkRPC.Transport.Kcp;",
+            _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+        });
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string GetServerProgramBody(SerializerKind serializer, TransportKind transport)
+    {
+        var serializerSetup = GetServerSerializerSetup(serializer);
+        var transportSetup = GetServerTransportSetup(transport);
+        return $$"""
+var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+
+await RpcServerHostBuilder.Create()
+    .UseCommandLine(args)
+    {{serializerSetup}}
+    {{transportSetup}}
+    .RunAsync();
+""";
+    }
 
     private static void WriteFile(string path, string content)
     {
