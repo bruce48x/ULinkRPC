@@ -51,7 +51,7 @@ samples/
     .gitignore
     Shared/
     Server/
-      Server.slnx
+      Server.sln or Server.slnx
       Server/
         Server.csproj
     Client/
@@ -60,7 +60,7 @@ samples/
 ## What Gets Generated
 
 - `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, generated source stays within C# 9.0 for Unity 2022 compatibility, and `Directory.Build.props` redirects `obj/bin` to `../_artifacts/Shared/`.
-- `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
+- `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and appends the matching serializer/transport extensions for the selected template.
 - `Client/`: Unity 2022 LTS skeleton with `NuGetForUnity`, `packages.config`, and a local reference to `Shared`.
 - `.gitignore`: ignore rules for .NET build outputs, editor files, Unity generated folders, and NuGetForUnity restored packages.

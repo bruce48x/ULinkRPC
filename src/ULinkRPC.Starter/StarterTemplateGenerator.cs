@@ -54,7 +54,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     private void GenerateSolution(string serverPath)
     {
         var solutionPath = Path.Combine(serverPath, "Server.slnx");
-        runDotNet(serverPath, "new sln -n \"Server\"");
+        runDotNet(serverPath, "new sln -n \"Server\" --format slnx");
         runDotNet(serverPath, $"sln \"{solutionPath}\" add \"..{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}Shared.csproj\"");
         runDotNet(serverPath, $"sln \"{solutionPath}\" add \"Server{Path.DirectorySeparatorChar}Server.csproj\"");
     }
