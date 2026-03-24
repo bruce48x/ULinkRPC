@@ -29,6 +29,8 @@ public sealed class StarterTemplateGeneratorTests
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("namespace Shared.Interfaces", sharedDtos);
             Assert.DoesNotContain("namespace Shared.Interfaces;", sharedDtos, StringComparison.Ordinal);
+            Assert.DoesNotContain("DateTimeOffset", sharedDtos, StringComparison.Ordinal);
+            Assert.Contains("public string ServerTimeUtc { get; set; } = string.Empty;", sharedDtos);
             Assert.True(File.Exists(Path.Combine(root, "Shared", "package.json")));
             Assert.False(File.Exists(Path.Combine(root, "Shared", "UnityPackage", "package.json")));
             Assert.False(File.Exists(Path.Combine(root, "Shared", "UnityPackage", "SharedDtos.cs")));
@@ -98,8 +100,11 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Equal("file:../../Shared", sharedDependency);
             Assert.Contains("using Shared.Interfaces;", serverProgram);
             Assert.DoesNotContain("Bad Project Name", serverProgram, StringComparison.Ordinal);
+            Assert.DoesNotContain("DateTimeOffset", serverProgram, StringComparison.Ordinal);
+            Assert.Contains("ServerTimeUtc = DateTime.UtcNow.ToString(\"O\")", serverProgram);
             Assert.Contains("<RootNamespace>Server</RootNamespace>", serverCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", serverCsproj);
+            Assert.Contains("<package id=\"ULinkRPC.Core\" version=\"1.2.3\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Transport.WebSocket\" version=\"3.4.5\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Serializer.Json\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("m_EditorVersion: 2022.3.62f3c1", projectVersion);

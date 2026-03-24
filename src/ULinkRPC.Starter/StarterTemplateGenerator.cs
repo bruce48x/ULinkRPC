@@ -92,7 +92,7 @@ namespace Shared.Interfaces
     public sealed class PingReply
     {
         public string Message { get; set; } = string.Empty;
-        public DateTimeOffset ServerTime { get; set; }
+        public string ServerTimeUtc { get; set; } = string.Empty;
     }
 }
 """;
@@ -229,10 +229,10 @@ Console.WriteLine("Selected serializer: {{serializer}}");
 var demo = new PingReply
 {
     Message = "ULinkRPC starter is ready.",
-    ServerTime = DateTimeOffset.UtcNow
+    ServerTimeUtc = DateTime.UtcNow.ToString("O")
 };
 
-Console.WriteLine($"Demo shared DTO => {demo.Message} @ {demo.ServerTime:O}");
+Console.WriteLine($"Demo shared DTO => {demo.Message} @ {demo.ServerTimeUtc}");
 """;
 
         WriteFile(Path.Combine(serverPath, $"{serverProjectName}.csproj"), csproj);
@@ -272,6 +272,7 @@ Console.WriteLine($"Demo shared DTO => {demo.Message} @ {demo.ServerTime:O}");
         var packagesConfig = $$"""
 <?xml version="1.0" encoding="utf-8"?>
 <packages>
+  <package id="ULinkRPC.Core" version="{{versions.Server}}" />
   <package id="ULinkRPC.Client" version="{{versions.Client}}" />
   <package id="{{transportPackage}}" version="{{versions.Transport}}" manuallyInstalled="true" />
   <package id="{{serializerPackage}}" version="{{versions.Serializer}}" manuallyInstalled="true" />
