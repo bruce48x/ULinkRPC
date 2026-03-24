@@ -130,11 +130,12 @@ public interface IPlayerCallback
 
 ### DTO 也放在 Shared
 
-这个示例里，`LoginRequest`、`LoginReply`、`MoveRequest`、`PlayerPosition` 都和接口放在一起，并且使用 `MemoryPackable` 标记。原因也很直接：
+这个示例里，`LoginRequest`、`LoginReply`、`MoveRequest`、`PlayerPosition` 都和接口放在一起，并且使用 `MemoryPackable(GenerateType.VersionTolerant)` 配合显式字段序号。原因也很直接：
 
 - 这次示例选的是 `MemoryPack` 序列化
 - 所以传输对象本身就应该按 `MemoryPack` 的方式声明
 - Unity 和 .NET 服务端都吃同一份类型定义
+- 当新旧版本客户端或服务端同时在线时，Version Tolerant DTO 更适合做平滑演进，后续新增字段时更容易保持兼容
 
 真实项目里你也可以把 DTO 按模块拆文件，但原则不变：
 

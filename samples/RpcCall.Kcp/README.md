@@ -25,6 +25,8 @@ Open `samples/RpcCall.Kcp/RpcCall.Kcp.Unity`, load `Assets/Scenes/KcpConnectionT
 
 The Unity client opens one KCP connection, logs in, then calls `IncrStep()` at a fixed interval. The server creates one `PlayerService` per `RpcSession`, so each client connection keeps its own counter.
 
+The shared MemoryPack DTOs in `Packages/com.samples.contracts/ExampleDtos.cs` use `GenerateType.VersionTolerant` plus explicit `MemoryPackOrder(...)` numbering. This is intentional for compatibility when newer and older builds overlap, so DTO fields can evolve with a lower risk of breaking existing clients or servers.
+
 The client entry is intentionally minimal:
 
 ```csharp
