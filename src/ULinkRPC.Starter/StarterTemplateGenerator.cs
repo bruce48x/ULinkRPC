@@ -67,17 +67,25 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     {
         var projectName = Path.GetFileName(sharedPath);
 
+        var directoryBuildProps = """
+<Project>
+  <PropertyGroup>
+    <MSBuildProjectExtensionsPath>..\_artifacts\Shared\obj\</MSBuildProjectExtensionsPath>
+    <BaseIntermediateOutputPath>..\_artifacts\Shared\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>
+  </PropertyGroup>
+</Project>
+""";
+
         // Shared code is consumed by Unity 2022, so generated source must stay within C# 9.0.
         var csproj = """
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>9.0</LangVersion>
     <RootNamespace>Shared</RootNamespace>
-    <BaseIntermediateOutputPath>..\_artifacts\Shared\obj\</BaseIntermediateOutputPath>
-    <BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>
   </PropertyGroup>
 </Project>
 """;
@@ -131,6 +139,7 @@ namespace Shared.Interfaces
 }
 """;
 
+        WriteFile(Path.Combine(sharedPath, "Directory.Build.props"), directoryBuildProps);
         WriteFile(Path.Combine(sharedPath, $"{projectName}.csproj"), csproj);
         WriteFile(Path.Combine(sharedPath, "Interfaces", "SharedDtos.cs"), contracts);
         WriteFile(Path.Combine(sharedPath, $"{projectName}.asmdef"), asmdef);

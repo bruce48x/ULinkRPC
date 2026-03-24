@@ -18,15 +18,18 @@ public sealed class StarterTemplateGeneratorTests
 
             generator.GenerateTemplate(root, "My Game!@#$", TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
 
+            var sharedProps = File.ReadAllText(Path.Combine(root, "Shared", "Directory.Build.props"));
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
             var sharedAsmdef = File.ReadAllText(Path.Combine(root, "Shared", "Shared.asmdef"));
             var sharedDtos = File.ReadAllText(Path.Combine(root, "Shared", "Interfaces", "SharedDtos.cs"));
             var gitIgnore = File.ReadAllText(Path.Combine(root, ".gitignore"));
 
             Assert.Contains("<LangVersion>9.0</LangVersion>", sharedCsproj);
+            Assert.Contains("<ImplicitUsings>disable</ImplicitUsings>", sharedCsproj);
             Assert.Contains("<RootNamespace>Shared</RootNamespace>", sharedCsproj);
-            Assert.Contains(@"<BaseIntermediateOutputPath>..\_artifacts\Shared\obj\</BaseIntermediateOutputPath>", sharedCsproj);
-            Assert.Contains(@"<BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>", sharedCsproj);
+            Assert.Contains(@"<MSBuildProjectExtensionsPath>..\_artifacts\Shared\obj\</MSBuildProjectExtensionsPath>", sharedProps);
+            Assert.Contains(@"<BaseIntermediateOutputPath>..\_artifacts\Shared\obj\</BaseIntermediateOutputPath>", sharedProps);
+            Assert.Contains(@"<BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>", sharedProps);
             Assert.Contains("\"rootNamespace\": \"Shared\"", sharedAsmdef);
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("namespace Shared.Interfaces", sharedDtos);
