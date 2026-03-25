@@ -42,6 +42,7 @@
     <ImplicitlyExpandDesignTimeFacades>false</ImplicitlyExpandDesignTimeFacades>
   </PropertyGroup>
   <ItemGroup>
+    <Analyzer Include="D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\MemoryPack.Generator.1.21.4\analyzers\dotnet\cs\MemoryPack.Generator.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\Tools\Unity.SourceGenerators\Unity.SourceGenerators.dll" />
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\Tools\Unity.SourceGenerators\Unity.Properties.SourceGenerator.dll" />
   </ItemGroup>
@@ -224,38 +225,38 @@
     <Reference Include="UnityEditor.WindowsStandalone.Extensions">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\PlaybackEngines\WindowsStandaloneSupport\UnityEditor.WindowsStandalone.Extensions.dll</HintPath>
     </Reference>
-    <Reference Include="ULinkRPC.Core">
-      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Core.0.6.0\lib\netstandard2.1\ULinkRPC.Core.dll</HintPath>
-    </Reference>
     <Reference Include="ULinkRPC.Client">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Client.0.6.2\lib\netstandard2.1\ULinkRPC.Client.dll</HintPath>
     </Reference>
     <Reference Include="Kcp">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\Kcp.2.7.0\lib\netstandard2.1\Kcp.dll</HintPath>
     </Reference>
-    <Reference Include="ULinkRPC.Transport.Kcp">
-      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Transport.Kcp.0.8.0\lib\netstandard2.1\ULinkRPC.Transport.Kcp.dll</HintPath>
+    <Reference Include="ULinkRPC.Core">
+      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Core.0.6.0\lib\netstandard2.1\ULinkRPC.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IO.Pipelines">
+      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\System.IO.Pipelines.10.0.3\lib\netstandard2.0\System.IO.Pipelines.dll</HintPath>
     </Reference>
     <Reference Include="System.Collections.Immutable">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\System.Collections.Immutable.6.0.0\lib\netstandard2.0\System.Collections.Immutable.dll</HintPath>
     </Reference>
+    <Reference Include="ULinkRPC.Transport.Kcp">
+      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Transport.Kcp.0.8.0\lib\netstandard2.1\ULinkRPC.Transport.Kcp.dll</HintPath>
+    </Reference>
     <Reference Include="NuGetForUnity.PluginAPI">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Library\PackageCache\com.github-glitchenzo.nugetforunity@4.5.0\Editor\PluginAPI\NuGetForUnity.PluginAPI.dll</HintPath>
     </Reference>
-    <Reference Include="ULinkRPC.Serializer.MemoryPack">
-      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Serializer.MemoryPack.0.7.0\lib\netstandard2.1\ULinkRPC.Serializer.MemoryPack.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Library\PackageCache\com.unity.nuget.newtonsoft-json@3.2.1\Runtime\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="ULinkRPC.Serializer.MemoryPack">
+      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\ULinkRPC.Serializer.MemoryPack.0.7.0\lib\netstandard2.1\ULinkRPC.Serializer.MemoryPack.dll</HintPath>
     </Reference>
     <Reference Include="MemoryPack.Core">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\MemoryPack.Core.1.21.4\lib\netstandard2.1\MemoryPack.Core.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.CompilerServices.Unsafe">
       <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
-    </Reference>
-    <Reference Include="System.IO.Pipelines">
-      <HintPath>D:\ulinkrpc\samples\RpcCall.Kcp\RpcCall.Kcp.Unity\Assets\Packages\System.IO.Pipelines.10.0.3\lib\netstandard2.0\System.IO.Pipelines.dll</HintPath>
     </Reference>
     <Reference Include="netstandard">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Data\NetStandard\ref\2.1.0\netstandard.dll</HintPath>

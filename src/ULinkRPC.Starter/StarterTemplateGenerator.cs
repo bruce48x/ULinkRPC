@@ -188,7 +188,8 @@ namespace Shared.Interfaces
         var asmdefReferences = serializer == SerializerKind.MemoryPack
             ? """
     "ULinkRPC.Core.dll",
-    "MemoryPack.Core.dll"
+    "MemoryPack.Core.dll",
+    "System.Runtime.CompilerServices.Unsafe.dll"
 """
             : """
     "ULinkRPC.Core.dll"

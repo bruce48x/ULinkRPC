@@ -35,6 +35,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("\"overrideReferences\": true", sharedAsmdef);
             Assert.Contains("\"ULinkRPC.Core.dll\"", sharedAsmdef);
             Assert.Contains("\"MemoryPack.Core.dll\"", sharedAsmdef);
+            Assert.Contains("\"System.Runtime.CompilerServices.Unsafe.dll\"", sharedAsmdef);
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("namespace Shared.Interfaces", sharedDtos);
             Assert.DoesNotContain("namespace Shared.Interfaces;", sharedDtos, StringComparison.Ordinal);
