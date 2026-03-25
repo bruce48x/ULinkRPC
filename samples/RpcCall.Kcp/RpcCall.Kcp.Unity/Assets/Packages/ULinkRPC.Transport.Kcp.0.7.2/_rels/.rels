@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/ULinkRPC.Transport.Kcp.nuspec" Id="R47ACD9339E4D73F9" />
-  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/6dce8d76e55a4b1da50e957b0a14ba21.psmdcp" Id="RBD25E6A2FF14ADEF" />
-</Relationships>

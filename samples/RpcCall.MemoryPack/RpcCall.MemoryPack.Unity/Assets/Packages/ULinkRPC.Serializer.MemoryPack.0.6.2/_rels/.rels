@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/ULinkRPC.Serializer.MemoryPack.nuspec" Id="R9917ADF32CEB730D" />
-  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/9d7ee783505d4d2db0de2af75757c36f.psmdcp" Id="RE3B781A35790132A" />
-</Relationships>
