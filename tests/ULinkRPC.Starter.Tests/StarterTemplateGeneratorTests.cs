@@ -34,6 +34,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("\"rootNamespace\": \"Shared\"", sharedAsmdef);
             Assert.Contains("\"overrideReferences\": true", sharedAsmdef);
             Assert.Contains("\"ULinkRPC.Core.dll\"", sharedAsmdef);
+            Assert.Contains("\"MemoryPack.Core.dll\"", sharedAsmdef);
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("namespace Shared.Interfaces", sharedDtos);
             Assert.DoesNotContain("namespace Shared.Interfaces;", sharedDtos, StringComparison.Ordinal);
@@ -230,7 +231,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"ULinkRPC.Serializer.MemoryPack\" version=\"5.6.7\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"MemoryPack\" version=\"6.7.8\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"MemoryPack.Core\" version=\"8.9.10\" />", packagesConfig);
-            Assert.DoesNotContain("MemoryPack.Generator", packagesConfig, StringComparison.Ordinal);
+            Assert.Contains("<package id=\"MemoryPack.Generator\" version=\"6.7.8\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Collections.Immutable\" version=\"6.0.0\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"6.1.2\" />", packagesConfig);
             Assert.Contains("<package id=\"System.IO.Pipelines\" version=\"10.0.3\" />", packagesConfig);

@@ -62,7 +62,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         var companyId = MakeCompanyId(projectName);
 
         GenerateGitIgnore(rootPath);
-        GenerateShared(sharedPath, companyId, versions);
+        GenerateShared(sharedPath, companyId, serializer, versions);
         GenerateServer(serverAppPath, transport, serializer, versions);
         GenerateSolution(serverPath);
         GenerateUnityClient(clientPath, sharedProjectName, companyId, transport, serializer, versions);
@@ -107,7 +107,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
             $"tool run ulinkrpc-codegen -- --contracts \"{sharedPath}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}RpcGenerated\" --namespace \"Client.Generated\"");
     }
 
-    private static void GenerateShared(string sharedPath, string companyId, ResolvedVersions versions)
+    private static void GenerateShared(string sharedPath, string companyId, SerializerKind serializer, ResolvedVersions versions)
     {
         var projectName = Path.GetFileName(sharedPath);
 
@@ -185,7 +185,16 @@ namespace Shared.Interfaces
 }
 """;
 
-        var asmdef = """
+        var asmdefReferences = serializer == SerializerKind.MemoryPack
+            ? """
+    "ULinkRPC.Core.dll",
+    "MemoryPack.Core.dll"
+"""
+            : """
+    "ULinkRPC.Core.dll"
+""";
+
+        var asmdef = $$"""
 {
   "name": "Shared",
   "rootNamespace": "Shared",
@@ -195,7 +204,7 @@ namespace Shared.Interfaces
   "allowUnsafeCode": false,
   "overrideReferences": true,
   "precompiledReferences": [
-    "ULinkRPC.Core.dll"
+{{asmdefReferences}}
   ],
   "autoReferenced": true,
   "defineConstraints": [],
@@ -485,6 +494,7 @@ Selected serializer: {{serializer}}
             Environment.NewLine,
             $"  <package id=\"MemoryPack\" version=\"{versions.SerializerRuntime}\" manuallyInstalled=\"true\" />",
             $"  <package id=\"MemoryPack.Core\" version=\"{versions.SerializerRuntimeCore}\" />",
+            $"  <package id=\"MemoryPack.Generator\" version=\"{versions.SerializerRuntime}\" manuallyInstalled=\"true\" />",
             $"  <package id=\"System.Collections.Immutable\" version=\"{UnityPackageVersions.SystemCollectionsImmutable}\" />",
             $"  <package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"{UnityPackageVersions.SystemRuntimeCompilerServicesUnsafe}\" />",
             $"  <package id=\"System.IO.Pipelines\" version=\"{UnityPackageVersions.SystemIoPipelines}\" />");
