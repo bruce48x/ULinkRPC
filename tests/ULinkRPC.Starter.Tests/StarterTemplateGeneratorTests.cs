@@ -133,7 +133,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("var builder = RpcServerHostBuilder.Create()", serverProgram);
             Assert.Contains(".UseCommandLine(commandLineArgs)", serverProgram);
             Assert.Contains(".UseSerializer(new JsonRpcSerializer())", serverProgram);
-            Assert.Contains("builder.UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", ct));", serverProgram);
+            Assert.Contains("builder.UseAcceptor(async ct => await WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", ct));", serverProgram);
             Assert.Contains("await builder.RunAsync();", serverProgram);
             Assert.True(File.Exists(pingServicePath));
             Assert.False(File.Exists(Path.Combine(root, "Server", "Server", "PingService.cs")));
