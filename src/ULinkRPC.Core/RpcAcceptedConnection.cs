@@ -1,7 +1,6 @@
 using System.Net;
-using ULinkRPC.Core;
 
-namespace ULinkRPC.Server;
+namespace ULinkRPC.Core;
 
 public sealed class RpcAcceptedConnection
 {

@@ -1,11 +1,13 @@
+using ULinkRPC.Core;
 using System;
 using ULinkRPC.Server;
 using ULinkRPC.Serializer.Json;
 using ULinkRPC.Transport.WebSocket;
 
-await RpcServerHostBuilder.Create()
+var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
-    .UseJson()
+    .UseSerializer(new JsonRpcSerializer())
     .UseKeepAlive(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45))
-    .UseWebSocket(defaultPort: 20000, path: "/ws")
-    .RunAsync();
+    .UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(20000, "/ws", ct));
+
+await builder.RunAsync();

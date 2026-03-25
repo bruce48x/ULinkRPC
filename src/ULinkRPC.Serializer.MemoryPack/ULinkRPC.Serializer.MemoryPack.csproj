@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Serializer.MemoryPack</PackageId>
-    <Version>0.6.2</Version>
+    <Version>0.7.0</Version>
     <Authors>ULinkRPC</Authors>
     <Description>MemoryPack based payload serializer for ULinkRPC.</Description>
     <PackageTags>rpc;unity;serializer;memorypack</PackageTags>
@@ -14,12 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ULinkRPC.Client\ULinkRPC.Client.csproj" />
     <ProjectReference Include="..\ULinkRPC.Core\ULinkRPC.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <ProjectReference Include="..\ULinkRPC.Server\ULinkRPC.Server.csproj" />
   </ItemGroup>
 
   <ItemGroup>

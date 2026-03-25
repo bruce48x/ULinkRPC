@@ -1,9 +1,11 @@
+using ULinkRPC.Core;
 using ULinkRPC.Server;
 using ULinkRPC.Serializer.MemoryPack;
 using ULinkRPC.Transport.Kcp;
 
-await RpcServerHostBuilder.Create()
+var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
-    .UseMemoryPack()
-    .UseKcp(defaultPort: 20000)
-    .RunAsync();
+    .UseSerializer(new MemoryPackRpcSerializer())
+    .UseAcceptor(new KcpConnectionAcceptor(20000));
+
+await builder.RunAsync();

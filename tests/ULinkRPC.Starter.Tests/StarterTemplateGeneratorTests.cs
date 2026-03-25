@@ -119,15 +119,16 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Equal("file:../../Shared", sharedDependency);
             Assert.DoesNotContain("Bad Project Name", serverProgram, StringComparison.Ordinal);
             Assert.DoesNotContain("DateTimeOffset", serverProgram, StringComparison.Ordinal);
+            Assert.Contains("using ULinkRPC.Core;", serverProgram);
             Assert.Contains("using ULinkRPC.Server;", serverProgram);
             Assert.Contains("using ULinkRPC.Serializer.Json;", serverProgram);
             Assert.Contains("using ULinkRPC.Transport.WebSocket;", serverProgram);
             Assert.Contains("var commandLineArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();", serverProgram);
-            Assert.Contains("await RpcServerHostBuilder.Create()", serverProgram);
+            Assert.Contains("var builder = RpcServerHostBuilder.Create()", serverProgram);
             Assert.Contains(".UseCommandLine(commandLineArgs)", serverProgram);
-            Assert.Contains(".UseJson()", serverProgram);
-            Assert.Contains(".UseWebSocket(defaultPort: 20000, path: \"/ws\")", serverProgram);
-            Assert.Contains(".RunAsync();", serverProgram);
+            Assert.Contains(".UseSerializer(new JsonRpcSerializer())", serverProgram);
+            Assert.Contains("builder.UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", ct));", serverProgram);
+            Assert.Contains("await builder.RunAsync();", serverProgram);
             Assert.True(File.Exists(pingServicePath));
             Assert.False(File.Exists(Path.Combine(root, "Server", "Server", "PingService.cs")));
             Assert.Contains("public sealed class PingService : IPingService", pingService);
@@ -137,6 +138,14 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"ULinkRPC.Core\" version=\"1.2.3\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Transport.WebSocket\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Serializer.Json\" version=\"5.6.7\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"Microsoft.Bcl.AsyncInterfaces\" version=\"10.0.2\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.IO.Pipelines\" version=\"10.0.2\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Text.Encodings.Web\" version=\"10.0.2\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Buffers\" version=\"4.6.1\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Memory\" version=\"4.6.3\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"6.1.2\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Threading.Tasks.Extensions\" version=\"4.6.3\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Text.Json\" version=\"10.0.2\" />", packagesConfig);
             Assert.Contains("<disabledPackageSources />", nugetConfig);
             Assert.Contains("<activePackageSource>", nugetConfig);
             Assert.Contains("<add key=\"All\" value=\"(Aggregate source)\" />", nugetConfig);
@@ -161,12 +170,15 @@ public sealed class StarterTemplateGeneratorTests
 
             var serverProgram = File.ReadAllText(Path.Combine(root, "Server", "Server", "Program.cs"));
 
+            Assert.Contains("using ULinkRPC.Core;", serverProgram);
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", serverProgram);
             Assert.Contains("using ULinkRPC.Transport.Tcp;", serverProgram);
-            Assert.Contains(".UseMemoryPack()", serverProgram);
-            Assert.Contains(".UseTcp(defaultPort: 20000)", serverProgram);
+            Assert.Contains(".UseSerializer(new MemoryPackRpcSerializer())", serverProgram);
+            Assert.Contains("builder.UseAcceptor(new TcpConnectionAcceptor(builder.ResolvePort(20000)));", serverProgram);
             Assert.DoesNotContain(".UseJson()", serverProgram, StringComparison.Ordinal);
             Assert.DoesNotContain(".UseWebSocket(", serverProgram, StringComparison.Ordinal);
+            Assert.DoesNotContain(".UseMemoryPack()", serverProgram, StringComparison.Ordinal);
+            Assert.DoesNotContain(".UseTcp(", serverProgram, StringComparison.Ordinal);
         }
         finally
         {
@@ -195,6 +207,31 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"System.Collections.Immutable\" version=\"6.0.0\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"6.1.2\" />", packagesConfig);
             Assert.Contains("<package id=\"System.IO.Pipelines\" version=\"10.0.3\" />", packagesConfig);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GenerateTemplate_CreatesKcpClientPackages_WithRequiredUnityDependencies()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Kcp-Test", TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
+
+            var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
+
+            Assert.Contains("<package id=\"ULinkRPC.Transport.Kcp\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"Kcp\" version=\"2.7.0\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Memory\" version=\"4.5.4\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Threading.Tasks.Extensions\" version=\"4.5.4\" />", packagesConfig);
+            Assert.Contains("<package id=\"ULinkRPC.Serializer.MemoryPack\" version=\"5.6.7\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"MemoryPack\" version=\"6.7.8\" manuallyInstalled=\"true\" />", packagesConfig);
         }
         finally
         {

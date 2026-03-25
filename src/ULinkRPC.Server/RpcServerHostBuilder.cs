@@ -233,6 +233,13 @@ public sealed class RpcServerHostBuilder
         return this;
     }
 
+    public RpcServerHostBuilder UseAcceptor(IRpcConnectionAcceptor acceptor)
+    {
+        ArgumentNullException.ThrowIfNull(acceptor);
+        _acceptorFactory = _ => ValueTask.FromResult(acceptor);
+        return this;
+    }
+
     private static bool TryReadInlineValue(string arg, out string value)
     {
         var parts = arg.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);

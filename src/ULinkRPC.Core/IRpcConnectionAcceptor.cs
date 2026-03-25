@@ -1,4 +1,4 @@
-namespace ULinkRPC.Server;
+namespace ULinkRPC.Core;
 
 public interface IRpcConnectionAcceptor : IAsyncDisposable
 {

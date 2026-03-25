@@ -27,12 +27,13 @@ dotnet add package ULinkRPC.Server
 Use `RpcServerHostBuilder` to compose serializer, transport, generated binders, and security in one place:
 
 ```csharp
-await RpcServerHostBuilder.Create()
+var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
-    .UseMemoryPack()
+    .UseSerializer(new MemoryPackRpcSerializer())
     .UseKeepAlive(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45))
-    .UseTcp(defaultPort: 20000)
-    .RunAsync();
+    .UseAcceptor(new TcpConnectionAcceptor(20000));
+
+await builder.RunAsync();
 ```
 
 When the entry assembly contains code-generated `AllServicesBinder`, the builder binds it automatically.

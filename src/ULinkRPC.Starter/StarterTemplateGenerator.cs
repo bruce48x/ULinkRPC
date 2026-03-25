@@ -27,7 +27,17 @@ internal sealed record ResolvedVersions(
 
 internal static class UnityPackageVersions
 {
+    public const string Kcp = "2.7.0";
+    public const string MicrosoftBclAsyncInterfaces = "10.0.2";
+    public const string SystemBuffers = "4.6.1";
     public const string SystemCollectionsImmutable = "6.0.0";
+    public const string SystemIoPipelinesForJson = "10.0.2";
+    public const string SystemMemoryForJson = "4.6.3";
+    public const string SystemMemoryForKcp = "4.5.4";
+    public const string SystemTextEncodingsWeb = "10.0.2";
+    public const string SystemTextJson = "10.0.2";
+    public const string SystemThreadingTasksExtensionsForJson = "4.6.3";
+    public const string SystemThreadingTasksExtensionsForKcp = "4.5.4";
     public const string SystemRuntimeCompilerServicesUnsafe = "6.1.2";
     public const string SystemIoPipelines = "10.0.3";
 }
@@ -358,6 +368,7 @@ namespace Server.Services
   <package id="ULinkRPC.Client" version="{{versions.Client}}" manuallyInstalled="true" />
   <package id="{{transportPackage}}" version="{{versions.Transport}}" manuallyInstalled="true" />
   <package id="{{serializerPackage}}" version="{{versions.Serializer}}" manuallyInstalled="true" />
+{{GetUnityTransportDependencyPackages(transport)}}
 {{GetUnitySerializerDependencyPackages(serializer, versions)}}
 </packages>
 """;
@@ -420,9 +431,30 @@ Selected serializer: {{serializer}}
         _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
     };
 
+    private static string GetUnityTransportDependencyPackages(TransportKind transport) => transport switch
+    {
+        TransportKind.Tcp => string.Empty,
+        TransportKind.WebSocket => string.Empty,
+        TransportKind.Kcp => string.Join(
+            Environment.NewLine,
+            $"  <package id=\"Kcp\" version=\"{UnityPackageVersions.Kcp}\" />",
+            $"  <package id=\"System.Memory\" version=\"{UnityPackageVersions.SystemMemoryForKcp}\" />",
+            $"  <package id=\"System.Threading.Tasks.Extensions\" version=\"{UnityPackageVersions.SystemThreadingTasksExtensionsForKcp}\" />"),
+        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+    };
+
     private static string GetUnitySerializerDependencyPackages(SerializerKind serializer, ResolvedVersions versions) => serializer switch
     {
-        SerializerKind.Json => string.Empty,
+        SerializerKind.Json => string.Join(
+            Environment.NewLine,
+            $"  <package id=\"Microsoft.Bcl.AsyncInterfaces\" version=\"{UnityPackageVersions.MicrosoftBclAsyncInterfaces}\" />",
+            $"  <package id=\"System.IO.Pipelines\" version=\"{UnityPackageVersions.SystemIoPipelinesForJson}\" />",
+            $"  <package id=\"System.Text.Encodings.Web\" version=\"{UnityPackageVersions.SystemTextEncodingsWeb}\" />",
+            $"  <package id=\"System.Buffers\" version=\"{UnityPackageVersions.SystemBuffers}\" />",
+            $"  <package id=\"System.Memory\" version=\"{UnityPackageVersions.SystemMemoryForJson}\" />",
+            $"  <package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"{UnityPackageVersions.SystemRuntimeCompilerServicesUnsafe}\" />",
+            $"  <package id=\"System.Threading.Tasks.Extensions\" version=\"{UnityPackageVersions.SystemThreadingTasksExtensionsForJson}\" />",
+            $"  <package id=\"System.Text.Json\" version=\"{UnityPackageVersions.SystemTextJson}\" />"),
         SerializerKind.MemoryPack => BuildMemoryPackUnityDependencies(versions),
         _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
     };
@@ -443,18 +475,18 @@ Selected serializer: {{serializer}}
             $"  <package id=\"System.IO.Pipelines\" version=\"{UnityPackageVersions.SystemIoPipelines}\" />");
     }
 
-    private static string GetServerSerializerSetup(SerializerKind serializer) => serializer switch
+    private static string GetServerSerializerConstruction(SerializerKind serializer) => serializer switch
     {
-        SerializerKind.Json => ".UseJson()",
-        SerializerKind.MemoryPack => ".UseMemoryPack()",
+        SerializerKind.Json => "new JsonRpcSerializer()",
+        SerializerKind.MemoryPack => "new MemoryPackRpcSerializer()",
         _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
     };
 
-    private static string GetServerTransportSetup(TransportKind transport) => transport switch
+    private static string GetServerTransportConstruction(TransportKind transport) => transport switch
     {
-        TransportKind.Tcp => ".UseTcp(defaultPort: 20000)",
-        TransportKind.WebSocket => ".UseWebSocket(defaultPort: 20000, path: \"/ws\")",
-        TransportKind.Kcp => ".UseKcp(defaultPort: 20000)",
+        TransportKind.Tcp => "builder.UseAcceptor(new TcpConnectionAcceptor(builder.ResolvePort(20000)));",
+        TransportKind.WebSocket => "builder.UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", ct));",
+        TransportKind.Kcp => "builder.UseAcceptor(new KcpConnectionAcceptor(builder.ResolvePort(20000)));",
         _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
     };
 
@@ -462,6 +494,7 @@ Selected serializer: {{serializer}}
     {
         var lines = new List<string>
         {
+            "using ULinkRPC.Core;",
             "using ULinkRPC.Server;"
         };
 
@@ -485,16 +518,17 @@ Selected serializer: {{serializer}}
 
     private static string GetServerProgramBody(SerializerKind serializer, TransportKind transport)
     {
-        var serializerSetup = GetServerSerializerSetup(serializer);
-        var transportSetup = GetServerTransportSetup(transport);
+        var serializerSetup = GetServerSerializerConstruction(serializer);
+        var transportSetup = GetServerTransportConstruction(transport);
         return $$"""
 var commandLineArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
-
-await RpcServerHostBuilder.Create()
+var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(commandLineArgs)
-    {{serializerSetup}}
-    {{transportSetup}}
-    .RunAsync();
+    .UseSerializer({{serializerSetup}});
+
+{{transportSetup}}
+
+await builder.RunAsync();
 """;
     }
 

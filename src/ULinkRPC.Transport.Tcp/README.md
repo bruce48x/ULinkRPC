@@ -12,14 +12,15 @@ dotnet add package ULinkRPC.Transport.Tcp
 
 - `TcpTransport` (client)
 - `TcpServerTransport` (server)
-- `UseTcp()` for `RpcServerHostBuilder` on `net10.0`
+- `TcpConnectionAcceptor` (server)
 
 ## Server Usage
 
 ```csharp
-await RpcServerHostBuilder.Create()
+var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
-    .UseMemoryPack()
-    .UseTcp(defaultPort: 20000)
-    .RunAsync();
+    .UseSerializer(new MemoryPackRpcSerializer())
+    .UseAcceptor(new TcpConnectionAcceptor(20000));
+
+await builder.RunAsync();
 ```

@@ -16,11 +16,12 @@ using ULinkRPC.Serializer.MemoryPack;
 var serializer = new MemoryPackRpcSerializer();
 ```
 
-On `net10.0`, `ULinkRPC.Server` integration also adds:
+Use it with `ULinkRPC.Server` by passing the serializer instance explicitly:
 
 ```csharp
-await RpcServerHostBuilder.Create()
-    .UseMemoryPack()
-    .UseTcp()
-    .RunAsync();
+var builder = RpcServerHostBuilder.Create()
+    .UseSerializer(new MemoryPackRpcSerializer())
+    .UseAcceptor(new TcpConnectionAcceptor(20000));
+
+await builder.RunAsync();
 ```

@@ -14,14 +14,15 @@ dotnet add package ULinkRPC.Transport.Kcp
 - `KcpListener`
 - `KcpAcceptResult`
 - `KcpServerTransport`
-- `UseKcp()` for `RpcServerHostBuilder` on `net10.0`
+- `KcpConnectionAcceptor`
 
 ## Server Usage
 
 ```csharp
-await RpcServerHostBuilder.Create()
+var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
-    .UseMemoryPack()
-    .UseKcp(defaultPort: 20000)
-    .RunAsync();
+    .UseSerializer(new MemoryPackRpcSerializer())
+    .UseAcceptor(new KcpConnectionAcceptor(20000));
+
+await builder.RunAsync();
 ```

@@ -1,11 +1,13 @@
+using ULinkRPC.Core;
 using System;
 using ULinkRPC.Server;
 using ULinkRPC.Serializer.MemoryPack;
 using ULinkRPC.Transport.Tcp;
 
-await RpcServerHostBuilder.Create()
+var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
-    .UseMemoryPack()
+    .UseSerializer(new MemoryPackRpcSerializer())
     .UseKeepAlive(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45))
-    .UseTcp(defaultPort: 20000)
-    .RunAsync();
+    .UseAcceptor(new TcpConnectionAcceptor(20000));
+
+await builder.RunAsync();

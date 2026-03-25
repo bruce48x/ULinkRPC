@@ -16,11 +16,12 @@ using ULinkRPC.Serializer.Json;
 var serializer = new JsonRpcSerializer();
 ```
 
-On `net10.0`, `ULinkRPC.Server` integration also adds:
+Use it with `ULinkRPC.Server` by passing the serializer instance explicitly:
 
 ```csharp
-await RpcServerHostBuilder.Create()
-    .UseJson()
-    .UseWebSocket()
-    .RunAsync();
+var builder = RpcServerHostBuilder.Create()
+    .UseSerializer(new JsonRpcSerializer())
+    .UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(20000, "/ws", ct));
+
+await builder.RunAsync();
 ```
