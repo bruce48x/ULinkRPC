@@ -8,6 +8,6 @@ var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
     .UseSerializer(new JsonRpcSerializer())
     .UseKeepAlive(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45))
-    .UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(20000, "/ws", ct));
+    .UseAcceptor(async ct => await WsConnectionAcceptor.CreateAsync(20000, "/ws", ct));
 
 await builder.RunAsync();
