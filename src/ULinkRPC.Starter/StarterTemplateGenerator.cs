@@ -138,7 +138,31 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
 </Project>
 """;
 
-        var contracts = """
+        var contracts = serializer == SerializerKind.MemoryPack
+            ? """
+using MemoryPack;
+
+namespace Shared.Interfaces
+{
+    [MemoryPackable(GenerateType.VersionTolerant)]
+    public sealed partial class PingRequest
+    {
+        [MemoryPackOrder(0)]
+        public string Message { get; set; } = string.Empty;
+    }
+
+    [MemoryPackable(GenerateType.VersionTolerant)]
+    public sealed partial class PingReply
+    {
+        [MemoryPackOrder(0)]
+        public string Message { get; set; } = string.Empty;
+
+        [MemoryPackOrder(1)]
+        public string ServerTimeUtc { get; set; } = string.Empty;
+    }
+}
+"""
+            : """
 namespace Shared.Interfaces
 {
     public sealed class PingRequest

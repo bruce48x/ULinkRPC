@@ -37,6 +37,12 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("\"MemoryPack.Core.dll\"", sharedAsmdef);
             Assert.Contains("\"System.Runtime.CompilerServices.Unsafe.dll\"", sharedAsmdef);
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
+            Assert.Contains("using MemoryPack;", sharedDtos);
+            Assert.Contains("[MemoryPackable(GenerateType.VersionTolerant)]", sharedDtos);
+            Assert.Contains("public sealed partial class PingRequest", sharedDtos);
+            Assert.Contains("public sealed partial class PingReply", sharedDtos);
+            Assert.Contains("[MemoryPackOrder(0)]", sharedDtos);
+            Assert.Contains("[MemoryPackOrder(1)]", sharedDtos);
             Assert.Contains("namespace Shared.Interfaces", sharedDtos);
             Assert.DoesNotContain("namespace Shared.Interfaces;", sharedDtos, StringComparison.Ordinal);
             Assert.DoesNotContain("DateTimeOffset", sharedDtos, StringComparison.Ordinal);
@@ -256,6 +262,7 @@ public sealed class StarterTemplateGeneratorTests
             var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
             var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
             var scene = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scenes", "ConnectionTest.unity"));
+            var sharedDtos = File.ReadAllText(Path.Combine(root, "Shared", "Interfaces", "SharedDtos.cs"));
 
             Assert.Contains("<package id=\"ULinkRPC.Transport.Kcp\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"Kcp\" version=\"2.7.0\" />", packagesConfig);
@@ -267,6 +274,9 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);
             Assert.Contains("new KcpTransport(_endpoint.Host, _endpoint.Port)", testerScript);
             Assert.Contains("new MemoryPackRpcSerializer()", testerScript);
+            Assert.Contains("[MemoryPackable(GenerateType.VersionTolerant)]", sharedDtos);
+            Assert.Contains("public sealed partial class PingRequest", sharedDtos);
+            Assert.Contains("public sealed partial class PingReply", sharedDtos);
             Assert.Contains("Path: ", scene);
         }
         finally
