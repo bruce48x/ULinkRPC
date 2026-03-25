@@ -334,6 +334,7 @@ namespace Server.Services
     private static void GenerateUnityClient(string clientPath, string sharedProjectName, string companyId, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
     {
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets"));
+        Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Editor"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Packages"));
         Directory.CreateDirectory(Path.Combine(clientPath, "ProjectSettings"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scenes"));
@@ -404,15 +405,18 @@ namespace Server.Services
 3. In Unity: `NuGet -> Restore Packages` to install ULinkRPC latest packages.
 4. Shared code is provided by local UPM package:
    - `com.{{companyId}}.shared` -> `../../{{sharedProjectName}}`
-5. Open `Assets/Scenes/{{GetUnitySceneName(transport)}}.unity` and press Play to run the default connection example.
+5. On first launch, Unity will auto-open `Assets/Scenes/{{GetUnitySceneName()}}.unity`.
+6. Press Play to run the default connection example.
 
 Selected transport: {{transport}}
 Selected serializer: {{serializer}}
 """;
 
         var projectVersion = "m_EditorVersion: 2022.3.62f3c1\nm_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)\n";
+        var editorBuildSettings = GetEditorBuildSettingsAsset();
         var testerScriptPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs");
-        var scenePath = Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName(transport)}.unity");
+        var scenePath = Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName()}.unity");
+        var autoOpenEditorScriptPath = Path.Combine(clientPath, "Assets", "Editor", "AutoOpenConnectionScene.cs");
 
         WriteFile(Path.Combine(clientPath, "Packages", "manifest.json"), manifest);
         WriteFile(Path.Combine(clientPath, "Assets", "packages.config"), packagesConfig);
@@ -420,7 +424,9 @@ Selected serializer: {{serializer}}
         WriteFile(testerScriptPath, GetUnityTesterScript(transport, serializer));
         WriteFile(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs.meta"), GetUnityTesterScriptMeta());
         WriteFile(scenePath, GetUnitySceneContent(transport));
-        WriteFile(Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName(transport)}.unity.meta"), GetUnitySceneMeta());
+        WriteFile(Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName()}.unity.meta"), GetUnitySceneMeta());
+        WriteFile(autoOpenEditorScriptPath, GetAutoOpenSceneEditorScript());
+        WriteFile(Path.Combine(clientPath, "ProjectSettings", "EditorBuildSettings.asset"), editorBuildSettings);
         WriteFile(Path.Combine(clientPath, "README.md"), readme);
         WriteFile(Path.Combine(clientPath, "ProjectSettings", "ProjectVersion.txt"), projectVersion);
     }
@@ -541,13 +547,7 @@ await builder.RunAsync();
 """;
     }
 
-    private static string GetUnitySceneName(TransportKind transport) => transport switch
-    {
-        TransportKind.Tcp => "TcpConnectionTest",
-        TransportKind.WebSocket => "WebSocketConnectionTest",
-        TransportKind.Kcp => "KcpConnectionTest",
-        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
-    };
+    private static string GetUnitySceneName() => "ConnectionTest";
 
     private static string GetUnityTransportUsing(TransportKind transport) => transport switch
     {
@@ -673,7 +673,7 @@ namespace Rpc.Testing
                 var reply = await _client.Api.Shared.Ping.PingAsync(new PingRequest
                 {
                     Message = Message
-                }, _cts.Token);
+                });
 
                 Debug.Log($"[{{transportLabel}}] Ping ok: message={reply.Message}, serverTimeUtc={reply.ServerTimeUtc}");
             }
@@ -746,6 +746,54 @@ DefaultImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
+""";
+
+    private static string GetEditorBuildSettingsAsset() => """
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/ConnectionTest.unity
+    guid: d4d2d5faafe942e58a33f4a41e3b7cf2
+  m_configObjects: {}
+""";
+
+    private static string GetAutoOpenSceneEditorScript() => """
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.SceneManagement;
+
+[InitializeOnLoad]
+internal static class AutoOpenConnectionScene
+{
+    private const string SessionStateKey = "ULinkRPC.Starter.ConnectionSceneOpened";
+    private const string ScenePath = "Assets/Scenes/ConnectionTest.unity";
+
+    static AutoOpenConnectionScene()
+    {
+        EditorApplication.delayCall += TryOpenScene;
+    }
+
+    private static void TryOpenScene()
+    {
+        if (SessionState.GetBool(SessionStateKey, false))
+            return;
+
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+            return;
+
+        if (!System.IO.File.Exists(ScenePath))
+            return;
+
+        SessionState.SetBool(SessionStateKey, true);
+        EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+    }
+}
+#endif
 """;
 
     private static string GetUnitySceneContent(TransportKind transport)
