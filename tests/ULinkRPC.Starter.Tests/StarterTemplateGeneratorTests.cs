@@ -115,6 +115,10 @@ public sealed class StarterTemplateGeneratorTests
             var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
             var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "NuGet.config"));
             var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
+            var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
+            var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
+            var testerScriptMeta = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs.meta"));
+            var scene = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scenes", "WebSocketConnectionTest.unity"));
 
             Assert.Equal("file:../../Shared", sharedDependency);
             Assert.DoesNotContain("Bad Project Name", serverProgram, StringComparison.Ordinal);
@@ -151,6 +155,20 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<add key=\"All\" value=\"(Aggregate source)\" />", nugetConfig);
             Assert.Contains("m_EditorVersion: 2022.3.62f3c1", projectVersion);
             Assert.Contains("m_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)", projectVersion);
+            Assert.Contains("Open `Assets/Scenes/WebSocketConnectionTest.unity` and press Play", clientReadme);
+            Assert.Contains("using Client.Generated;", testerScript);
+            Assert.Contains("using Shared.Interfaces;", testerScript);
+            Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
+            Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
+            Assert.Contains("new WsTransport($\"ws://{_endpoint.Host}:{_endpoint.Port}{NormalizePath(_endpoint.Path)}\")", testerScript);
+            Assert.Contains("new JsonRpcSerializer()", testerScript);
+            Assert.Contains("_client.Api.Shared.Ping.PingAsync", testerScript);
+            Assert.Contains("public string Path = string.Empty;", testerScript);
+            Assert.Contains("Path = \"/ws\"", testerScript);
+            Assert.Contains("guid: 8fbb7dbe54784d7995143ce24cf85121", testerScriptMeta);
+            Assert.Contains("guid: 8fbb7dbe54784d7995143ce24cf85121", scene);
+            Assert.Contains("Path: /ws", scene);
+            Assert.Contains("m_Name: RpcConnectionTester", scene);
         }
         finally
         {
@@ -225,6 +243,8 @@ public sealed class StarterTemplateGeneratorTests
             generator.GenerateTemplate(root, "Kcp-Test", TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
 
             var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
+            var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
+            var scene = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scenes", "KcpConnectionTest.unity"));
 
             Assert.Contains("<package id=\"ULinkRPC.Transport.Kcp\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"Kcp\" version=\"2.7.0\" />", packagesConfig);
@@ -232,6 +252,11 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"System.Threading.Tasks.Extensions\" version=\"4.5.4\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Serializer.MemoryPack\" version=\"5.6.7\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"MemoryPack\" version=\"6.7.8\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("using ULinkRPC.Transport.Kcp;", testerScript);
+            Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);
+            Assert.Contains("new KcpTransport(_endpoint.Host, _endpoint.Port)", testerScript);
+            Assert.Contains("new MemoryPackRpcSerializer()", testerScript);
+            Assert.Contains("Path: ", scene);
         }
         finally
         {

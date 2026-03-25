@@ -336,6 +336,8 @@ namespace Server.Services
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Packages"));
         Directory.CreateDirectory(Path.Combine(clientPath, "ProjectSettings"));
+        Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scenes"));
+        Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing"));
 
         var manifest = $$"""
 {
@@ -402,16 +404,23 @@ namespace Server.Services
 3. In Unity: `NuGet -> Restore Packages` to install ULinkRPC latest packages.
 4. Shared code is provided by local UPM package:
    - `com.{{companyId}}.shared` -> `../../{{sharedProjectName}}`
+5. Open `Assets/Scenes/{{GetUnitySceneName(transport)}}.unity` and press Play to run the default connection example.
 
 Selected transport: {{transport}}
 Selected serializer: {{serializer}}
 """;
 
         var projectVersion = "m_EditorVersion: 2022.3.62f3c1\nm_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)\n";
+        var testerScriptPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs");
+        var scenePath = Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName(transport)}.unity");
 
         WriteFile(Path.Combine(clientPath, "Packages", "manifest.json"), manifest);
         WriteFile(Path.Combine(clientPath, "Assets", "packages.config"), packagesConfig);
         WriteFile(Path.Combine(clientPath, "Assets", "NuGet.config"), nugetConfig);
+        WriteFile(testerScriptPath, GetUnityTesterScript(transport, serializer));
+        WriteFile(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs.meta"), GetUnityTesterScriptMeta());
+        WriteFile(scenePath, GetUnitySceneContent(transport));
+        WriteFile(Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName(transport)}.unity.meta"), GetUnitySceneMeta());
         WriteFile(Path.Combine(clientPath, "README.md"), readme);
         WriteFile(Path.Combine(clientPath, "ProjectSettings", "ProjectVersion.txt"), projectVersion);
     }
@@ -529,6 +538,484 @@ var builder = RpcServerHostBuilder.Create()
 {{transportSetup}}
 
 await builder.RunAsync();
+""";
+    }
+
+    private static string GetUnitySceneName(TransportKind transport) => transport switch
+    {
+        TransportKind.Tcp => "TcpConnectionTest",
+        TransportKind.WebSocket => "WebSocketConnectionTest",
+        TransportKind.Kcp => "KcpConnectionTest",
+        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+    };
+
+    private static string GetUnityTransportUsing(TransportKind transport) => transport switch
+    {
+        TransportKind.Tcp => "using ULinkRPC.Transport.Tcp;",
+        TransportKind.WebSocket => "using ULinkRPC.Transport.WebSocket;",
+        TransportKind.Kcp => "using ULinkRPC.Transport.Kcp;",
+        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+    };
+
+    private static string GetUnitySerializerUsing(SerializerKind serializer) => serializer switch
+    {
+        SerializerKind.Json => "using ULinkRPC.Serializer.Json;",
+        SerializerKind.MemoryPack => "using ULinkRPC.Serializer.MemoryPack;",
+        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
+    };
+
+    private static string GetUnityEndpointFactory(TransportKind transport) => transport switch
+    {
+        TransportKind.Tcp => "        public static RpcEndpointSettings CreateDefault() => new RpcEndpointSettings { Host = \"127.0.0.1\", Port = 20000, Path = string.Empty };",
+        TransportKind.WebSocket => "        public static RpcEndpointSettings CreateDefault() => new RpcEndpointSettings { Host = \"127.0.0.1\", Port = 20000, Path = \"/ws\" };",
+        TransportKind.Kcp => "        public static RpcEndpointSettings CreateDefault() => new RpcEndpointSettings { Host = \"127.0.0.1\", Port = 20000, Path = string.Empty };",
+        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+    };
+
+    private static string GetUnityTransportConstruction(TransportKind transport) => transport switch
+    {
+        TransportKind.Tcp => "new TcpTransport(_endpoint.Host, _endpoint.Port)",
+        TransportKind.WebSocket => "new WsTransport($\"ws://{_endpoint.Host}:{_endpoint.Port}{NormalizePath(_endpoint.Path)}\")",
+        TransportKind.Kcp => "new KcpTransport(_endpoint.Host, _endpoint.Port)",
+        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+    };
+
+    private static string GetUnitySerializerConstruction(SerializerKind serializer) => serializer switch
+    {
+        SerializerKind.Json => "new JsonRpcSerializer()",
+        SerializerKind.MemoryPack => "new MemoryPackRpcSerializer()",
+        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
+    };
+
+    private static string GetUnityTransportLabel(TransportKind transport) => transport switch
+    {
+        TransportKind.Tcp => "TCP",
+        TransportKind.WebSocket => "WebSocket",
+        TransportKind.Kcp => "KCP",
+        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+    };
+
+    private static string GetUnityTesterScript(TransportKind transport, SerializerKind serializer)
+    {
+        var transportLabel = GetUnityTransportLabel(transport);
+        var transportUsing = GetUnityTransportUsing(transport);
+        var serializerUsing = GetUnitySerializerUsing(serializer);
+        var endpointFactory = GetUnityEndpointFactory(transport);
+        var transportConstruction = GetUnityTransportConstruction(transport);
+        var serializerConstruction = GetUnitySerializerConstruction(serializer);
+
+        return $$"""
+#nullable enable
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Client.Generated;
+using Shared.Interfaces;
+using ULinkRPC.Client;
+{{transportUsing}}
+{{serializerUsing}}
+using UnityEngine;
+
+namespace Rpc.Testing
+{
+    [Serializable]
+    public sealed class RpcEndpointSettings
+    {
+        public string Host = "127.0.0.1";
+        public int Port = 20000;
+        public string Path = string.Empty;
+
+{{endpointFactory}}
+    }
+
+    public sealed class RpcConnectionTester : MonoBehaviour
+    {
+        [SerializeField] private RpcEndpointSettings _endpoint = RpcEndpointSettings.CreateDefault();
+
+        public string Message = "hello";
+        public bool AutoConnect = true;
+
+        private readonly CancellationTokenSource _cts = new();
+        private RpcClient? _client;
+        private bool _isShuttingDown;
+
+        private async void Start()
+        {
+            if (!AutoConnect)
+                return;
+
+            await ConnectAndPingAsync();
+        }
+
+        private void OnDestroy()
+        {
+            _ = ShutdownAsync();
+        }
+
+        [ContextMenu("Connect And Ping")]
+        public async Task ConnectAndPingAsync()
+        {
+            if (_isShuttingDown || _client is not null)
+                return;
+
+            Debug.Log($"[{{transportLabel}}] Connecting to {DescribeEndpoint()}");
+
+            try
+            {
+                _client = new RpcClient(
+                    new RpcClientOptions(
+                        {{transportConstruction}},
+                        {{serializerConstruction}}));
+
+                await _client.ConnectAsync(_cts.Token);
+
+                var reply = await _client.Api.Shared.Ping.PingAsync(new PingRequest
+                {
+                    Message = Message
+                }, _cts.Token);
+
+                Debug.Log($"[{{transportLabel}}] Ping ok: message={reply.Message}, serverTimeUtc={reply.ServerTimeUtc}");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[{{transportLabel}}] Connect failed: {ex}");
+                await ShutdownAsync();
+            }
+        }
+
+        private string DescribeEndpoint()
+        {
+            var path = NormalizePath(_endpoint.Path);
+            return string.IsNullOrEmpty(path)
+                ? $"{_endpoint.Host}:{_endpoint.Port}"
+                : $"{_endpoint.Host}:{_endpoint.Port}{path}";
+        }
+
+        private static string NormalizePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return string.Empty;
+
+            return path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path;
+        }
+
+        private async Task ShutdownAsync()
+        {
+            if (_isShuttingDown)
+                return;
+
+            _isShuttingDown = true;
+            _cts.Cancel();
+
+            if (_client is not null)
+            {
+                await _client.DisposeAsync();
+                _client = null;
+            }
+
+            _cts.Dispose();
+        }
+    }
+}
+""";
+    }
+
+    private static string GetUnityTesterScriptMeta() => """
+fileFormatVersion: 2
+guid: 8fbb7dbe54784d7995143ce24cf85121
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+""";
+
+    private static string GetUnitySceneMeta() => """
+fileFormatVersion: 2
+guid: d4d2d5faafe942e58a33f4a41e3b7cf2
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+""";
+
+    private static string GetUnitySceneContent(TransportKind transport)
+    {
+        var label = GetUnityTransportLabel(transport);
+        var pathValue = transport == TransportKind.WebSocket ? "/ws" : string.Empty;
+        return $$"""
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2}
+  - component: {fileID: 4}
+  m_Layer: 0
+  m_Name: RpcConnectionTester
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fbb7dbe54784d7995143ce24cf85121, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _endpoint:
+    Host: 127.0.0.1
+    Port: 20000
+    Path: {{pathValue}}
+  Message: hello
+  AutoConnect: 1
+--- !u!29 &5
+OcclusionCullingSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_OcclusionBakeSettings:
+    smallestOccluder: 5
+    smallestHole: 0.25
+    backfaceThreshold: 100
+  m_SceneGUID: 00000000000000000000000000000000
+  m_OcclusionCullingData: {fileID: 0}
+--- !u!104 &6
+RenderSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 9
+  m_Fog: 0
+  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_FogMode: 3
+  m_FogDensity: 0.01
+  m_LinearFogStart: 0
+  m_LinearFogEnd: 300
+  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
+  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
+  m_AmbientIntensity: 1
+  m_AmbientMode: 0
+  m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
+  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_HaloStrength: 0.5
+  m_FlareStrength: 1
+  m_FlareFadeSpeed: 3
+  m_HaloTexture: {fileID: 0}
+  m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
+  m_DefaultReflectionMode: 0
+  m_DefaultReflectionResolution: 128
+  m_ReflectionBounces: 1
+  m_ReflectionIntensity: 1
+  m_CustomReflection: {fileID: 0}
+  m_Sun: {fileID: 0}
+  m_UseRadianceAmbientProbe: 0
+--- !u!157 &7
+LightmapSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 12
+  m_GIWorkflowMode: 1
+  m_GISettings:
+    serializedVersion: 2
+    m_BounceScale: 1
+    m_IndirectOutputScale: 1
+    m_AlbedoBoost: 1
+    m_EnvironmentLightingMode: 0
+    m_EnableBakedLightmaps: 1
+    m_EnableRealtimeLightmaps: 0
+  m_LightmapEditorSettings:
+    serializedVersion: 12
+    m_Resolution: 2
+    m_BakeResolution: 40
+    m_AtlasSize: 1024
+    m_AO: 0
+    m_AOMaxDistance: 1
+    m_CompAOExponent: 1
+    m_CompAOExponentDirect: 0
+    m_ExtractAmbientOcclusion: 0
+    m_Padding: 2
+    m_LightmapParameters: {fileID: 0}
+    m_LightmapsBakeMode: 1
+    m_TextureCompression: 1
+    m_FinalGather: 0
+    m_FinalGatherFiltering: 1
+    m_FinalGatherRayCount: 256
+    m_ReflectionCompression: 2
+    m_MixedBakeMode: 2
+    m_BakeBackend: 1
+    m_PVRSampling: 1
+    m_PVRDirectSampleCount: 32
+    m_PVRSampleCount: 512
+    m_PVRBounces: 2
+    m_PVREnvironmentSampleCount: 256
+    m_PVREnvironmentReferencePointCount: 2048
+    m_PVRFilteringMode: 1
+    m_PVRDenoiserTypeDirect: 1
+    m_PVRDenoiserTypeIndirect: 1
+    m_PVRDenoiserTypeAO: 1
+    m_PVRFilterTypeDirect: 0
+    m_PVRFilterTypeIndirect: 0
+    m_PVRFilterTypeAO: 0
+    m_PVREnvironmentMIS: 1
+    m_PVRCulling: 1
+    m_PVRFilteringGaussRadiusDirect: 1
+    m_PVRFilteringGaussRadiusIndirect: 5
+    m_PVRFilteringGaussRadiusAO: 2
+    m_PVRFilteringAtrousPositionSigmaDirect: 0.5
+    m_PVRFilteringAtrousPositionSigmaIndirect: 2
+    m_PVRFilteringAtrousPositionSigmaAO: 1
+    m_ExportTrainingData: 0
+    m_TrainingDataDestination: TrainingData
+    m_LightProbeSampleCountMultiplier: 4
+  m_LightingDataAsset: {fileID: 0}
+  m_LightingSettings: {fileID: 0}
+--- !u!196 &8
+NavMeshSettings:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_BuildSettings:
+    serializedVersion: 3
+    agentTypeID: 0
+    agentRadius: 0.5
+    agentHeight: 2
+    agentSlope: 45
+    agentClimb: 0.4
+    ledgeDropHeight: 0
+    maxJumpAcrossDistance: 0
+    minRegionArea: 2
+    manualCellSize: 0
+    cellSize: 0.16666667
+    manualTileSize: 0
+    tileSize: 256
+    buildHeightMesh: 0
+    maxJobWorkers: 0
+    preserveTilesOutsideBounds: 0
+    debug:
+      m_Flags: 0
+  m_NavMeshData: {fileID: 0}
+--- !u!1 &256380733
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 256380735}
+  - component: {fileID: 256380734}
+  m_Layer: 0
+  m_Name: Main Camera
+  m_TagString: MainCamera
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!20 &256380734
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 256380733}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!4 &256380735
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 256380733}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 2}
+  - {fileID: 256380735}
 """;
     }
 
