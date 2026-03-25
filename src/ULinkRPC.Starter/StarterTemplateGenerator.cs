@@ -25,6 +25,13 @@ internal sealed record ResolvedVersions(
     string? SerializerRuntime,
     string? SerializerRuntimeCore);
 
+internal static class UnityPackageVersions
+{
+    public const string SystemCollectionsImmutable = "6.0.0";
+    public const string SystemRuntimeCompilerServicesUnsafe = "6.1.2";
+    public const string SystemIoPipelines = "10.0.3";
+}
+
 internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet, Action<string, string> runGit)
 {
     public void GenerateTemplate(string rootPath, string projectName, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
@@ -300,6 +307,9 @@ namespace Server.Services
 }
 """;
 
+        var servicesPath = Path.Combine(serverPath, "Services");
+        Directory.CreateDirectory(servicesPath);
+
         var program = $$"""
 {{programUsings}}
 
@@ -308,7 +318,7 @@ namespace Server.Services
 
         WriteFile(Path.Combine(serverPath, $"{serverProjectName}.csproj"), csproj);
         WriteFile(Path.Combine(serverPath, "Program.cs"), program);
-        WriteFile(Path.Combine(serverPath, "PingService.cs"), pingService);
+        WriteFile(Path.Combine(servicesPath, "PingService.cs"), pingService);
     }
 
     private static void GenerateUnityClient(string clientPath, string sharedProjectName, string companyId, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
@@ -427,7 +437,11 @@ Selected serializer: {{serializer}}
         return string.Join(
             Environment.NewLine,
             $"  <package id=\"MemoryPack\" version=\"{versions.SerializerRuntime}\" manuallyInstalled=\"true\" />",
-            $"  <package id=\"MemoryPack.Core\" version=\"{versions.SerializerRuntimeCore}\" manuallyInstalled=\"true\" />");
+            $"  <package id=\"MemoryPack.Core\" version=\"{versions.SerializerRuntimeCore}\" />",
+            $"  <package id=\"MemoryPack.Generator\" version=\"{versions.SerializerRuntime}\" />",
+            $"  <package id=\"System.Collections.Immutable\" version=\"{UnityPackageVersions.SystemCollectionsImmutable}\" />",
+            $"  <package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"{UnityPackageVersions.SystemRuntimeCompilerServicesUnsafe}\" />",
+            $"  <package id=\"System.IO.Pipelines\" version=\"{UnityPackageVersions.SystemIoPipelines}\" />");
     }
 
     private static string GetServerSerializerSetup(SerializerKind serializer) => serializer switch

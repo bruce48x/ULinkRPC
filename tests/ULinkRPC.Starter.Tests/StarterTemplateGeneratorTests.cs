@@ -6,7 +6,7 @@ namespace ULinkRPC.Starter.Tests;
 
 public sealed class StarterTemplateGeneratorTests
 {
-    private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6", "5.6.7", "6.7.8");
+    private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6", "5.6.7", "6.7.8", "6.7.8", "8.9.10");
 
     [Fact]
     public void GenerateTemplate_CreatesSharedLayout_ForUnityCompatibilityRules()
@@ -70,7 +70,7 @@ public sealed class StarterTemplateGeneratorTests
             var slnxPath = Path.Combine(root, "Server", "Server.slnx");
             var slnx = File.ReadAllText(slnxPath);
 
-            Assert.Contains("new sln -n \"Server\"", commands);
+            Assert.Contains("new sln -n \"Server\" --format slnx", commands);
             Assert.Contains($"sln \"{slnxPath}\" add \"..{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}Shared.csproj\"", commands);
             Assert.Contains($"sln \"{slnxPath}\" add \"Server{Path.DirectorySeparatorChar}Server.csproj\"", commands);
             Assert.Contains("new tool-manifest", commands);
@@ -110,7 +110,8 @@ public sealed class StarterTemplateGeneratorTests
 
             var serverProgram = File.ReadAllText(Path.Combine(root, "Server", "Server", "Program.cs"));
             var serverCsproj = File.ReadAllText(Path.Combine(root, "Server", "Server", "Server.csproj"));
-            var pingService = File.ReadAllText(Path.Combine(root, "Server", "Server", "PingService.cs"));
+            var pingServicePath = Path.Combine(root, "Server", "Server", "Services", "PingService.cs");
+            var pingService = File.ReadAllText(pingServicePath);
             var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
             var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "NuGet.config"));
             var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
@@ -127,6 +128,8 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains(".UseJson()", serverProgram);
             Assert.Contains(".UseWebSocket(defaultPort: 20000, path: \"/ws\")", serverProgram);
             Assert.Contains(".RunAsync();", serverProgram);
+            Assert.True(File.Exists(pingServicePath));
+            Assert.False(File.Exists(Path.Combine(root, "Server", "Server", "PingService.cs")));
             Assert.Contains("public sealed class PingService : IPingService", pingService);
             Assert.Contains("ServerTimeUtc = DateTime.UtcNow.ToString(\"O\")", pingService);
             Assert.Contains("<RootNamespace>Server</RootNamespace>", serverCsproj);
@@ -171,6 +174,34 @@ public sealed class StarterTemplateGeneratorTests
         }
     }
 
+    [Fact]
+    public void GenerateTemplate_CreatesMemoryPackClientPackages_WithRequiredUnityDependencies()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "MemoryPack-Test", TransportKind.Tcp, SerializerKind.MemoryPack, Versions);
+
+            var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
+
+            Assert.Contains("<package id=\"ULinkRPC.Core\" version=\"1.2.3\" />", packagesConfig);
+            Assert.Contains("<package id=\"ULinkRPC.Transport.Tcp\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"ULinkRPC.Serializer.MemoryPack\" version=\"5.6.7\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"MemoryPack\" version=\"6.7.8\" manuallyInstalled=\"true\" />", packagesConfig);
+            Assert.Contains("<package id=\"MemoryPack.Core\" version=\"8.9.10\" />", packagesConfig);
+            Assert.Contains("<package id=\"MemoryPack.Generator\" version=\"6.7.8\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Collections.Immutable\" version=\"6.0.0\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"6.1.2\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.IO.Pipelines\" version=\"10.0.3\" />", packagesConfig);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
 
     private static string CreateTempRoot()
     {
@@ -187,7 +218,11 @@ public sealed class StarterTemplateGeneratorTests
 
             if (arguments.StartsWith("new sln -n ", StringComparison.Ordinal))
             {
-                var solutionName = arguments["new sln -n ".Length..].Trim().Trim('"');
+                var nameAndOptions = arguments["new sln -n ".Length..];
+                var formatIndex = nameAndOptions.IndexOf(" --format ", StringComparison.Ordinal);
+                var solutionName = (formatIndex >= 0 ? nameAndOptions[..formatIndex] : nameAndOptions)
+                    .Trim()
+                    .Trim('"');
                 var slnxPath = Path.Combine(workingDirectory, $"{solutionName}.slnx");
                 File.WriteAllText(slnxPath, "<Solution>\n</Solution>\n");
                 return;
