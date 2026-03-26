@@ -78,6 +78,19 @@ var reply = await player.LoginAsync(new LoginRequest
 });
 ```
 
+## Starter Tutorial
+
+If you are starting a new project, read this first:
+
+- [Getting started with `ULinkRPC.Starter`](https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/)
+
+It covers:
+
+- generating a runnable Unity + .NET project
+- running the default server and Unity client
+- when to rerun `ULinkRPC.CodeGen`
+- how `Shared`, `Server`, and `Client` fit together
+
 ## Samples
 
 - `samples/RpcCall.Json`: WebSocket + JSON sample

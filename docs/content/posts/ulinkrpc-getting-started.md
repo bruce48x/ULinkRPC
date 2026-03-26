@@ -27,6 +27,40 @@ categories:
 
 **先选 transport 和 serializer，然后让 starter 直接产出一份可运行的最小项目。**
 
+## Quick Start
+
+如果你只想最快跑起来，直接照下面做：
+
+1. 安装 starter
+2. 生成一份 `websocket + json` 项目
+3. 启动服务端
+4. 用 Unity 打开客户端
+5. 执行 `NuGet -> Restore Packages`
+6. 进入 `ConnectionTest.unity` 并点击 Play
+
+对应命令如下：
+
+```bash
+dotnet tool install -g ULinkRPC.Starter
+ulinkrpc-starter --name MyGame --transport websocket --serializer json
+cd MyGame
+dotnet run --project Server/Server/Server.csproj
+```
+
+然后：
+
+- 用 Unity 2022 LTS 打开 `MyGame/Client`
+- 等待导入完成
+- 执行 `NuGet -> Restore Packages`
+- 打开 `Assets/Scenes/ConnectionTest.unity`
+- 点击 Play
+
+如果你是第一次接入，我建议先不要从 `memorypack` 开始，先把 `websocket + json` 跑通，再升级到更高性能的组合。
+
+最短路径可以记成这一句：
+
+**安装 starter -> 生成项目 -> 启动 Server -> 打开 Unity Client -> Restore Packages -> 运行 ConnectionTest 场景。**
+
 ## 先理解最终结构
 
 starter 生成出来的项目固定是三层：
@@ -117,6 +151,89 @@ starter 不只是“建几个空目录”，而是会直接做完这些事情：
 11. 自动 `git init`
 
 所以它的目标不是“给你一个空模板”，而是“给你一个可直接启动的起点”。
+
+## CodeGen 怎么用
+
+starter 会自动安装并运行 `ULinkRPC.CodeGen`，所以默认情况下你不需要自己手动执行。
+
+但只要你后面修改了：
+
+- `Shared/Interfaces/` 下的接口
+- `Shared/Interfaces/` 下的 DTO
+
+就应该重新跑一次 codegen，让 server 和 unity 两侧生成代码保持一致。
+
+你可以把它理解成一条固定规则：
+
+**只要 Shared 契约变了，就先重跑 codegen，再继续改服务端实现或 Unity 业务逻辑。**
+
+### starter 生成项目里的默认方式
+
+starter 在项目根目录安装本地 tool manifest，所以你可以直接在项目目录执行：
+
+```bash
+dotnet tool restore
+```
+
+然后分别运行：
+
+```bash
+dotnet tool run ulinkrpc-codegen -- --contracts "./Shared" --mode server --server-output "Generated" --server-namespace "Server.Generated"
+```
+
+工作目录是：
+
+```text
+MyGame/Server/Server
+```
+
+以及：
+
+```bash
+dotnet tool run ulinkrpc-codegen -- --contracts "./Shared" --mode unity --output "Assets/Scripts/Rpc/RpcGenerated" --namespace "Client.Generated"
+```
+
+工作目录是：
+
+```text
+MyGame/Client
+```
+
+### 更容易记的实际命令
+
+通常你真正会执行的是：
+
+```bash
+cd MyGame
+dotnet tool restore
+cd Server/Server
+dotnet tool run ulinkrpc-codegen -- --contracts "../../Shared" --mode server --server-output "Generated" --server-namespace "Server.Generated"
+cd ../../Client
+dotnet tool run ulinkrpc-codegen -- --contracts "../Shared" --mode unity --output "Assets/Scripts/Rpc/RpcGenerated" --namespace "Client.Generated"
+```
+
+### codegen 会产出什么
+
+server 模式会更新：
+
+- `Server/Server/Generated/AllServicesBinder.cs`
+- 各服务对应的 binder
+- callback proxy
+
+unity 模式会更新：
+
+- `Client/Assets/Scripts/Rpc/RpcGenerated/RpcApi.cs`
+- 各服务对应的 client stub
+- callback binder
+
+所以规则很简单：
+
+**契约一旦变了，就先重跑 codegen，再继续改服务实现或 Unity 业务逻辑。**
+
+如果你只是想确认自己有没有漏跑，可以直接检查这两个目录是否已更新：
+
+- `Server/Server/Generated/`
+- `Client/Assets/Scripts/Rpc/RpcGenerated/`
 
 ## 服务端怎么启动
 

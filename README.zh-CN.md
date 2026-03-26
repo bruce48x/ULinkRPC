@@ -78,6 +78,19 @@ var reply = await player.LoginAsync(new LoginRequest
 });
 ```
 
+## Starter 教程
+
+如果你是从零开始新项目，建议先看这篇：
+
+- [基于 `ULinkRPC.Starter` 的入门教程](https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/)
+
+这篇会覆盖：
+
+- 如何生成一份可运行的 Unity + .NET 项目
+- 如何启动默认服务端和 Unity 客户端
+- 什么情况下需要重新运行 `ULinkRPC.CodeGen`
+- `Shared`、`Server`、`Client` 三层分别负责什么
+
 ## 示例
 
 - `samples/RpcCall.Json`：WebSocket + JSON 示例
