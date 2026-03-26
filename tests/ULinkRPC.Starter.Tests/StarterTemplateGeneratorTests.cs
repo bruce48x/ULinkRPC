@@ -34,6 +34,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains(@"<BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>", sharedProps);
             Assert.Contains("\"rootNamespace\": \"Shared\"", sharedAsmdef);
             Assert.Contains("\"overrideReferences\": true", sharedAsmdef);
+            Assert.Contains("\"allowUnsafeCode\": true", sharedAsmdef);
             Assert.Contains("\"ULinkRPC.Core.dll\"", sharedAsmdef);
             Assert.Contains("\"MemoryPack.Core.dll\"", sharedAsmdef);
             Assert.Contains("\"System.Runtime.CompilerServices.Unsafe.dll\"", sharedAsmdef);

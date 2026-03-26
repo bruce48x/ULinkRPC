@@ -228,6 +228,8 @@ namespace Shared.Interfaces
     "ULinkRPC.Core.dll"
 """;
 
+        var allowUnsafeCode = serializer == SerializerKind.MemoryPack ? "true" : "false";
+
         var asmdef = $$"""
 {
   "name": "Shared",
@@ -235,7 +237,7 @@ namespace Shared.Interfaces
   "references": [],
   "includePlatforms": [],
   "excludePlatforms": [],
-  "allowUnsafeCode": false,
+  "allowUnsafeCode": {{allowUnsafeCode}},
   "overrideReferences": true,
   "precompiledReferences": [
 {{asmdefReferences}}
