@@ -122,6 +122,15 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
 """;
 
         // Shared code is consumed by Unity 2022, so generated source must stay within C# 9.0.
+        var sharedPackageReferences = serializer == SerializerKind.MemoryPack
+            ? $$"""
+    <PackageReference Include="ULinkRPC.Core" Version="{{versions.Core}}" />
+    <PackageReference Include="ULinkRPC.Serializer.MemoryPack" Version="{{versions.Serializer}}" />
+"""
+            : $$"""
+    <PackageReference Include="ULinkRPC.Core" Version="{{versions.Core}}" />
+""";
+
         var csproj = $$"""
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -133,7 +142,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ULinkRPC.Core" Version="{{versions.Core}}" />
+{{sharedPackageReferences}}
   </ItemGroup>
 </Project>
 """;
