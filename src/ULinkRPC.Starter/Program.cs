@@ -2,7 +2,7 @@ namespace ULinkRPC.Starter;
 
 internal static class Program
 {
-    private static async Task<int> Main(string[] args)
+    private static int Main(string[] args)
     {
         if (!StarterCli.TryParseArgs(args, out var options, out var error))
         {
@@ -15,17 +15,20 @@ internal static class Program
         var serializer = options.Serializer ?? StarterCli.PromptSerializer();
 
         var rootPath = Path.GetFullPath(Path.Combine(options.OutputDir, options.ProjectName));
-        if (Directory.Exists(rootPath) && Directory.EnumerateFileSystemEntries(rootPath).Any())
+        var versions = NuGetVersionResolver.ResolveVersions(transport, serializer);
+        var generator = new StarterTemplateGenerator(ProcessRunner.RunDotNet, ProcessRunner.RunGit);
+
+        try
         {
-            Console.Error.WriteLine($"Target directory already exists and is not empty: {rootPath}");
+            StarterOutputManager.GenerateIntoTargetDirectory(
+                rootPath,
+                stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, transport, serializer, versions));
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
             return 1;
         }
-
-        Directory.CreateDirectory(rootPath);
-
-        var versions = await NuGetVersionResolver.ResolveVersionsAsync(transport, serializer);
-        new StarterTemplateGenerator(ProcessRunner.RunDotNet, ProcessRunner.RunGit)
-            .GenerateTemplate(rootPath, options.ProjectName, transport, serializer, versions);
 
         Console.WriteLine($"Created ULinkRPC starter template at: {rootPath}");
         Console.WriteLine("Next steps:");

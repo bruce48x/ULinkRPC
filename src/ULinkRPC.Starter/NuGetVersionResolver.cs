@@ -1,41 +1,18 @@
-using System.Text.Json;
-using System.Xml.Linq;
-
 namespace ULinkRPC.Starter;
 
 internal static class NuGetVersionResolver
 {
-    private static readonly HttpClient Http = new();
-
-    public static async Task<ResolvedVersions> ResolveVersionsAsync(TransportKind transport, SerializerKind serializer)
+    public static ResolvedVersions ResolveVersions(TransportKind transport, SerializerKind serializer)
     {
-        var transportPackage = GetTransportPackage(transport);
-        var serializerPackage = GetSerializerPackage(serializer);
-
-        var coreVersion = await ResolveLatestStableVersionAsync("ULinkRPC.Core");
-        var serverVersion = await ResolveLatestStableVersionAsync("ULinkRPC.Server");
-        var clientVersion = await ResolveLatestStableVersionAsync("ULinkRPC.Client");
-        var transportVersion = await ResolveLatestStableVersionAsync(transportPackage);
-        var serializerVersion = await ResolveLatestStableVersionAsync(serializerPackage);
-        var codeGenVersion = await ResolveLatestStableVersionAsync("ULinkRPC.CodeGen");
-        var serializerRuntime = default(string);
-        var serializerRuntimeCore = default(string);
-
-        if (serializer is SerializerKind.MemoryPack)
-        {
-            serializerRuntime = await ResolveDependencyVersionAsync(serializerPackage, serializerVersion, ".NETStandard2.1", "MemoryPack");
-            serializerRuntimeCore = await ResolveDependencyVersionAsync("MemoryPack", serializerRuntime, ".NETStandard2.1", "MemoryPack.Core");
-        }
-
         return new ResolvedVersions(
-            coreVersion,
-            serverVersion,
-            clientVersion,
-            transportVersion,
-            serializerVersion,
-            codeGenVersion,
-            serializerRuntime,
-            serializerRuntimeCore);
+            StarterReleaseVersions.Core,
+            StarterReleaseVersions.Server,
+            StarterReleaseVersions.Client,
+            GetTransportVersion(transport),
+            GetSerializerVersion(serializer),
+            StarterReleaseVersions.CodeGen,
+            serializer is SerializerKind.MemoryPack ? StarterReleaseVersions.MemoryPackRuntime : null,
+            serializer is SerializerKind.MemoryPack ? StarterReleaseVersions.MemoryPackRuntimeCore : null);
     }
 
     public static string GetTransportPackage(TransportKind transport) => transport switch
@@ -53,53 +30,33 @@ internal static class NuGetVersionResolver
         _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
     };
 
-    private static async Task<string> ResolveLatestStableVersionAsync(string packageId)
+    private static string GetTransportVersion(TransportKind transport) => transport switch
     {
-        var url = $"https://api.nuget.org/v3-flatcontainer/{packageId.ToLowerInvariant()}/index.json";
-        using var stream = await Http.GetStreamAsync(url);
-        using var doc = await JsonDocument.ParseAsync(stream);
-        var versions = doc.RootElement.GetProperty("versions").EnumerateArray()
-            .Select(v => v.GetString())
-            .Where(v => !string.IsNullOrWhiteSpace(v) && !v!.Contains('-', StringComparison.Ordinal))
-            .ToList();
+        TransportKind.Tcp => StarterReleaseVersions.TransportTcp,
+        TransportKind.WebSocket => StarterReleaseVersions.TransportWebSocket,
+        TransportKind.Kcp => StarterReleaseVersions.TransportKcp,
+        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
+    };
 
-        if (versions.Count == 0)
-        {
-            throw new InvalidOperationException($"No stable NuGet versions found for package '{packageId}'.");
-        }
-
-        return versions[^1]!;
-    }
-
-    private static async Task<string> ResolveDependencyVersionAsync(string packageId, string packageVersion, string targetFramework, string dependencyId)
+    private static string GetSerializerVersion(SerializerKind serializer) => serializer switch
     {
-        var nuspec = await LoadNuSpecAsync(packageId, packageVersion);
-        var dependency = nuspec
-            .Descendants()
-            .FirstOrDefault(element =>
-                element.Name.LocalName == "group" &&
-                string.Equals((string?)element.Attribute("targetFramework"), targetFramework, StringComparison.OrdinalIgnoreCase))
-            ?.Elements()
-            .FirstOrDefault(element =>
-                element.Name.LocalName == "dependency" &&
-                string.Equals((string?)element.Attribute("id"), dependencyId, StringComparison.OrdinalIgnoreCase));
+        SerializerKind.Json => StarterReleaseVersions.SerializerJson,
+        SerializerKind.MemoryPack => StarterReleaseVersions.SerializerMemoryPack,
+        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
+    };
+}
 
-        var version = (string?)dependency?.Attribute("version");
-        if (string.IsNullOrWhiteSpace(version))
-        {
-            throw new InvalidOperationException(
-                $"Unable to resolve dependency '{dependencyId}' from package '{packageId}' {packageVersion} for target framework '{targetFramework}'.");
-        }
-
-        return version;
-    }
-
-    private static async Task<XDocument> LoadNuSpecAsync(string packageId, string packageVersion)
-    {
-        var lowerId = packageId.ToLowerInvariant();
-        var lowerVersion = packageVersion.ToLowerInvariant();
-        var url = $"https://api.nuget.org/v3-flatcontainer/{lowerId}/{lowerVersion}/{lowerId}.nuspec";
-        using var stream = await Http.GetStreamAsync(url);
-        return XDocument.Load(stream);
-    }
+internal static class StarterReleaseVersions
+{
+    public const string Core = "0.6.0";
+    public const string Server = "0.8.0";
+    public const string Client = "0.6.2";
+    public const string TransportTcp = "0.7.0";
+    public const string TransportWebSocket = "0.8.0";
+    public const string TransportKcp = "0.8.0";
+    public const string SerializerJson = "0.7.0";
+    public const string SerializerMemoryPack = "0.7.0";
+    public const string CodeGen = "0.13.3";
+    public const string MemoryPackRuntime = "1.21.4";
+    public const string MemoryPackRuntimeCore = "1.21.4";
 }

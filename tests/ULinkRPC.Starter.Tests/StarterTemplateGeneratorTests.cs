@@ -9,6 +9,75 @@ public sealed class StarterTemplateGeneratorTests
     private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6", "5.6.7", "6.7.8", "6.7.8", "8.9.10");
 
     [Fact]
+    public void GenerateIntoTargetDirectory_RollsBackStagingDirectory_WhenGenerationFails()
+    {
+        var parentRoot = CreateTempRoot();
+        var targetRoot = Path.Combine(parentRoot, "Sample");
+
+        try
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                StarterOutputManager.GenerateIntoTargetDirectory(
+                    targetRoot,
+                    stagingRoot =>
+                    {
+                        File.WriteAllText(Path.Combine(stagingRoot, "partial.txt"), "partial");
+                        throw new InvalidOperationException("boom");
+                    }));
+
+            Assert.Equal("boom", ex.Message);
+            Assert.False(Directory.Exists(targetRoot));
+            Assert.Empty(Directory.GetDirectories(parentRoot, ".Sample.tmp-*", SearchOption.TopDirectoryOnly));
+        }
+        finally
+        {
+            Directory.Delete(parentRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GenerateIntoTargetDirectory_Fails_WhenTargetDirectoryIsNotEmpty()
+    {
+        var parentRoot = CreateTempRoot();
+        var targetRoot = Path.Combine(parentRoot, "Sample");
+        Directory.CreateDirectory(targetRoot);
+        File.WriteAllText(Path.Combine(targetRoot, "existing.txt"), "x");
+
+        try
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                StarterOutputManager.GenerateIntoTargetDirectory(targetRoot, _ => { }));
+
+            Assert.Contains("Target directory already exists and is not empty", ex.Message);
+        }
+        finally
+        {
+            Directory.Delete(parentRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ResolveVersions_UsesBundledReleaseManifest_InsteadOfIndependentLatestLookups()
+    {
+        var jsonVersions = NuGetVersionResolver.ResolveVersions(TransportKind.WebSocket, SerializerKind.Json);
+        var memoryPackVersions = NuGetVersionResolver.ResolveVersions(TransportKind.Kcp, SerializerKind.MemoryPack);
+
+        Assert.Equal("0.6.0", jsonVersions.Core);
+        Assert.Equal("0.8.0", jsonVersions.Server);
+        Assert.Equal("0.6.2", jsonVersions.Client);
+        Assert.Equal("0.8.0", jsonVersions.Transport);
+        Assert.Equal("0.7.0", jsonVersions.Serializer);
+        Assert.Equal("0.13.3", jsonVersions.CodeGen);
+        Assert.Null(jsonVersions.SerializerRuntime);
+        Assert.Null(jsonVersions.SerializerRuntimeCore);
+
+        Assert.Equal("0.8.0", memoryPackVersions.Transport);
+        Assert.Equal("0.7.0", memoryPackVersions.Serializer);
+        Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntime);
+        Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntimeCore);
+    }
+
+    [Fact]
     public void GenerateTemplate_CreatesSharedLayout_ForUnityCompatibilityRules()
     {
         var root = CreateTempRoot();
