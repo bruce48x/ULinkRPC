@@ -142,4 +142,4 @@ Code generation:
 
 ## For Contributors
 
-Developer-facing rules, architecture notes, testing constraints, publishing steps, and AI agent instructions live in [CONTRIBUTING.md](/Users/wangql/workspace/ULinkRPC/CONTRIBUTING.md).
+Developer-facing rules, architecture notes, testing constraints, publishing steps, and AI agent instructions live in [CONTRIBUTING.md](./CONTRIBUTING.md).
