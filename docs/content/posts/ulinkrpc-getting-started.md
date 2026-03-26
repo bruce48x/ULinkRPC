@@ -1,5 +1,5 @@
 ---
-title: 用 ULinkRPC 从零搭一个 Unity 和 .NET 双向通信项目
+title: 用 ULinkRPC.Starter 快速创建一个 Unity 和 .NET 双向通信项目
 date: 2026-03-15T12:30:00+08:00
 tags:
   - ulinkrpc
@@ -7,483 +7,270 @@ tags:
   - dotnet
   - rpc
   - websocket
+  - json
+  - memorypack
 categories:
   - Tutorial
 ---
 
-如果你想让 Unity 客户端和 .NET 服务端共享一套契约代码，而且还能双向通信，不想自己手搓协议、拼 JSON、维护一堆消息号，那 `ULinkRPC` 就是干这个的。
+如果你现在想开始一个新的 ULinkRPC 项目，最直接的方式已经不是手工搭目录、手工建 `Shared`、手工跑 codegen，而是直接用 `ULinkRPC.Starter`。
 
-这篇文章不讲太虚的概念，直接带你走一遍最常见的一条链路：
+它会一次性帮你生成：
 
-- Unity 当客户端
-- .NET 当服务端
-- WebSocket 传输
-- JSON 序列化
-- 客户端调服务端
-- 服务端再主动推消息给客户端
+- `Shared` 共享契约项目
+- `Server` 服务端项目和解决方案
+- `Client` Unity 2022 客户端骨架
+- 默认 `Ping` 契约、服务实现、Unity 测试入口和示例场景
+- `ULinkRPC.CodeGen` 本地工具清单和两侧生成代码
 
-仓库里最精简的 sample 是 `samples/RpcCall.Kcp`。不过这篇入门教程还是用 `samples/RpcCall.Json` 来讲，因为 WebSocket + JSON 更容易看懂，也更方便排错。
+也就是说，你现在的推荐起步方式是：
 
-## 先说结论：ULinkRPC 到底在帮你做什么
+**先选 transport 和 serializer，然后让 starter 直接产出一份可运行的最小项目。**
 
-你可以把 ULinkRPC 理解成三件事：
+## 先理解最终结构
 
-1. 先写共享契约，也就是 C# 接口和 DTO
-2. 再用 CodeGen 生成客户端和服务端的胶水代码
-3. 最后选一个传输层和一个序列化器接进去
-
-也就是说，你平时主要维护的是接口和数据结构，而不是一堆手写的网络封包代码。
-
-它最核心的价值就一句话：
-
-**契约是唯一真相来源，前后端都围着同一份契约转。**
-
-## 先看目录结构
-
-这篇教程对应的示例在：
+starter 生成出来的项目固定是三层：
 
 ```text
-samples/RpcCall.Json/
-├── RpcCall.Json.Server/
-└── RpcCall.Json.Unity/
+MyGame/
+  Shared/
+  Server/
+    Server.slnx
+    Server/
+      Server.csproj
+  Client/
 ```
 
-你只要先记住这几个位置：
+各层职责很明确：
 
-- `RpcCall.Json.Unity/Packages/com.samples.contracts`
-  放共享契约
-- `RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated`
-  放生成出来的 Unity 客户端代码
-- `RpcCall.Json.Server/Generated`
-  放生成出来的服务端 binder 和 callback proxy
+- `Shared/`
+  放共享 DTO、RPC 接口、Unity UPM 包定义
+- `Server/Server/`
+  放服务端入口、服务实现、服务端生成代码
+- `Client/`
+  放 Unity 工程、NuGetForUnity 配置、客户端生成代码、默认测试场景
 
-所以真正长期要维护的，首先是 contracts，不是 generated 目录。
+这套结构最重要的点不是“看起来整齐”，而是：
 
-## 第一步：先定义共享契约
+- 契约只有一份
+- 服务端和 Unity 同时引用同一份 Shared
+- codegen 永远围绕同一份契约运行
 
-先看示例里的服务契约：
+## 安装 starter
+
+先安装全局工具：
+
+```bash
+dotnet tool install -g ULinkRPC.Starter
+```
+
+如果已经安装过，更新到最新版：
+
+```bash
+dotnet tool update -g ULinkRPC.Starter
+```
+
+## 生成项目
+
+最常用的命令是：
+
+```bash
+ulinkrpc-starter --name MyGame --transport websocket --serializer json
+```
+
+你也可以省略参数，进入交互模式：
+
+```bash
+ulinkrpc-starter --name MyGame
+```
+
+目前可选项是：
+
+- `transport`
+  - `tcp`
+  - `websocket`
+  - `kcp`
+- `serializer`
+  - `json`
+  - `memorypack`
+
+例如，生成一个 `WebSocket + MemoryPack` 项目：
+
+```bash
+ulinkrpc-starter --name MyGame --transport websocket --serializer memorypack
+```
+
+## 生成后 starter 做了什么
+
+starter 不只是“建几个空目录”，而是会直接做完这些事情：
+
+1. 生成 `Shared/Shared.csproj`、`Shared.asmdef`、`package.json`
+2. 生成默认 DTO 和 `IPingService`
+3. 生成 `Server/Server/Program.cs` 和 `Services/PingService.cs`
+4. 生成 `Server/Server.slnx` 并把 `Shared`、`Server` 项目都加进去
+5. 生成 Unity `manifest.json`、`packages.config`、`NuGet.config`
+6. 生成 `Assets/Scripts/Rpc/Testing/RpcConnectionTester.cs`
+7. 生成 `Assets/Scenes/ConnectionTest.unity`
+8. 自动生成 `EditorBuildSettings.asset`
+9. 自动安装本地 `ULinkRPC.CodeGen`
+10. 自动跑 server / unity 两侧代码生成
+11. 自动 `git init`
+
+所以它的目标不是“给你一个空模板”，而是“给你一个可直接启动的起点”。
+
+## 服务端怎么启动
+
+生成完成后，进入项目根目录：
+
+```bash
+cd MyGame
+dotnet run --project Server/Server/Server.csproj
+```
+
+默认示例会启动一个最小 `Ping` 服务。
+
+如果你选的是：
+
+- `websocket`
+  默认监听 `ws://127.0.0.1:20000/ws`
+- `tcp`
+  默认监听 `127.0.0.1:20000`
+- `kcp`
+  默认监听 `127.0.0.1:20000`
+
+## Unity 客户端怎么启动
+
+用 Unity 2022 LTS 打开：
+
+```text
+MyGame/Client
+```
+
+首次打开后：
+
+1. 等待 Unity 导入项目
+2. 等待 `NuGetForUnity` 导入完成
+3. 在 Unity 菜单执行 `NuGet -> Restore Packages`
+4. 打开或确认已自动打开 `Assets/Scenes/ConnectionTest.unity`
+5. 点击 Play
+
+默认场景里已经挂好了 `RpcConnectionTester`，会自动发起连接并调用一次 `Ping`。
+
+## 默认代码长什么样
+
+默认共享契约会生成在：
+
+```text
+Shared/Interfaces/
+```
+
+例如：
 
 ```csharp
-using System.Threading.Tasks;
-using ULinkRPC.Core;
-
-namespace Game.Rpc.Contracts
+namespace Shared.Interfaces
 {
-    public class StepRequest
+    public sealed class PingRequest
     {
+        public string Message { get; set; } = string.Empty;
     }
 
-    public class StepReply
+    public sealed class PingReply
     {
-        public int Step { get; set; }
-    }
-
-    public class PlayerNotify
-    {
-        public string Message { get; set; } = "";
-    }
-
-    [RpcService(1, Callback = typeof(IPlayerCallback))]
-    public interface IPlayerService
-    {
-        [RpcMethod(1)]
-        ValueTask<LoginReply> LoginAsync(LoginRequest req);
-
-        [RpcMethod(2)]
-        ValueTask<StepReply> IncrStepAsync(StepRequest req);
-    }
-
-    [RpcCallback(typeof(IPlayerService))]
-    public interface IPlayerCallback
-    {
-        [RpcPush(1)]
-        void OnNotify(PlayerNotify notify);
+        public string Message { get; set; } = string.Empty;
+        public string ServerTimeUtc { get; set; } = string.Empty;
     }
 }
 ```
 
-这里面其实只表达了三件事：
+如果选择 `memorypack`，starter 也会自动给 DTO 加上对应的 `MemoryPackable` 标记，并处理 Unity 侧所需的 `asmdef` 引用和 `unsafe` 配置。
 
-- `IPlayerService` 是一个 RPC 服务，id 是 `1`
-- `LoginAsync` 和 `IncrStep` 是客户端可以调用的方法
-- `IPlayerCallback` 是服务端反过来推给客户端时用的回调接口
+默认服务实现则在：
 
-这套写法很重要的一点是：  
-**双向通信不是额外再补一套机制，而是直接写进契约里。**
-
-再看 DTO：
-
-```csharp
-namespace Game.Rpc.Contracts
-{
-    public class LoginRequest
-    {
-        public string Account { get; set; } = "";
-        public string Password { get; set; } = "";
-    }
-
-    public class LoginReply
-    {
-        public int Code { get; set; }
-        public string Token { get; set; } = "";
-    }
-}
+```text
+Server/Server/Services/PingService.cs
 ```
 
-很普通，没什么花样。接口负责行为，DTO 负责传输数据，就这么简单。
+默认 Unity 连接脚本在：
 
-这里顺便说明一下 ULinkRPC 现在的一个明确约束：
-
-- `RpcMethod` 只接受一个请求 DTO
-- `RpcPush` 也只接受一个推送 DTO
-
-这么做不是为了把写法变啰嗦，而是为了把协议形状固定下来。  
-如果直接让方法参数列表上网，那参数个数一变、顺序一变，生成代码和序列化结果都会跟着变，长期演进时很容易把兼容性搞乱。改成单 DTO 之后，方法签名本身就稳定多了，后面要加字段，也是在 DTO 里加，而不是去改 RPC 方法的参数表。
-
-这个取舍的代价也很明确：
-
-- 写法会比 `Foo(int a, string b)` 多一层 DTO
-- 但 codegen 更简单
-- 协议更稳定
-- 前后端协作时也更容易对齐
-
-考虑如果项目上线后要面对新老版本兼容的问题，这么约束的收益是很明显的。
-
-## 第二步：跑代码生成
-
-契约写完之后，不是自己手搓网络调用，而是直接跑生成器。
-
-仓库里已经有脚本了：
-
-```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json
+```text
+Client/Assets/Scripts/Rpc/Testing/RpcConnectionTester.cs
 ```
 
-这条命令会做几件事：
+这几个文件一起构成了最小可运行闭环。
 
-- 编译 `ULinkRPC.CodeGen`
-- 扫描 contracts
-- 生成 Unity 客户端代码
-- 生成服务端 binder / callback proxy
-- 顺手把这个 sample 的服务端也编一下
+## 什么时候选 JSON，什么时候选 MemoryPack
 
-如果你只是想单独装工具，也可以：
+如果你只是第一次接入 ULinkRPC，我建议先从：
 
-```sh
-dotnet tool install --global ULinkRPC.CodeGen
+- `websocket + json`
+
+开始。原因很简单：
+
+- 更容易排错
+- 更容易观察请求和响应形态
+- Unity 初次接入时问题更少
+
+当你确认整条链路已经稳定后，再切到：
+
+- `websocket + memorypack`
+- `tcp + memorypack`
+- `kcp + memorypack`
+
+`MemoryPack` 更适合后续追求更高性能或更低负载的时候再上。
+
+## 已知现象：Unity 首次导入 MemoryPack.Generator
+
+如果你生成的是 `memorypack` 项目，Unity 第一次打开时，可能会看到类似这样的 analyzer 引用告警：
+
+```text
+Assembly '...MemoryPack.Generator.dll' will not be loaded due to errors:
+Unable to resolve reference 'Microsoft.CodeAnalysis'
+Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 ```
 
-然后在项目目录里自己跑。
+当前实际验证结果是：
 
-生成之后，客户端会拿到一个统一入口 `RpcClient.Api`，服务端会拿到类似 `PlayerServiceBinder` 这样的绑定代码。你基本不用去关心 service id、method id、payload 封包这些底层细节。
+- 这类告警可能出现在首次导入阶段
+- 关闭 Unity 再重新打开一次，通常会消失
+- 消失后项目可以正常运行
 
-这一步的意义就是：
+所以这更像 Unity / NuGetForUnity / Roslyn analyzer 的首次导入时序问题，而不是 starter 生成结果不可用。
 
-**你维护契约，生成器负责把契约翻译成网络调用代码。**
+如果你遇到它，建议按这个顺序处理：
 
-## 第三步：把服务端跑起来
+1. 先完成 `NuGet -> Restore Packages`
+2. 等待导入结束
+3. 关闭 Unity
+4. 重新打开项目
 
-这个示例的服务端入口其实很短：
+## 接下来该怎么扩展
 
-```csharp
-using ULinkRPC.Server;
-using ULinkRPC.Serializer.Json;
-using ULinkRPC.Transport.WebSocket;
+当 starter 生成的默认 `Ping` 示例已经跑通后，后续开发顺序建议固定成这样：
 
-await RpcServerHostBuilder.Create()
-    .UseCommandLine(args)
-    .UseJson()
-    .UseWebSocket(defaultPort: 20000, path: "/ws")
-    .RunAsync();
-```
+1. 先改 `Shared/Interfaces/` 里的契约和 DTO
+2. 重新运行 codegen
+3. 在 `Server/Server/Services/` 里补服务实现
+4. 在 Unity 里接入新的 generated API
+5. 最后再接到真正的游戏逻辑
 
-这段代码翻译成人话就是：
+也就是说，日常开发的真实源头始终是：
 
-- 用 ULinkRPC 的服务端 runtime
-- 序列化用 JSON
-- 传输层用 WebSocket
-- 默认监听 `20000`
-- WebSocket 路径是 `/ws`
+**Shared 契约，而不是 generated 目录。**
 
-所以服务端本质上就是三块拼起来：
+## 最后总结
 
-- Server runtime
-- Serializer
-- Transport
+现在最推荐的 ULinkRPC 入门方式已经很明确：
 
-客户端和服务端只要这两边对得上，RPC 就能通。
+1. 用 `ULinkRPC.Starter` 生成项目
+2. 先跑通默认 `Ping` 示例
+3. 再开始替换成你自己的契约和业务逻辑
 
-### 服务实现怎么写
+这样做的好处是：
 
-服务实现本身没有什么特别玄学的地方，就是普通的接口实现类：
+- 项目结构统一
+- Shared 不会从第一天就失控
+- 服务端和 Unity 引用关系清晰
+- codegen 流程固定
+- transport / serializer 选择可以明确收敛到模板层
 
-```csharp
-using Game.Rpc.Contracts;
-
-namespace RpcCall.Json.Server.Services;
-
-public class PlayerService : IPlayerService
-{
-    private readonly IPlayerCallback _callback;
-    private int _step;
-
-    public PlayerService(IPlayerCallback callback)
-    {
-        _callback = callback;
-    }
-
-    public ValueTask<LoginReply> LoginAsync(LoginRequest req)
-    {
-        _callback.OnNotify($"Welcome {req.Account}, login request accepted.");
-
-        return new ValueTask<LoginReply>(new LoginReply
-        {
-            Code = 0,
-            Token = $"token-{req.Account}-{Guid.NewGuid():N}"
-        });
-    }
-
-    public ValueTask<StepReply> IncrStepAsync(StepRequest req)
-    {
-        _step++;
-        _callback.OnNotify(new PlayerNotify
-        {
-            Message = $"IncrStep => {_step}"
-        });
-
-        return new ValueTask<StepReply>(new StepReply
-        {
-            Step = _step
-        });
-    }
-}
-```
-
-这里有两个点值得注意：
-
-- `LoginAsync` 是标准的请求/响应
-- `_callback.OnNotify(...)` 是服务端主动推客户端
-
-也就是说，在业务代码里，服务端推送不是“另开一条通道”的概念，而是直接调 callback。
-
-### binder 到底帮你干了什么
-
-生成出来的 `PlayerServiceBinder` 会负责：
-
-- 把请求反序列化成 `LoginRequest`
-- 调用你的 `IPlayerService`
-- 把返回值再序列化成响应
-- 给当前连接创建 callback proxy
-
-所以业务层基本不需要再碰这些东西：
-
-- service id
-- method id
-- request/response 封包
-- payload 编解码
-
-这些脏活都交给 runtime 和 codegen 了。
-
-## 第四步：Unity 客户端接入
-
-Unity 这边先创建 `RpcClientOptions`：
-
-```csharp
-using ULinkRPC.Client;
-using UnityEngine;
-
-namespace Rpc.Testing
-{
-    public sealed class RpcConnectionTester : RpcConnectionTesterBase
-    {
-        [SerializeField] private RpcEndpointSettings _endpoint =
-            RpcEndpointSettings.CreateWebSocket("127.0.0.1", 20000, "/ws");
-
-        protected override RpcClientOptions CreateClientOptions()
-        {
-            return new RpcClientOptions(
-                new ULinkRPC.Transport.WebSocket.WsTransport(_endpoint.GetWebSocketUrl()),
-                new ULinkRPC.Serializer.Json.JsonRpcSerializer());
-        }
-    }
-}
-```
-
-这里最关键的是两边要一致：
-
-- 服务端是 WebSocket，客户端也得是 WebSocket
-- 服务端是 JSON，客户端也得是 JSON
-
-如果两边 serializer 或 transport 不一致，那肯定通不了。
-
-### 客户端怎么调服务
-
-生成代码之后，客户端可以这样用：
-
-```csharp
-await using var client = new RpcClient(options, callbacks);
-await client.ConnectAsync();
-
-var player = client.Api.Game.Player;
-```
-
-这里的感觉很像在调本地代码：
-
-- `client.Api` 是总入口
-- `Game` 是 service group
-- `Player` 是具体服务代理
-
-然后你就可以正常发调用：
-
-```csharp
-var reply = await player.LoginAsync(new LoginRequest
-{
-    Account = "demo",
-    Password = "123456"
-});
-
-var step = await player.IncrStepAsync(new StepRequest());
-```
-
-这也是 typed RPC 最实用的地方：
-
-- 方法名有编译期检查
-- 参数和返回值有明确类型
-- 不需要自己维护 opcode
-- 不需要手拼 JSON 包
-
-## 第五步：接服务端推送
-
-既然契约里定义了 `IPlayerCallback`，客户端就要给一个实现。
-
-生成代码里已经给了一个可继承的基类：
-
-```csharp
-public abstract class PlayerCallbackBase : IPlayerCallback
-{
-    public virtual void OnNotify(PlayerNotify notify)
-    {
-    }
-}
-```
-
-你可以直接继承它：
-
-```csharp
-public sealed class PlayerCallbackReceiver : RpcClient.PlayerCallbackBase
-{
-    public override void OnNotify(PlayerNotify notify)
-    {
-        Debug.Log($"[Push] {notify.Message}");
-    }
-}
-```
-
-然后注册进去：
-
-```csharp
-var callbacks = new RpcClient.RpcCallbackBindings();
-callbacks.Add(new PlayerCallbackReceiver());
-
-await using var client = new RpcClient(options, callbacks);
-await client.ConnectAsync();
-```
-
-从这以后，只要服务端调 `_callback.OnNotify(...)`，客户端就会收到推送。
-
-所以这套模型的好处很直接：  
-你不用再自己维护“请求一套，推送一套”的两层逻辑。
-
-## 第六步：把整个示例跑起来
-
-在仓库根目录执行：
-
-```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
-```
-
-然后：
-
-1. 用 Unity 打开 `samples/RpcCall.Json/RpcCall.Json.Unity`
-2. 打开场景 `Assets/Scenes/WsConnectionTest.unity`
-3. 点击 Play
-
-正常的话，你会看到这样一条完整链路：
-
-- Unity 连上 `ws://127.0.0.1:20000/ws`
-- 客户端调用 `LoginAsync`
-- 服务端返回 `LoginReply`
-- 服务端再通过 `OnNotify` 推一条消息回来
-- 客户端继续调用 `IncrStep`
-- 服务端按连接维护自己的计数
-
-这也说明它不只是单向的 request/response RPC，而是一套天然支持双向流动的通信结构。
-
-## 这套方式为什么适合 Unity
-
-如果你做过 Unity 网络层，应该多少都踩过这些坑：
-
-- 协议字段手写太多，改一次接口就到处跟着改
-- TCP、WebSocket、KCP 一切换，业务代码也被迫一起动
-- 请求和推送分成两套模型，维护起来很烦
-- IL2CPP 环境下，一些动态方案不太稳
-
-ULinkRPC 的思路，本质上就是在解决这些问题：
-
-- 契约优先，代码就是协议
-- transport 可切换，业务代码不直接依赖 TCP / WebSocket / KCP
-- serializer 可切换，JSON 和 MemoryPack 都能接
-- 样板代码交给生成器
-- 双向通信也保持强类型
-
-尤其是 Unity + .NET 这种组合下，`shared contracts + generated stubs + typed callbacks` 这套思路会比裸 socket 或手写消息协议轻松很多。
-
-## 自己开项目的话，建议怎么落地
-
-我建议第一版按这个顺序来：
-
-1. 先建一份 contracts
-2. 先定义一个最小 service，比如 `IPlayerService`
-3. 先定义一个最小 callback，比如 `OnNotify`
-4. 先把 codegen 跑通
-5. 先用 JSON + WebSocket 打通第一条链路
-6. 稳了以后，再考虑切到 MemoryPack、TCP 或 KCP
-
-原因也很现实：
-
-- JSON 更方便排错
-- WebSocket 本地调试更直观
-- 先验证契约和调用模型，再做性能优化，成本最低
-
-## 接下来可以看什么
-
-把这篇教程走通之后，下一步建议看这两个 sample：
-
-- `RpcCall.Kcp`
-  看最精简版本是什么样
-- `RpcCall.MemoryPack`
-  看多 service、多 callback、TCP 场景怎么组织
-
-等你第一条链路跑通之后，再考虑这些增强项：
-
-- 换成 `MemoryPackRpcSerializer`
-- 切到 `TcpTransport` 或 `Kcp`
-- 开启压缩和加密
-- 拆出更细的 service group
-
-## 最后总结一下
-
-你可以把 `ULinkRPC` 理解成一套“契约优先”的 Unity / .NET 双向 RPC 方案。
-
-它真正有价值的点，不只是“能远程调用”，而是它把下面这些东西串成了一条比较稳定的开发链路：
-
-- 共享契约
-- 强类型接口
-- 自动生成客户端和服务端胶水代码
-- 可切换 transport
-- 可切换 serializer
-- 服务端主动推送
-
-如果你要在 Unity 里做一套能长期维护的通信层，这种写法会比手写协议省事很多。
-
-下一篇可以接着看：[从零搭一个最小可跑的 ULinkRPC Server / Client Sample](/ULinkRPC/posts/ulinkrpc-sample-server-client-from-zero/)
+如果你是第一次接入，我建议就按 starter 的默认结构继续往前长，不要先手工改目录。先让流程稳定，再谈抽象和个性化结构。

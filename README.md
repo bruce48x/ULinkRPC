@@ -23,30 +23,6 @@ Typical stack:
 - TCP, WebSocket, or KCP transport
 - MemoryPack or JSON serializer
 
-## Packages
-
-Core packages:
-
-- `ULinkRPC.Core`
-- `ULinkRPC.Client`
-- `ULinkRPC.Server`
-
-Transport packages:
-
-- `ULinkRPC.Transport.Tcp`
-- `ULinkRPC.Transport.WebSocket`
-- `ULinkRPC.Transport.Kcp`
-- `ULinkRPC.Transport.Loopback`
-
-Serializer packages:
-
-- `ULinkRPC.Serializer.MemoryPack`
-- `ULinkRPC.Serializer.Json`
-
-Code generation:
-
-- `ULinkRPC.CodeGen`
-
 ## Quick Start
 
 1. Define shared contracts with `[RpcService]`, `[RpcMethod]`, and optional callback contracts.
@@ -127,6 +103,30 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 ```bash
 ./scripts/sample.sh --sample RpcCall.Json --run
 ```
+
+## Packages
+
+Core packages:
+
+- `ULinkRPC.Core`
+- `ULinkRPC.Client`
+- `ULinkRPC.Server`
+
+Transport packages:
+
+- `ULinkRPC.Transport.Tcp`
+- `ULinkRPC.Transport.WebSocket`
+- `ULinkRPC.Transport.Kcp`
+- `ULinkRPC.Transport.Loopback`
+
+Serializer packages:
+
+- `ULinkRPC.Serializer.MemoryPack`
+- `ULinkRPC.Serializer.Json`
+
+Code generation:
+
+- `ULinkRPC.CodeGen`
 
 ## Documentation
 

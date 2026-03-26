@@ -163,9 +163,9 @@ Selected serializer: {{context.Serializer}}
 
         return string.Join(
             Environment.NewLine,
-            $"  <package id=\"MemoryPack\" version=\"{versions.SerializerRuntime}\" manuallyInstalled=\"true\" />",
+            $"  <package id=\"MemoryPack\" version=\"{versions.SerializerRuntime}\" />",
             $"  <package id=\"MemoryPack.Core\" version=\"{versions.SerializerRuntimeCore}\" />",
-            $"  <package id=\"MemoryPack.Generator\" version=\"{versions.SerializerRuntime}\" manuallyInstalled=\"true\" />",
+            $"  <package id=\"MemoryPack.Generator\" version=\"{versions.SerializerRuntime}\" />",
             $"  <package id=\"System.Collections.Immutable\" version=\"{UnityPackageVersions.SystemCollectionsImmutable}\" />",
             $"  <package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"{UnityPackageVersions.SystemRuntimeCompilerServicesUnsafe}\" />",
             $"  <package id=\"System.IO.Pipelines\" version=\"{UnityPackageVersions.SystemIoPipelines}\" />");

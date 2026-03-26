@@ -23,30 +23,6 @@ ULinkRPC 是一个面向 Unity 和 .NET 的强类型双向 RPC 框架。
 - TCP、WebSocket 或 KCP 传输层
 - MemoryPack 或 JSON 序列化
 
-## 包组成
-
-核心包：
-
-- `ULinkRPC.Core`
-- `ULinkRPC.Client`
-- `ULinkRPC.Server`
-
-传输层包：
-
-- `ULinkRPC.Transport.Tcp`
-- `ULinkRPC.Transport.WebSocket`
-- `ULinkRPC.Transport.Kcp`
-- `ULinkRPC.Transport.Loopback`
-
-序列化包：
-
-- `ULinkRPC.Serializer.MemoryPack`
-- `ULinkRPC.Serializer.Json`
-
-代码生成：
-
-- `ULinkRPC.CodeGen`
-
 ## 快速开始
 
 1. 用 `[RpcService]`、`[RpcMethod]`，以及可选的回调契约定义共享接口。
@@ -127,6 +103,30 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 ```bash
 ./scripts/sample.sh --sample RpcCall.Json --run
 ```
+
+## 包组成
+
+核心包：
+
+- `ULinkRPC.Core`
+- `ULinkRPC.Client`
+- `ULinkRPC.Server`
+
+传输层包：
+
+- `ULinkRPC.Transport.Tcp`
+- `ULinkRPC.Transport.WebSocket`
+- `ULinkRPC.Transport.Kcp`
+- `ULinkRPC.Transport.Loopback`
+
+序列化包：
+
+- `ULinkRPC.Serializer.MemoryPack`
+- `ULinkRPC.Serializer.Json`
+
+代码生成：
+
+- `ULinkRPC.CodeGen`
 
 ## 文档
 

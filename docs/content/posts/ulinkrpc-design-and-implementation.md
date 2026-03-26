@@ -15,7 +15,6 @@ categories:
 前两篇文章更偏“怎么用”：
 
 - [《用 ULinkRPC 从零搭一个 Unity 和 .NET 双向通信项目》](/ULinkRPC/posts/ulinkrpc-getting-started/)
-- [《用示例项目从 0 搭一个可运行的 ULinkRPC 联机原型》](/ULinkRPC/posts/ulinkrpc-sample-server-client-from-zero/)
 
 但如果你准备把 ULinkRPC 真正放进项目里，通常会继续问这几个问题：
 
