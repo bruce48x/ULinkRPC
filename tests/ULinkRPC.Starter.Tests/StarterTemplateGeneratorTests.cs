@@ -24,7 +24,7 @@ public sealed class StarterTemplateGeneratorTests
             var sharedDtos = File.ReadAllText(Path.Combine(root, "Shared", "Interfaces", "SharedDtos.cs"));
             var gitIgnore = File.ReadAllText(Path.Combine(root, ".gitignore"));
 
-            Assert.Contains("<LangVersion>9.0</LangVersion>", sharedCsproj);
+            Assert.Contains("<LangVersion>latest</LangVersion>", sharedCsproj);
             Assert.Contains("<ImplicitUsings>disable</ImplicitUsings>", sharedCsproj);
             Assert.Contains("<RootNamespace>Shared</RootNamespace>", sharedCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Core\" Version=\"1.2.3\" />", sharedCsproj);
@@ -39,7 +39,8 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("\"System.Runtime.CompilerServices.Unsafe.dll\"", sharedAsmdef);
             Assert.DoesNotContain("My Game", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("using MemoryPack;", sharedDtos);
-            Assert.Contains("[MemoryPackable(GenerateType.VersionTolerant)]", sharedDtos);
+            Assert.Contains("[MemoryPackable]", sharedDtos);
+            Assert.DoesNotContain("GenerateType.VersionTolerant", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("public sealed partial class PingRequest", sharedDtos);
             Assert.Contains("public sealed partial class PingReply", sharedDtos);
             Assert.Contains("[MemoryPackOrder(0)]", sharedDtos);
@@ -276,7 +277,8 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);
             Assert.Contains("new KcpTransport(_endpoint.Host, _endpoint.Port)", testerScript);
             Assert.Contains("new MemoryPackRpcSerializer()", testerScript);
-            Assert.Contains("[MemoryPackable(GenerateType.VersionTolerant)]", sharedDtos);
+            Assert.Contains("[MemoryPackable]", sharedDtos);
+            Assert.DoesNotContain("GenerateType.VersionTolerant", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("public sealed partial class PingRequest", sharedDtos);
             Assert.Contains("public sealed partial class PingReply", sharedDtos);
             Assert.Contains("Path: ", scene);

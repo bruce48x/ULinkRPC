@@ -59,7 +59,7 @@ samples/
 
 ## What Gets Generated
 
-- `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, generated source stays within C# 9.0 for Unity 2022 compatibility, and `Directory.Build.props` redirects `obj/bin` to `../_artifacts/Shared/`.
+- `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, `Directory.Build.props` redirects `obj/bin` to `../_artifacts/Shared/`, and the generated `.csproj` uses `LangVersion=latest` so MemoryPack source generation can compile.
 - `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and appends the matching serializer/transport extensions for the selected template.
 - `Client/`: Unity 2022 LTS skeleton with `NuGetForUnity`, `packages.config`, and a local reference to `Shared`.
@@ -75,7 +75,7 @@ The tool resolves the latest stable NuGet versions for:
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
 Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and Unity output automatically.
-Shared code must remain compatible with C# 9.0 because Unity 2022 supports up to C# 9.0.
+When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
 In `Client/Assets/packages.config`, the user-selected transport and serializer packages are written with `manuallyInstalled="true"`.

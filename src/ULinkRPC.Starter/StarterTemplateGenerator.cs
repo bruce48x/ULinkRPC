@@ -137,7 +137,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <LangVersion>9.0</LangVersion>
+      <LangVersion>latest</LangVersion>
     <RootNamespace>Shared</RootNamespace>
   </PropertyGroup>
 
@@ -153,14 +153,14 @@ using MemoryPack;
 
 namespace Shared.Interfaces
 {
-    [MemoryPackable(GenerateType.VersionTolerant)]
+    [MemoryPackable]
     public sealed partial class PingRequest
     {
         [MemoryPackOrder(0)]
         public string Message { get; set; } = string.Empty;
     }
 
-    [MemoryPackable(GenerateType.VersionTolerant)]
+    [MemoryPackable]
     public sealed partial class PingReply
     {
         [MemoryPackOrder(0)]
