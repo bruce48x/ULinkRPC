@@ -142,4 +142,4 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 
 ## 给贡献者
 
-面向开发者的规则、架构说明、测试约束、发布步骤，以及 AI Agent 相关说明，都放在 [CONTRIBUTING.md](/Users/wangql/workspace/ULinkRPC/CONTRIBUTING.md) 中。
+面向开发者的规则、架构说明、测试约束、发布步骤，以及 AI Agent 相关说明，都放在 [CONTRIBUTING.md](./CONTRIBUTING.md) 中。
