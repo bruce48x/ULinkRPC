@@ -2,7 +2,7 @@
 
 This document is for contributors, maintainers, and AI agents working on the repository itself.
 
-User-facing introduction, samples, and tutorial links live in [README.md](/Users/wangql/workspace/ULinkRPC/README.md).
+User-facing introduction, samples, and tutorial links live in [README.md](./README.md).
 
 Mandatory engineering rules for this repo. Target is **Unity 2022 LTS** with **iOS / IL2CPP / HybridCLR**; stability and platform compatibility take priority.
 
