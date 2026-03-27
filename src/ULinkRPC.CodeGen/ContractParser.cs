@@ -308,7 +308,10 @@ internal static partial class ContractParser
                     method,
                     iface,
                     methodSymbol,
-                    $"RPC request parameter '{methodSymbol.Parameters[0].Name}' must be a DTO type, not '{methodSymbol.Parameters[0].Type.ToDisplayString()}'."));
+                    BuildDtoTypeErrorMessage(
+                        "RPC request parameter",
+                        methodSymbol.Parameters[0].Name,
+                        methodSymbol.Parameters[0].Type)));
     }
 
     private static void ValidateDtoResponseType(
@@ -327,7 +330,10 @@ internal static partial class ContractParser
                     method,
                     iface,
                     methodSymbol,
-                    $"RPC response type must be a DTO type, not '{resultType.ToDisplayString()}'."));
+                    BuildDtoTypeErrorMessage(
+                        "RPC response type",
+                        null,
+                        resultType)));
     }
 
     private static void ValidateSingleDtoCallbackParameter(
@@ -349,7 +355,10 @@ internal static partial class ContractParser
                     method,
                     iface,
                     methodSymbol,
-                    $"RPC push parameter '{methodSymbol.Parameters[0].Name}' must be a DTO type, not '{methodSymbol.Parameters[0].Type.ToDisplayString()}'."));
+                    BuildDtoTypeErrorMessage(
+                        "RPC push parameter",
+                        methodSymbol.Parameters[0].Name,
+                        methodSymbol.Parameters[0].Type)));
     }
 
     private static bool IsDtoContractType(ITypeSymbol type)
@@ -383,6 +392,44 @@ internal static partial class ContractParser
         var location = method.GetLocation().GetLineSpan();
         var line = location.StartLinePosition.Line + 1;
         return $"{reason} Offending member: {iface.Identifier.ValueText}.{methodSymbol.Name} in {location.Path}:{line}.";
+    }
+
+    private static string BuildDtoTypeErrorMessage(string subject, string? memberName, ITypeSymbol type)
+    {
+        var displayName = type.ToDisplayString();
+        var subjectText = memberName is null
+            ? subject
+            : $"{subject} '{memberName}'";
+
+        if (IsCollectionLikeRootType(type))
+        {
+            return $"{subjectText} must be a DTO object type, not '{displayName}'. Collection-like payload roots are not allowed because they are hard to evolve compatibly; wrap the collection in a DTO and add the list as a property.";
+        }
+
+        return $"{subjectText} must be a DTO object type, not '{displayName}'. Use a user-defined DTO class/record as the payload root.";
+    }
+
+    private static bool IsCollectionLikeRootType(ITypeSymbol type)
+    {
+        if (type is IArrayTypeSymbol)
+            return true;
+
+        if (type is not INamedTypeSymbol namedType)
+            return false;
+
+        if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+            return IsCollectionLikeRootType(namedType.TypeArguments[0]);
+
+        if (namedType.SpecialType == SpecialType.System_String)
+            return false;
+
+        var namespaceName = namedType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+        if (!namespaceName.StartsWith("System.Collections", StringComparison.Ordinal))
+            return false;
+
+        return namedType.AllInterfaces.Any(i =>
+            i.OriginalDefinition.SpecialType == SpecialType.System_Collections_IEnumerable ||
+            i.ToDisplayString() == "System.Collections.Generic.IEnumerable<T>");
     }
 
     #endregion

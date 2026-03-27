@@ -537,7 +537,7 @@ public class ContractParserTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(
             () => ContractParser.FindRpcServicesFromSource(dir));
-        Assert.Contains("must be a DTO type", ex.Message);
+        Assert.Contains("must be a DTO object type", ex.Message);
     }
 
     [Fact]
@@ -558,7 +558,7 @@ public class ContractParserTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(
             () => ContractParser.FindRpcServicesFromSource(dir));
-        Assert.Contains("response type must be a DTO type", ex.Message);
+        Assert.Contains("response type must be a DTO object type", ex.Message);
     }
 
     [Fact]
@@ -587,7 +587,38 @@ public class ContractParserTests : IDisposable
 
         var ex = Assert.Throws<InvalidOperationException>(
             () => ContractParser.FindRpcServicesFromSource(dir));
-        Assert.Contains("must be a DTO type", ex.Message);
+        Assert.Contains("must be a DTO object type", ex.Message);
+    }
+
+    [Fact]
+    public void CollectionCallbackType_ExplainsDtoWrapperRequirement()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Collections.Generic;
+            using System.Threading.Tasks;
+
+            public class PlayerPosition { }
+            public class DoRequest { }
+
+            [RpcCallback(typeof(ISvc))]
+            public interface INotify
+            {
+                [RpcPush(1)]
+                void OnMove(List<PlayerPosition> playerPositions);
+            }
+
+            [RpcService(1, Callback = typeof(INotify))]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask Do(DoRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("Collection-like payload roots are not allowed", ex.Message);
+        Assert.Contains("wrap the collection in a DTO", ex.Message);
     }
 
     #endregion
