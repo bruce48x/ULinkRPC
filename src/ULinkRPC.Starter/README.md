@@ -10,6 +10,8 @@ The tool asks for transport and serializer before generating files.
 
 ## Install
 
+Requires .NET SDK 10.0 or later. If you only have .NET 8 or .NET 9 installed, upgrade the SDK before running `dotnet tool install`.
+
 ```bash
 dotnet tool install -g ULinkRPC.Starter
 ```

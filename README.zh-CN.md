@@ -84,6 +84,8 @@ var reply = await player.LoginAsync(new LoginRequest
 
 - [基于 `ULinkRPC.Starter` 的入门教程](https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/)
 
+`ULinkRPC.Starter` 作为全局工具安装时，最低要求是 .NET SDK 10.0。
+
 这篇会覆盖：
 
 - 如何生成一份可运行的 Unity + .NET 项目

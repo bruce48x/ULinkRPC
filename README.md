@@ -84,6 +84,8 @@ If you are starting a new project, read this first:
 
 - [Getting started with `ULinkRPC.Starter`](https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/)
 
+`ULinkRPC.Starter` requires .NET SDK 10.0 or later to install as a global tool.
+
 It covers:
 
 - generating a runnable Unity + .NET project
