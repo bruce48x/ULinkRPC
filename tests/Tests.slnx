@@ -1,0 +1,17 @@
+<Solution>
+  <Project Path="../src/ULinkRPC.Client/ULinkRPC.Client.csproj" />
+  <Project Path="../src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj" />
+  <Project Path="../src/ULinkRPC.Core/ULinkRPC.Core.csproj" />
+  <Project Path="../src/ULinkRPC.Serializer.Json/ULinkRPC.Serializer.Json.csproj" />
+  <Project Path="../src/ULinkRPC.Server/ULinkRPC.Server.csproj" />
+  <Project Path="../src/ULinkRPC.Starter/ULinkRPC.Starter.csproj" />
+  <Project Path="../src/ULinkRPC.Transport.Kcp/ULinkRPC.Transport.Kcp.csproj" />
+  <Project Path="../src/ULinkRPC.Transport.Loopback/ULinkRPC.Transport.Loopback.csproj" />
+  <Project Path="../src/ULinkRPC.Transport.Tcp/ULinkRPC.Transport.Tcp.csproj" />
+  <Project Path="../src/ULinkRPC.Transport.WebSocket/ULinkRPC.Transport.WebSocket.csproj" />
+  <Project Path="ULinkRPC.CodeGen.Tests/ULinkRPC.CodeGen.Tests.csproj" />
+  <Project Path="ULinkRPC.Serializer.Tests/ULinkRPC.Serializer.Tests.csproj" />
+  <Project Path="ULinkRPC.Starter.Tests/ULinkRPC.Starter.Tests.csproj" />
+  <Project Path="ULinkRPC.Tests/ULinkRPC.Tests.csproj" />
+  <Project Path="ULinkRPC.Transport.Tests/ULinkRPC.Transport.Tests.csproj" />
+</Solution>
