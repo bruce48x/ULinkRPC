@@ -27,6 +27,14 @@ categories:
 
 **先选 transport 和 serializer，然后让 starter 直接产出一份可运行的最小项目。**
 
+## 前提条件
+
+开始之前，请先安装 **.NET 10 SDK**：
+
+- 下载地址：https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+
+后面的 `dotnet tool install`、`dotnet tool restore`、`dotnet run` 等命令都依赖本机已经可用的 .NET SDK。
+
 ## Quick Start
 
 如果你只想最快跑起来，直接照下面做：
