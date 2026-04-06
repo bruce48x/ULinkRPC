@@ -102,6 +102,7 @@ public class ClientEmitterTests
         Assert.Contains("private static readonly RpcMethod<PingRequest, RpcVoid> pingRpcMethod = new(ServiceId, 1);", code);
         Assert.Contains("public async ValueTask Ping(PingRequest request)", code);
         Assert.Contains("public async ValueTask Ping(PingRequest request, CancellationToken ct)", code);
+        Assert.Contains("await Ping(request, CancellationToken.None);", code);
         Assert.Contains("await _client.CallAsync(pingRpcMethod, request, ct);", code);
     }
 
@@ -114,6 +115,7 @@ public class ClientEmitterTests
         Assert.Contains("private static readonly RpcMethod<SetNameRequest, RpcVoid> setNameRpcMethod", code);
         Assert.Contains("public async ValueTask SetName(SetNameRequest request)", code);
         Assert.Contains("public async ValueTask SetName(SetNameRequest request, CancellationToken ct)", code);
+        Assert.Contains("await SetName(request, CancellationToken.None);", code);
         Assert.Contains("await _client.CallAsync(setNameRpcMethod, request, ct);", code);
     }
 
@@ -130,6 +132,7 @@ public class ClientEmitterTests
         Assert.Contains("private static readonly RpcMethod<GetCountRequest, GetCountReply> getCountRpcMethod", code);
         Assert.Contains("public ValueTask<GetCountReply> GetCount(GetCountRequest request)", code);
         Assert.Contains("public ValueTask<GetCountReply> GetCount(GetCountRequest request, CancellationToken ct)", code);
+        Assert.Contains("return GetCount(request, CancellationToken.None);", code);
         Assert.Contains("return _client.CallAsync(getCountRpcMethod, request, ct);", code);
     }
 
@@ -141,7 +144,20 @@ public class ClientEmitterTests
 
         Assert.Contains("RpcMethod<GetNameRequest, GetNameReply>", code);
         Assert.Contains("public ValueTask<GetNameReply> GetName(GetNameRequest request)", code);
+        Assert.Contains("return GetName(request, CancellationToken.None);", code);
         Assert.Contains("return _client.CallAsync(getNameRpcMethod, request, ct);", code);
+    }
+
+    [Fact]
+    public void ParameterlessOverloads_DoNotSelfRecurse()
+    {
+        var svc = MakeService(
+            VoidMethod("Ping", 1, Param("PingRequest", "request")),
+            ReturnMethod("GetName", 2, "GetNameReply", Param("GetNameRequest", "request")));
+        var code = ClientEmitter.GenerateClient(svc, "Gen", "ULinkRPC.Core");
+
+        Assert.DoesNotContain("await Ping(request);", code);
+        Assert.DoesNotContain("return GetName(request);", code);
     }
 
     #endregion

@@ -174,7 +174,7 @@ public class ContractParserTests : IDisposable
     }
 
     [Fact]
-    public void SkipsServicesWithNoTaggedMethods()
+    public void ServiceWithNoTaggedMethods_ThrowsInvalidOperation()
     {
         var dir = CreateTempContracts(AttributeDefinitions, """
             using System.Threading.Tasks;
@@ -186,7 +186,10 @@ public class ContractParserTests : IDisposable
             }
             """);
 
-        Assert.Empty(ContractParser.FindRpcServicesFromSource(dir));
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("must declare at least one [RpcMethod] contract", ex.Message);
+        Assert.Contains("IEmptySvc", ex.Message);
     }
 
     #endregion
@@ -332,6 +335,35 @@ public class ContractParserTests : IDisposable
     }
 
     [Fact]
+    public void CallbackInterface_WithNoTaggedMethods_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System;
+            using System.Threading.Tasks;
+
+            public class DoRequest { }
+
+            [RpcCallback(typeof(ISvc))]
+            public interface INotify
+            {
+                void Ping(DoRequest request);
+            }
+
+            [RpcService(1, Callback = typeof(INotify))]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask Do(DoRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("must declare at least one valid [RpcPush] contract", ex.Message);
+        Assert.Contains("INotify", ex.Message);
+    }
+
+    [Fact]
     public void CallbackInterface_InDifferentFile()
     {
         var dir = CreateTempContracts(
@@ -429,6 +461,37 @@ public class ContractParserTests : IDisposable
         var ex = Assert.Throws<InvalidOperationException>(
             () => ContractParser.FindRpcServicesFromSource(dir));
         Assert.Contains("Unsupported return type", ex.Message);
+    }
+
+    [Fact]
+    public void CallbackMethod_NonVoidReturnType_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System;
+            using System.Threading.Tasks;
+
+            public class DoRequest { }
+            public class NotifyRequest { }
+
+            [RpcCallback(typeof(ISvc))]
+            public interface INotify
+            {
+                [RpcPush(1)]
+                ValueTask OnNotify(NotifyRequest request);
+            }
+
+            [RpcService(1, Callback = typeof(INotify))]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask Do(DoRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("must return void", ex.Message);
+        Assert.Contains("OnNotify", ex.Message);
     }
 
     [Fact]

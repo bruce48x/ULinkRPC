@@ -106,7 +106,10 @@ internal static partial class ContractParser
 
             var methods = ParseServiceMethods(iface, semanticModel, out var requiredNamespaces);
             if (methods.Count == 0)
-                continue;
+                throw new InvalidOperationException(
+                    BuildInterfaceContractError(
+                        iface,
+                        "RPC services must declare at least one [RpcMethod] contract."));
 
             AddNamespace(requiredNamespaces, ifaceSymbol.ContainingNamespace);
             var fullName = GetTypeFullName(ifaceSymbol);
@@ -147,7 +150,10 @@ internal static partial class ContractParser
 
             var methods = ParseCallbackMethods(iface, semanticModel, out var requiredNamespaces);
             if (methods.Count == 0)
-                continue;
+                throw new InvalidOperationException(
+                    BuildInterfaceContractError(
+                        iface,
+                        "RPC callback interfaces must declare at least one valid [RpcPush] contract."));
 
             AddNamespace(requiredNamespaces, ifaceSymbol.ContainingNamespace);
             var callbackFullName = GetTypeFullName(ifaceSymbol);
@@ -222,7 +228,12 @@ internal static partial class ContractParser
                 continue;
 
             if (!methodSymbol.ReturnsVoid)
-                continue;
+                throw new InvalidOperationException(
+                    BuildContractShapeError(
+                        method,
+                        iface,
+                        methodSymbol,
+                        "RPC callback methods must return void."));
 
             var parameters = ParseParameters(method.ParameterList.Parameters);
             ValidateSingleDtoCallbackParameter(method, iface, methodSymbol);
@@ -392,6 +403,15 @@ internal static partial class ContractParser
         var location = method.GetLocation().GetLineSpan();
         var line = location.StartLinePosition.Line + 1;
         return $"{reason} Offending member: {iface.Identifier.ValueText}.{methodSymbol.Name} in {location.Path}:{line}.";
+    }
+
+    private static string BuildInterfaceContractError(
+        InterfaceDeclarationSyntax iface,
+        string reason)
+    {
+        var location = iface.Identifier.GetLocation().GetLineSpan();
+        var line = location.StartLinePosition.Line + 1;
+        return $"{reason} Offending contract: {iface.Identifier.ValueText} in {location.Path}:{line}.";
     }
 
     private static string BuildDtoTypeErrorMessage(string subject, string? memberName, ITypeSymbol type)
