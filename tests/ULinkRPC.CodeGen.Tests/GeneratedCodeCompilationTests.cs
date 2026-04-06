@@ -1,5 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using System.Reflection;
+using System.Runtime.Loader;
 using ULinkRPC.CodeGen;
 using Xunit;
 
@@ -59,6 +61,7 @@ public class GeneratedCodeCompilationTests
 
     private const string ClientRuntimeStubs = """
         using System;
+        using System.Collections.Generic;
         using System.Threading;
         using System.Threading.Tasks;
         using ULinkRPC.Core;
@@ -88,6 +91,23 @@ public class GeneratedCodeCompilationTests
                 public ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg arg, CancellationToken ct) => default;
                 public void RegisterPushHandler<TArg>(RpcPushMethod<TArg> method, Action<TArg> handler) { }
                 public ValueTask DisposeAsync() => default;
+            }
+
+            public sealed class RecordingRpcClient : IRpcClient
+            {
+                public readonly List<string> Calls = new();
+                public readonly List<object?> Args = new();
+                public readonly List<CancellationToken> CancellationTokens = new();
+
+                public ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg arg, CancellationToken ct)
+                {
+                    Calls.Add(typeof(TResult).FullName ?? typeof(TResult).Name);
+                    Args.Add(arg);
+                    CancellationTokens.Add(ct);
+                    return ValueTask.FromResult(default(TResult)!);
+                }
+
+                public void RegisterPushHandler<TArg>(RpcPushMethod<TArg> method, Action<TArg> handler) { }
             }
 
         }
@@ -190,6 +210,46 @@ public class GeneratedCodeCompilationTests
         }
     }
 
+    private static Assembly CompileAssemblyWithStubs(string[] generatedCodeFiles, string contractCode, bool includeServer = false)
+    {
+        var trees = new List<SyntaxTree>
+        {
+            CSharpSyntaxTree.ParseText(CoreRuntimeStubs, path: "CoreStubs.cs"),
+            CSharpSyntaxTree.ParseText(contractCode, path: "Contracts.cs"),
+            CSharpSyntaxTree.ParseText(ClientRuntimeStubs, path: "ClientStubs.cs"),
+        };
+        for (var i = 0; i < generatedCodeFiles.Length; i++)
+            trees.Add(CSharpSyntaxTree.ParseText(generatedCodeFiles[i], path: $"Generated{i}.cs"));
+        if (includeServer)
+            trees.Add(CSharpSyntaxTree.ParseText(ServerRuntimeStubs, path: "ServerStubs.cs"));
+
+        var references = new List<MetadataReference>();
+        var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
+        if (!string.IsNullOrWhiteSpace(trustedAssemblies))
+            foreach (var path in trustedAssemblies.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                references.Add(MetadataReference.CreateFromFile(path));
+
+        var compilation = CSharpCompilation.Create(
+            $"GeneratedCodeBehavior_{Guid.NewGuid():N}",
+            trees,
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var peStream = new MemoryStream();
+        var emitResult = compilation.Emit(peStream);
+        if (!emitResult.Success)
+        {
+            var messages = string.Join("\n",
+                emitResult.Diagnostics
+                    .Where(d => d.Severity == DiagnosticSeverity.Error)
+                    .Select(d => $"  {d.Id}: {d.GetMessage()} at {d.Location.GetLineSpan()}"));
+            Assert.Fail($"Generated code failed behavior-test compilation:\n{messages}");
+        }
+
+        peStream.Position = 0;
+        return AssemblyLoadContext.Default.LoadFromStream(peStream);
+    }
+
     #endregion
 
     #region Simple service
@@ -236,6 +296,33 @@ public class GeneratedCodeCompilationTests
     {
         var code = ClientEmitter.GenerateClient(SimpleService(), "MyGame.Generated", "ULinkRPC.Core");
         AssertCompilesCleanly(code, SimpleContracts);
+    }
+
+    [Fact]
+    public async Task ClientCode_ParameterlessOverload_ForwardsToCallAsyncOnce()
+    {
+        var code = ClientEmitter.GenerateClient(SimpleService(), "MyGame.Generated", "ULinkRPC.Core");
+        var assembly = CompileAssemblyWithStubs([code], SimpleContracts);
+
+        var rpcClientType = assembly.GetType("ULinkRPC.Client.RecordingRpcClient", throwOnError: true)!;
+        var clientType = assembly.GetType("MyGame.Generated.PlayerServiceClient", throwOnError: true)!;
+        var requestType = assembly.GetType("MyGame.Contracts.PingRequest", throwOnError: true)!;
+
+        var rpcClient = Activator.CreateInstance(rpcClientType)!;
+        var client = Activator.CreateInstance(clientType, rpcClient)!;
+        var request = Activator.CreateInstance(requestType)!;
+
+        var pingMethod = clientType.GetMethod("Ping", [requestType])!;
+        var result = (ValueTask)pingMethod.Invoke(client, [request])!;
+        await result;
+
+        var calls = (System.Collections.IList)rpcClientType.GetField("Calls")!.GetValue(rpcClient)!;
+        var args = (System.Collections.IList)rpcClientType.GetField("Args")!.GetValue(rpcClient)!;
+        var cancellationTokens = (System.Collections.IList)rpcClientType.GetField("CancellationTokens")!.GetValue(rpcClient)!;
+
+        Assert.Single(calls);
+        Assert.Same(request, args[0]);
+        Assert.Equal(CancellationToken.None, (CancellationToken)cancellationTokens[0]!);
     }
 
     [Fact]
