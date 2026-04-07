@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using ULinkRPC.Core;
 
 namespace ULinkRPC.Server;
@@ -11,8 +10,6 @@ public sealed class RpcServerHost
     private readonly RpcServiceRegistry _registry;
     private readonly TransportSecurityConfig _security;
     private readonly IRpcSerializer _serializer;
-    private int _nextConnectionId;
-
     internal RpcServerHost(
         IRpcSerializer serializer,
         RpcServiceRegistry registry,
@@ -33,7 +30,7 @@ public sealed class RpcServerHost
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         ConsoleCancelEventHandler? cancelHandler = null;
-        var connectionTasks = new ConcurrentDictionary<int, Task>();
+        var connectionTasks = new TrackedTaskCollection();
 
         cancelHandler = (_, e) =>
         {
@@ -61,22 +58,12 @@ public sealed class RpcServerHost
 
                 _logger($"[{connection.DisplayName}] accepted.");
 
-                var connectionId = Interlocked.Increment(ref _nextConnectionId);
                 var connectionTask = RunConnectionAsync(connection, cts.Token);
-                connectionTasks[connectionId] = connectionTask;
-
-                _ = connectionTask.ContinueWith(
-                    _ =>
-                    {
-                        connectionTasks.TryRemove(connectionId, out Task? _);
-                    },
-                    CancellationToken.None,
-                    TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Default);
+                connectionTasks.Track(connectionTask);
             }
 
             cts.Cancel();
-            await WaitForConnectionsAsync(connectionTasks).ConfigureAwait(false);
+            await connectionTasks.WaitAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -119,26 +106,5 @@ public sealed class RpcServerHost
             return transport;
 
         return new TransformingTransport(transport, _security);
-    }
-
-    private static async ValueTask WaitForConnectionsAsync(ConcurrentDictionary<int, Task> connectionTasks)
-    {
-        while (true)
-        {
-            var tasks = connectionTasks.Values.ToArray();
-            if (tasks.Length == 0)
-                return;
-
-            try
-            {
-                await Task.WhenAll(tasks).ConfigureAwait(false);
-            }
-            catch
-            {
-            }
-
-            if (connectionTasks.IsEmpty)
-                return;
-        }
     }
 }

@@ -173,60 +173,9 @@ Selected serializer: {{context.Serializer}}
 
     private static string GetUnitySceneName() => "ConnectionTest";
 
-    private static string GetUnityTransportUsing(TransportKind transport) => transport switch
-    {
-        TransportKind.Tcp => "using ULinkRPC.Transport.Tcp;",
-        TransportKind.WebSocket => "using ULinkRPC.Transport.WebSocket;",
-        TransportKind.Kcp => "using ULinkRPC.Transport.Kcp;",
-        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
-    };
-
-    private static string GetUnitySerializerUsing(SerializerKind serializer) => serializer switch
-    {
-        SerializerKind.Json => "using ULinkRPC.Serializer.Json;",
-        SerializerKind.MemoryPack => "using ULinkRPC.Serializer.MemoryPack;",
-        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
-    };
-
-    private static string GetUnityEndpointFactory(TransportKind transport) => transport switch
-    {
-        TransportKind.Tcp => "        public static RpcEndpointSettings CreateDefault() => new RpcEndpointSettings { Host = \"127.0.0.1\", Port = 20000, Path = string.Empty };",
-        TransportKind.WebSocket => "        public static RpcEndpointSettings CreateDefault() => new RpcEndpointSettings { Host = \"127.0.0.1\", Port = 20000, Path = \"/ws\" };",
-        TransportKind.Kcp => "        public static RpcEndpointSettings CreateDefault() => new RpcEndpointSettings { Host = \"127.0.0.1\", Port = 20000, Path = string.Empty };",
-        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
-    };
-
-    private static string GetUnityTransportConstruction(TransportKind transport) => transport switch
-    {
-        TransportKind.Tcp => "new TcpTransport(_endpoint.Host, _endpoint.Port)",
-        TransportKind.WebSocket => "new WsTransport($\"ws://{_endpoint.Host}:{_endpoint.Port}{NormalizePath(_endpoint.Path)}\")",
-        TransportKind.Kcp => "new KcpTransport(_endpoint.Host, _endpoint.Port)",
-        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
-    };
-
-    private static string GetUnitySerializerConstruction(SerializerKind serializer) => serializer switch
-    {
-        SerializerKind.Json => "new JsonRpcSerializer()",
-        SerializerKind.MemoryPack => "new MemoryPackRpcSerializer()",
-        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
-    };
-
-    private static string GetUnityTransportLabel(TransportKind transport) => transport switch
-    {
-        TransportKind.Tcp => "TCP",
-        TransportKind.WebSocket => "WebSocket",
-        TransportKind.Kcp => "KCP",
-        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
-    };
-
     private static string GetUnityTesterScript(TransportKind transport, SerializerKind serializer)
     {
-        var transportLabel = GetUnityTransportLabel(transport);
-        var transportUsing = GetUnityTransportUsing(transport);
-        var serializerUsing = GetUnitySerializerUsing(serializer);
-        var endpointFactory = GetUnityEndpointFactory(transport);
-        var transportConstruction = GetUnityTransportConstruction(transport);
-        var serializerConstruction = GetUnitySerializerConstruction(serializer);
+        var values = UnityClientTemplateValues.Create(transport, serializer);
 
         return $$"""
 #nullable enable
@@ -237,8 +186,8 @@ using System.Threading.Tasks;
 using Client.Generated;
 using Shared.Interfaces;
 using ULinkRPC.Client;
-{{transportUsing}}
-{{serializerUsing}}
+{{values.TransportUsing}}
+{{values.SerializerUsing}}
 using UnityEngine;
 
 namespace Rpc.Testing
@@ -250,7 +199,7 @@ namespace Rpc.Testing
         public int Port = 20000;
         public string Path = string.Empty;
 
-{{endpointFactory}}
+{{values.EndpointFactory}}
     }
 
     public sealed class RpcConnectionTester : MonoBehaviour
@@ -283,14 +232,14 @@ namespace Rpc.Testing
             if (_isShuttingDown || _client is not null)
                 return;
 
-            Debug.Log($"[{{transportLabel}}] Connecting to {DescribeEndpoint()}");
+            Debug.Log($"[{{values.TransportLabel}}] Connecting to {DescribeEndpoint()}");
 
             try
             {
                 _client = new RpcClient(
                     new RpcClientOptions(
-                        {{transportConstruction}},
-                        {{serializerConstruction}}));
+                        {{values.TransportConstruction}},
+                        {{values.SerializerConstruction}}));
 
                 await _client.ConnectAsync(_cts.Token);
 
@@ -299,14 +248,14 @@ namespace Rpc.Testing
                     Message = Message
                 });
 
-                Debug.Log($"[{{transportLabel}}] Ping ok: message={reply.Message}, serverTimeUtc={reply.ServerTimeUtc}");
+                Debug.Log($"[{{values.TransportLabel}}] Ping ok: message={reply.Message}, serverTimeUtc={reply.ServerTimeUtc}");
             }
             catch (OperationCanceledException)
             {
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[{{transportLabel}}] Connect failed: {ex}");
+                Debug.LogError($"[{{values.TransportLabel}}] Connect failed: {ex}");
                 await ShutdownAsync();
             }
         }
@@ -422,7 +371,7 @@ internal static class AutoOpenConnectionScene
 
     private static string GetUnitySceneContent(TransportKind transport)
     {
-        var pathValue = transport == TransportKind.WebSocket ? "/ws" : string.Empty;
+        var values = UnityClientTemplateValues.Create(transport, SerializerKind.Json);
         return $$"""
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
@@ -473,7 +422,7 @@ MonoBehaviour:
   _endpoint:
     Host: 127.0.0.1
     Port: 20000
-    Path: {{pathValue}}
+    Path: {{values.DefaultPath}}
   Message: hello
   AutoConnect: 1
 --- !u!29 &5

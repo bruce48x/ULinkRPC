@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Core</PackageId>
-    <Version>0.6.1</Version>
+    <Version>0.6.2</Version>
     <Authors>ULinkRPC</Authors>
     <Description>ULinkRPC core abstractions, contracts, envelopes, and framing helpers.</Description>
     <PackageTags>rpc;unity;dotnet;transport</PackageTags>
@@ -15,5 +15,10 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ULinkRPC.Client" />
+    <InternalsVisibleTo Include="ULinkRPC.Server" />
   </ItemGroup>
 </Project>

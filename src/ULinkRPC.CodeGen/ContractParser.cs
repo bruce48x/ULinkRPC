@@ -16,10 +16,7 @@ internal static partial class ContractParser
 
     public static List<RpcServiceInfo> FindRpcServicesFromSource(string contractsPath)
     {
-        var files = Directory.GetFiles(contractsPath, "*.cs", SearchOption.AllDirectories);
-        var trees = files
-            .Select(file => CSharpSyntaxTree.ParseText(File.ReadAllText(file), path: file))
-            .ToList();
+        var trees = LoadSyntaxTrees(contractsPath);
         var compilation = CreateContractsCompilation(trees);
 
         var sourceFiles = new List<SourceFileInfo>();
@@ -33,35 +30,17 @@ internal static partial class ContractParser
         }
 
         ValidateNoDuplicateServiceIds(services);
-
-        foreach (var svc in services)
-        {
-            if (string.IsNullOrEmpty(svc.CallbackInterfaceName) ||
-                string.IsNullOrEmpty(svc.CallbackInterfaceFullName))
-                continue;
-
-            foreach (var sourceFile in sourceFiles)
-            {
-                if (!sourceFile.CallbackInterfaces.TryGetValue(svc.CallbackInterfaceFullName, out var callbackInfo))
-                    continue;
-
-                if (!string.Equals(callbackInfo.ServiceFullName, svc.InterfaceFullName, StringComparison.Ordinal))
-                    throw new InvalidOperationException(
-                        $"Callback interface '{callbackInfo.FullName}' is associated with '{callbackInfo.ServiceFullName}', but service '{svc.InterfaceFullName}' declared it as its callback.");
-
-                svc.CallbackMethods = callbackInfo.Methods;
-                svc.AddUsingDirectives(callbackInfo.RequiredNamespaces);
-                break;
-            }
-
-            if (svc.HasCallback)
-                continue;
-
-            throw new InvalidOperationException(
-                $"Callback interface '{svc.CallbackInterfaceFullName}' declared by service '{svc.InterfaceFullName}' was not found or is missing a valid [RpcCallback] contract.");
-        }
+        ResolveCallbacks(services, sourceFiles);
 
         return services;
+    }
+
+    private static List<SyntaxTree> LoadSyntaxTrees(string contractsPath)
+    {
+        var files = Directory.GetFiles(contractsPath, "*.cs", SearchOption.AllDirectories);
+        return files
+            .Select(file => CSharpSyntaxTree.ParseText(File.ReadAllText(file), path: file))
+            .ToList();
     }
 
     private static CSharpCompilation CreateContractsCompilation(IReadOnlyList<SyntaxTree> trees)
@@ -91,6 +70,48 @@ internal static partial class ContractParser
         var services = ParseServices(root, semanticModel);
         var callbackInterfaces = ParseCallbackInterfaces(root, semanticModel);
         return new SourceFileInfo(services, callbackInterfaces);
+    }
+
+    private static void ResolveCallbacks(
+        IReadOnlyList<RpcServiceInfo> services,
+        IReadOnlyList<SourceFileInfo> sourceFiles)
+    {
+        foreach (var service in services)
+        {
+            if (!RequiresCallbackResolution(service))
+                continue;
+
+            if (TryBindCallback(service, sourceFiles))
+                continue;
+
+            throw new InvalidOperationException(
+                $"Callback interface '{service.CallbackInterfaceFullName}' declared by service '{service.InterfaceFullName}' was not found or is missing a valid [RpcCallback] contract.");
+        }
+    }
+
+    private static bool RequiresCallbackResolution(RpcServiceInfo service)
+    {
+        return !string.IsNullOrEmpty(service.CallbackInterfaceName) &&
+               !string.IsNullOrEmpty(service.CallbackInterfaceFullName);
+    }
+
+    private static bool TryBindCallback(RpcServiceInfo service, IReadOnlyList<SourceFileInfo> sourceFiles)
+    {
+        foreach (var sourceFile in sourceFiles)
+        {
+            if (!sourceFile.CallbackInterfaces.TryGetValue(service.CallbackInterfaceFullName!, out var callbackInfo))
+                continue;
+
+            if (!string.Equals(callbackInfo.ServiceFullName, service.InterfaceFullName, StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    $"Callback interface '{callbackInfo.FullName}' is associated with '{callbackInfo.ServiceFullName}', but service '{service.InterfaceFullName}' declared it as its callback.");
+
+            service.CallbackMethods = callbackInfo.Methods;
+            service.AddUsingDirectives(callbackInfo.RequiredNamespaces);
+            return true;
+        }
+
+        return false;
     }
 
     private static List<RpcServiceInfo> ParseServices(CompilationUnitSyntax root, SemanticModel semanticModel)
@@ -247,210 +268,4 @@ internal static partial class ContractParser
         return methods;
     }
 
-    private static List<RpcParameterInfo> ParseParameters(SeparatedSyntaxList<ParameterSyntax> parameters)
-    {
-        var result = new List<RpcParameterInfo>();
-        for (var i = 0; i < parameters.Count; i++)
-        {
-            var parameter = parameters[i];
-            var typeName = parameter.Type?.ToString() ?? "object";
-            var name = parameter.Identifier.ValueText;
-            if (string.IsNullOrWhiteSpace(name))
-                name = $"arg{i + 1}";
-            result.Add(new RpcParameterInfo(typeName, name));
-        }
-        return result;
-    }
-
-    #region Validation
-
-    private static void ValidateNoDuplicateServiceIds(List<RpcServiceInfo> services)
-    {
-        var seen = new Dictionary<int, string>();
-        foreach (var svc in services)
-        {
-            if (seen.TryGetValue(svc.ServiceId, out var existingName))
-                throw new InvalidOperationException(
-                    $"Duplicate ServiceId {svc.ServiceId} found on '{existingName}' and '{svc.InterfaceName}'. Each [RpcService] must have a unique id.");
-            seen[svc.ServiceId] = svc.InterfaceName;
-        }
-    }
-
-    private static void ValidateNoDuplicateMethodIds(List<RpcMethodInfo> methods, string interfaceName)
-    {
-        var seen = new Dictionary<int, string>();
-        foreach (var m in methods)
-        {
-            if (seen.TryGetValue(m.MethodId, out var existingName))
-                throw new InvalidOperationException(
-                    $"Duplicate MethodId {m.MethodId} found on '{existingName}' and '{m.Name}' in {interfaceName}. Each [RpcMethod] within a service must have a unique id.");
-            seen[m.MethodId] = m.Name;
-        }
-    }
-
-    private static void ValidateNoDuplicateCallbackMethodIds(List<RpcCallbackMethodInfo> methods, string interfaceName)
-    {
-        var seen = new Dictionary<int, string>();
-        foreach (var m in methods)
-        {
-            if (seen.TryGetValue(m.MethodId, out var existingName))
-                throw new InvalidOperationException(
-                    $"Duplicate MethodId {m.MethodId} found on '{existingName}' and '{m.Name}' in {interfaceName}. Each [RpcMethod] within a callback interface must have a unique id.");
-            seen[m.MethodId] = m.Name;
-        }
-    }
-
-    private static void ValidateSingleDtoRequestParameter(
-        MethodDeclarationSyntax method,
-        InterfaceDeclarationSyntax iface,
-        IMethodSymbol methodSymbol)
-    {
-        if (methodSymbol.Parameters.Length != 1)
-            throw new InvalidOperationException(
-                BuildContractShapeError(
-                    method,
-                    iface,
-                    methodSymbol,
-                    "RPC methods must declare exactly one request DTO parameter."));
-
-        if (!IsDtoContractType(methodSymbol.Parameters[0].Type))
-            throw new InvalidOperationException(
-                BuildContractShapeError(
-                    method,
-                    iface,
-                    methodSymbol,
-                    BuildDtoTypeErrorMessage(
-                        "RPC request parameter",
-                        methodSymbol.Parameters[0].Name,
-                        methodSymbol.Parameters[0].Type)));
-    }
-
-    private static void ValidateDtoResponseType(
-        MethodDeclarationSyntax method,
-        InterfaceDeclarationSyntax iface,
-        IMethodSymbol methodSymbol)
-    {
-        if (methodSymbol.ReturnType is not INamedTypeSymbol returnTypeSymbol ||
-            returnTypeSymbol.TypeArguments.Length != 1)
-            return;
-
-        var resultType = returnTypeSymbol.TypeArguments[0];
-        if (!IsDtoContractType(resultType))
-            throw new InvalidOperationException(
-                BuildContractShapeError(
-                    method,
-                    iface,
-                    methodSymbol,
-                    BuildDtoTypeErrorMessage(
-                        "RPC response type",
-                        null,
-                        resultType)));
-    }
-
-    private static void ValidateSingleDtoCallbackParameter(
-        MethodDeclarationSyntax method,
-        InterfaceDeclarationSyntax iface,
-        IMethodSymbol methodSymbol)
-    {
-        if (methodSymbol.Parameters.Length != 1)
-            throw new InvalidOperationException(
-                BuildContractShapeError(
-                    method,
-                    iface,
-                    methodSymbol,
-                    "RPC callback methods must declare exactly one push DTO parameter."));
-
-        if (!IsDtoContractType(methodSymbol.Parameters[0].Type))
-            throw new InvalidOperationException(
-                BuildContractShapeError(
-                    method,
-                    iface,
-                    methodSymbol,
-                    BuildDtoTypeErrorMessage(
-                        "RPC push parameter",
-                        methodSymbol.Parameters[0].Name,
-                        methodSymbol.Parameters[0].Type)));
-    }
-
-    private static bool IsDtoContractType(ITypeSymbol type)
-    {
-        if (type is INamedTypeSymbol nullableType &&
-            nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
-        {
-            type = nullableType.TypeArguments[0];
-        }
-
-        if (type is not INamedTypeSymbol namedType)
-            return false;
-
-        if (namedType.IsTupleType)
-            return false;
-
-        if (namedType.SpecialType != SpecialType.None ||
-            namedType.TypeKind is TypeKind.Enum or TypeKind.Delegate or TypeKind.Interface)
-            return false;
-
-        var ns = namedType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-        return !ns.StartsWith("System", StringComparison.Ordinal);
-    }
-
-    private static string BuildContractShapeError(
-        MethodDeclarationSyntax method,
-        InterfaceDeclarationSyntax iface,
-        IMethodSymbol methodSymbol,
-        string reason)
-    {
-        var location = method.GetLocation().GetLineSpan();
-        var line = location.StartLinePosition.Line + 1;
-        return $"{reason} Offending member: {iface.Identifier.ValueText}.{methodSymbol.Name} in {location.Path}:{line}.";
-    }
-
-    private static string BuildInterfaceContractError(
-        InterfaceDeclarationSyntax iface,
-        string reason)
-    {
-        var location = iface.Identifier.GetLocation().GetLineSpan();
-        var line = location.StartLinePosition.Line + 1;
-        return $"{reason} Offending contract: {iface.Identifier.ValueText} in {location.Path}:{line}.";
-    }
-
-    private static string BuildDtoTypeErrorMessage(string subject, string? memberName, ITypeSymbol type)
-    {
-        var displayName = type.ToDisplayString();
-        var subjectText = memberName is null
-            ? subject
-            : $"{subject} '{memberName}'";
-
-        if (IsCollectionLikeRootType(type))
-        {
-            return $"{subjectText} must be a DTO object type, not '{displayName}'. Collection-like payload roots are not allowed because they are hard to evolve compatibly; wrap the collection in a DTO and add the list as a property.";
-        }
-
-        return $"{subjectText} must be a DTO object type, not '{displayName}'. Use a user-defined DTO class/record as the payload root.";
-    }
-
-    private static bool IsCollectionLikeRootType(ITypeSymbol type)
-    {
-        if (type is IArrayTypeSymbol)
-            return true;
-
-        if (type is not INamedTypeSymbol namedType)
-            return false;
-
-        if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
-            return IsCollectionLikeRootType(namedType.TypeArguments[0]);
-
-        if (namedType.SpecialType == SpecialType.System_String)
-            return false;
-
-        var namespaceName = namedType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-        if (!namespaceName.StartsWith("System.Collections", StringComparison.Ordinal))
-            return false;
-
-        return namedType.AllInterfaces.Any(i =>
-            i.OriginalDefinition.SpecialType == SpecialType.System_Collections_IEnumerable ||
-            i.ToDisplayString() == "System.Collections.Generic.IEnumerable<T>");
-    }
-
-    #endregion
 }

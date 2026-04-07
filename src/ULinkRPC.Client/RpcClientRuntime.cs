@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using ULinkRPC.Core;
@@ -10,8 +9,9 @@ namespace ULinkRPC.Client
     public sealed class RpcClientRuntime : IAsyncDisposable, IRpcClient
     {
         private readonly CancellationTokenSource _cts = new();
-        private readonly ConcurrentDictionary<uint, TaskCompletionSource<RpcResponseEnvelope>> _pending = new();
-        private readonly ConcurrentDictionary<(int serviceId, int methodId), RpcPushPayloadHandler> _pushHandlers = new();
+        private readonly RpcKeepAliveState _keepAliveState;
+        private readonly RpcPendingRequestCollection _pending = new();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RpcPushPayloadHandler> _pushHandlers = new();
         private readonly SemaphoreSlim _sendLock = new(1, 1);
         private readonly ITransport _transport;
         private readonly IRpcSerializer _serializer;
@@ -19,11 +19,6 @@ namespace ULinkRPC.Client
         private int _disposed;
         private int _nextId;
         private int _started;
-        private int _keepAliveTimedOut;
-        private long _lastReceiveTicksUtc;
-        private long _lastRttTicks;
-        private long _lastSendTicksUtc;
-        private long _pendingPingSentAtTicksUtc;
         private long _disconnectReasonSet;
 
         private Task? _recvLoop;
@@ -35,26 +30,18 @@ namespace ULinkRPC.Client
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             _keepAlive = keepAlive ?? RpcKeepAliveOptions.Disabled;
-            UpdateSendActivityUtc();
-            UpdateReceiveActivityUtc();
+            _keepAliveState = new RpcKeepAliveState(_keepAlive.MeasureRtt);
         }
 
         public event Action<Exception?>? Disconnected;
 
-        public DateTimeOffset LastSendAt => new(GetTimestampOrNow(_lastSendTicksUtc), TimeSpan.Zero);
+        public DateTimeOffset LastSendAt => _keepAliveState.LastSendAt;
 
-        public DateTimeOffset LastReceiveAt => new(GetTimestampOrNow(_lastReceiveTicksUtc), TimeSpan.Zero);
+        public DateTimeOffset LastReceiveAt => _keepAliveState.LastReceiveAt;
 
-        public TimeSpan? LastRtt
-        {
-            get
-            {
-                var ticks = Volatile.Read(ref _lastRttTicks);
-                return ticks <= 0 ? null : TimeSpan.FromTicks(ticks);
-            }
-        }
+        public TimeSpan? LastRtt => _keepAliveState.LastRtt;
 
-        public bool TimedOutByKeepAlive => Volatile.Read(ref _keepAliveTimedOut) != 0;
+        public bool TimedOutByKeepAlive => _keepAliveState.TimedOut;
 
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
@@ -65,8 +52,8 @@ namespace ULinkRPC.Client
             try
             {
                 await _transport.ConnectAsync(ct);
-                UpdateSendActivityUtc();
-                UpdateReceiveActivityUtc();
+                _keepAliveState.MarkSent();
+                _keepAliveState.MarkReceived();
                 _recvLoop = Task.Run(ReceiveLoopAsync);
                 if (_keepAlive.Enabled)
                     _keepAliveLoop = Task.Run(KeepAliveLoopAsync);
@@ -100,8 +87,7 @@ namespace ULinkRPC.Client
         {
             ThrowIfDisposed();
             var id = NextRequestId();
-            var tcs = new TaskCompletionSource<RpcResponseEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _pending[id] = tcs;
+            var tcs = _pending.Add(id);
 
             try
             {
@@ -120,8 +106,7 @@ namespace ULinkRPC.Client
 
                 using var reg = ct.Register(() =>
                 {
-                    if (_pending.TryRemove(id, out var p))
-                        p.TrySetCanceled(ct);
+                    _pending.TryCancel(id, ct);
                 });
 
                 var resp = await tcs.Task.ConfigureAwait(false);
@@ -135,7 +120,7 @@ namespace ULinkRPC.Client
             }
             finally
             {
-                _pending.TryRemove(id, out _);
+                _pending.Remove(id);
             }
         }
 
@@ -145,7 +130,7 @@ namespace ULinkRPC.Client
                 return;
 
             try { _cts.Cancel(); } catch (ObjectDisposedException) { }
-            FailAllPending(new ObjectDisposedException(nameof(RpcClientRuntime)));
+            _pending.FailAll(new ObjectDisposedException(nameof(RpcClientRuntime)));
             Interlocked.Exchange(ref _started, 0);
             if (_recvLoop is not null)
                 try
@@ -183,16 +168,14 @@ namespace ULinkRPC.Client
                     if (frame.IsEmpty)
                         throw new InvalidOperationException("Transport closed.");
 
-                    UpdateReceiveActivityUtc();
-                    ClearPendingPing();
+                    _keepAliveState.MarkReceived();
                     var frameType = RpcEnvelopeCodec.PeekFrameType(frame.Span);
                     switch (frameType)
                     {
                         case RpcFrameType.Response:
                         {
                             var resp = RpcEnvelopeCodec.DecodeResponse(frame.Span);
-                            if (_pending.TryRemove(resp.RequestId, out var tcs))
-                                tcs.TrySetResult(resp);
+                            _pending.TrySetResult(resp);
                             break;
                         }
                         case RpcFrameType.Push:
@@ -223,7 +206,7 @@ namespace ULinkRPC.Client
                         case RpcFrameType.KeepAlivePong:
                         {
                             var pong = RpcEnvelopeCodec.DecodeKeepAlivePong(frame.Span);
-                            UpdateRttFromPong(pong.TimestampTicksUtc);
+                            _keepAliveState.RecordPong(pong.TimestampTicksUtc);
                             break;
                         }
                     }
@@ -242,7 +225,7 @@ namespace ULinkRPC.Client
                 if (err is null)
                     err = _disconnectReason;
                 if (err is not null)
-                    FailAllPending(err);
+                    _pending.FailAll(err);
 
                 Disconnected?.Invoke(err);
             }
@@ -267,12 +250,13 @@ namespace ULinkRPC.Client
                 }
 
                 var nowTicks = DateTimeOffset.UtcNow.UtcTicks;
-                var pendingPingSentAt = Volatile.Read(ref _pendingPingSentAtTicksUtc);
-                if (pendingPingSentAt > 0)
+                switch (_keepAliveState.GetNextAction(nowTicks, interval, timeout))
                 {
-                    if (new TimeSpan(nowTicks - pendingPingSentAt) >= timeout)
+                    case RpcKeepAliveAction.None:
+                        continue;
+                    case RpcKeepAliveAction.TimedOut:
                     {
-                        Volatile.Write(ref _keepAliveTimedOut, 1);
+                        _keepAliveState.MarkTimedOut();
                         SetDisconnectReason(new TimeoutException("RPC keepalive timed out."));
                         try
                         {
@@ -283,15 +267,9 @@ namespace ULinkRPC.Client
                         }
                         return;
                     }
-
-                    continue;
+                    case RpcKeepAliveAction.SendPing:
+                        break;
                 }
-
-                // Outbound traffic does not prove the server is alive.
-                // Only inbound frames suppress probes, which keeps the semantics aligned with the server.
-                var lastReceive = Volatile.Read(ref _lastReceiveTicksUtc);
-                if (new TimeSpan(nowTicks - lastReceive) < interval)
-                    continue;
 
                 var pingTimestamp = DateTimeOffset.UtcNow.UtcTicks;
                 var ping = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
@@ -302,7 +280,7 @@ namespace ULinkRPC.Client
                 try
                 {
                     await SendFrameAsyncSerialized(ping, _cts.Token).ConfigureAwait(false);
-                    Volatile.Write(ref _pendingPingSentAtTicksUtc, pingTimestamp);
+                    _keepAliveState.MarkPingSent(pingTimestamp);
                 }
                 catch (OperationCanceledException)
                 {
@@ -325,19 +303,12 @@ namespace ULinkRPC.Client
             try
             {
                 await _transport.SendFrameAsync(frame, ct).ConfigureAwait(false);
-                UpdateSendActivityUtc();
+                _keepAliveState.MarkSent();
             }
             finally
             {
                 _sendLock.Release();
             }
-        }
-
-        private void FailAllPending(Exception ex)
-        {
-            foreach (var item in _pending)
-                if (_pending.TryRemove(item.Key, out var tcs))
-                    tcs.TrySetException(ex);
         }
 
         private uint NextRequestId()
@@ -351,40 +322,6 @@ namespace ULinkRPC.Client
             return id;
         }
 
-        private void UpdateSendActivityUtc()
-        {
-            UpdateSendActivityUtc(DateTimeOffset.UtcNow.UtcTicks);
-        }
-
-        private void UpdateSendActivityUtc(long utcTicks)
-        {
-            Volatile.Write(ref _lastSendTicksUtc, utcTicks);
-        }
-
-        private void UpdateReceiveActivityUtc()
-        {
-            Volatile.Write(ref _lastReceiveTicksUtc, DateTimeOffset.UtcNow.UtcTicks);
-        }
-
-        private void ClearPendingPing()
-        {
-            Volatile.Write(ref _pendingPingSentAtTicksUtc, 0);
-        }
-
-        private void UpdateRttFromPong(long pongTimestampTicksUtc)
-        {
-            if (!_keepAlive.MeasureRtt)
-                return;
-
-            if (pongTimestampTicksUtc <= 0)
-                return;
-
-            var nowTicks = DateTimeOffset.UtcNow.UtcTicks;
-            if (nowTicks <= pongTimestampTicksUtc)
-                return;
-
-            Volatile.Write(ref _lastRttTicks, nowTicks - pongTimestampTicksUtc);
-        }
 
         private void SetDisconnectReason(Exception ex)
         {
@@ -398,7 +335,5 @@ namespace ULinkRPC.Client
                 throw new ObjectDisposedException(nameof(RpcClientRuntime));
         }
 
-        private static long GetTimestampOrNow(long utcTicks) =>
-            utcTicks > 0 ? utcTicks : DateTimeOffset.UtcNow.UtcTicks;
     }
 }
