@@ -6,6 +6,7 @@ namespace ULinkRPC.Core
     {
         public bool EnableCompression { get; set; }
         public int CompressionThresholdBytes { get; set; } = 1024;
+        public int MaxDecompressedFrameBytes { get; set; } = RpcEnvelopeCodec.MaxPayloadSize + 1024;
         public bool EnableEncryption { get; set; }
 
         public byte[]? EncryptionKey { get; set; }

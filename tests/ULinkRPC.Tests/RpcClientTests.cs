@@ -144,6 +144,23 @@ public class RpcClientRuntimeTests
     }
 
     [Fact]
+    public async Task DisposeAsync_FailsPendingCalls()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var client = new RpcClientRuntime(clientTransport, serializer);
+
+        await client.StartAsync();
+
+        var callTask = client.CallAsync(EchoMethod, "pending").AsTask();
+        await Task.Delay(50);
+        await client.DisposeAsync();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => callTask);
+        await serverTransport.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Disconnected_EventFired_OnTransportClose()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
@@ -194,6 +211,40 @@ public class RpcClientRuntimeTests
         await pushReceived.Task;
 
         Assert.Equal("hello from server", receivedMessage);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task PushHandler_Exception_DoesNotDisconnectClient()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcSession(serverTransport, serializer);
+        server.Register(1, 1, (req, ct) =>
+        {
+            var arg = serializer.Deserialize<string>(req.Payload.AsSpan());
+            return ValueTask.FromResult(new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = serializer.Serialize(arg.ToUpperInvariant())
+            });
+        });
+
+        await server.StartAsync();
+
+        var client = new RpcClientRuntime(clientTransport, serializer);
+        client.RegisterPushHandler(NotifyPushMethod, _ => throw new InvalidOperationException("push exploded"));
+
+        await client.StartAsync();
+        await server.PushAsync(1, 1, "boom");
+        await Task.Delay(50);
+
+        var response = await client.CallAsync(EchoMethod, "still-alive");
+        Assert.Equal("STILL-ALIVE", response);
 
         await client.DisposeAsync();
         await server.StopAsync();
@@ -312,6 +363,63 @@ public class RpcClientRuntimeTests
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         using var registration = timeoutCts.Token.Register(() => disconnectedTcs.TrySetCanceled());
         var error = await disconnectedTcs.Task;
+
+        var timeout = Assert.IsType<TimeoutException>(error);
+        Assert.Contains("keepalive", timeout.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(client.TimedOutByKeepAlive);
+
+        await client.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task KeepAlive_OutgoingTrafficDoesNotSuppressTimeout()
+    {
+        var transport = new IdleClientTransport();
+        var serializer = new JsonRpcSerializer();
+        var client = new RpcClientRuntime(transport, serializer, new RpcKeepAliveOptions
+        {
+            Enabled = true,
+            Interval = TimeSpan.FromMilliseconds(40),
+            Timeout = TimeSpan.FromMilliseconds(120),
+            MeasureRtt = true
+        });
+
+        var disconnectedTcs = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.Disconnected += ex => disconnectedTcs.TrySetResult(ex);
+
+        await client.StartAsync();
+
+        using var spamCts = new CancellationTokenSource();
+        var spamTask = Task.Run(async () =>
+        {
+            while (!spamCts.Token.IsCancellationRequested)
+            {
+                using var callCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(5));
+                try
+                {
+                    await client.CallAsync(EchoMethod, "spam", callCts.Token);
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    await Task.Delay(20, spamCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+        });
+
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var registration = timeoutCts.Token.Register(() => disconnectedTcs.TrySetCanceled());
+        var error = await disconnectedTcs.Task;
+
+        spamCts.Cancel();
+        await spamTask;
 
         var timeout = Assert.IsType<TimeoutException>(error);
         Assert.Contains("keepalive", timeout.Message, StringComparison.OrdinalIgnoreCase);

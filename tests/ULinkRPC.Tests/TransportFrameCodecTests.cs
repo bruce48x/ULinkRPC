@@ -194,4 +194,23 @@ public class TransportFrameCodecTests
 
         Assert.ThrowsAny<Exception>(() => codec2.Decode(encoded));
     }
+
+    [Fact]
+    public void Decode_CompressedPayloadExceedingLimit_Throws()
+    {
+        var config = new TransportSecurityConfig
+        {
+            EnableCompression = true,
+            CompressionThresholdBytes = 0,
+            MaxDecompressedFrameBytes = 128
+        };
+
+        var codec = new TransportFrameCodec(config);
+        var data = new byte[1024];
+        Array.Fill(data, (byte)'A');
+
+        var encoded = codec.Encode(data);
+
+        Assert.Throws<InvalidOperationException>(() => codec.Decode(encoded));
+    }
 }

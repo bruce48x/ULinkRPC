@@ -24,6 +24,7 @@ namespace ULinkRPC.Server
         private Task? _loop;
         private int _disposed;
         private int _nextInFlightRequestId;
+        private long _pendingPingSentAtTicksUtc;
         private int _started;
         private int _transportDisposed;
         private long _disconnectReasonSet;
@@ -231,6 +232,7 @@ namespace ULinkRPC.Server
                         break;
 
                     UpdateReceiveActivityUtc();
+                    ClearPendingPing();
                     var frameType = RpcEnvelopeCodec.PeekFrameType(frame.Span);
                     if (frameType == RpcFrameType.KeepAlivePing)
                     {
@@ -291,19 +293,51 @@ namespace ULinkRPC.Server
                 }
 
                 var nowTicks = DateTimeOffset.UtcNow.UtcTicks;
-                var lastActivity = Math.Max(Volatile.Read(ref _lastReceiveTicksUtc), Volatile.Read(ref _lastSendTicksUtc));
-                if (new TimeSpan(nowTicks - lastActivity) < timeout)
+                var pendingPingSentAt = Volatile.Read(ref _pendingPingSentAtTicksUtc);
+                if (pendingPingSentAt > 0)
+                {
+                    if (new TimeSpan(nowTicks - pendingPingSentAt) < timeout)
+                        continue;
+
+                    SetDisconnectReason(new TimeoutException("RPC session keepalive timed out."));
+                    try
+                    {
+                        serverCts.Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
+                    return;
+                }
+
+                // Outbound sends can succeed against local buffers even after the peer is gone.
+                // Only inbound traffic suppresses probes so keepalive remains a peer-liveness check.
+                var lastReceive = Volatile.Read(ref _lastReceiveTicksUtc);
+                if (new TimeSpan(nowTicks - lastReceive) < interval)
                     continue;
 
-                SetDisconnectReason(new TimeoutException("RPC session keepalive timed out."));
                 try
                 {
-                    serverCts.Cancel();
+                    var pingTimestamp = DateTimeOffset.UtcNow.UtcTicks;
+                    var pingBytes = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
+                    {
+                        TimestampTicksUtc = pingTimestamp
+                    });
+                    await SendFrameAsyncSerialized(pingBytes, ct).ConfigureAwait(false);
+                    Volatile.Write(ref _pendingPingSentAtTicksUtc, pingTimestamp);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
                 }
                 catch (ObjectDisposedException)
                 {
+                    return;
                 }
-                return;
+                catch (InvalidOperationException) when (!_transport.IsConnected)
+                {
+                    return;
+                }
             }
         }
 
@@ -576,6 +610,11 @@ namespace ULinkRPC.Server
         {
             if (Interlocked.CompareExchange(ref _disconnectReasonSet, 1, 0) == 0)
                 _disconnectReason = ex;
+        }
+
+        private void ClearPendingPing()
+        {
+            Volatile.Write(ref _pendingPingSentAtTicksUtc, 0);
         }
 
         private static long GetTimestampOrNow(long utcTicks) =>

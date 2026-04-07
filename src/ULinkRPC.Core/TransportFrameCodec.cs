@@ -11,9 +11,11 @@ namespace ULinkRPC.Core
         private const byte FlagCompressed = 1;
         private const int IvSize = 16;
         private const int HmacSize = 32;
+        private const int CopyBufferSize = 8192;
 
         private readonly bool _compressEnabled;
         private readonly int _compressThreshold;
+        private readonly int _maxDecompressedFrameBytes;
         private readonly bool _encryptEnabled;
         private readonly byte[]? _encKey;
         private readonly byte[]? _macKey;
@@ -24,6 +26,9 @@ namespace ULinkRPC.Core
 
             _compressEnabled = config.EnableCompression;
             _compressThreshold = Math.Max(0, config.CompressionThresholdBytes);
+            _maxDecompressedFrameBytes = config.MaxDecompressedFrameBytes > 0
+                ? config.MaxDecompressedFrameBytes
+                : throw new ArgumentOutOfRangeException(nameof(config), "MaxDecompressedFrameBytes must be positive.");
             _encryptEnabled = config.EnableEncryption;
 
             if (_encryptEnabled)
@@ -80,7 +85,7 @@ namespace ULinkRPC.Core
             Buffer.BlockCopy(payload, 1, body, 0, body.Length);
 
             if (_compressEnabled && (flags & FlagCompressed) != 0)
-                return Decompress(body);
+                return Decompress(body, _maxDecompressedFrameBytes);
 
             return body;
         }
@@ -95,12 +100,28 @@ namespace ULinkRPC.Core
             return ms.ToArray();
         }
 
-        private static byte[] Decompress(byte[] data)
+        private static byte[] Decompress(byte[] data, int maxOutputBytes)
         {
             using var input = new MemoryStream(data);
             using var gz = new GZipStream(input, CompressionMode.Decompress);
             using var output = new MemoryStream();
-            gz.CopyTo(output);
+            var buffer = new byte[CopyBufferSize];
+            var total = 0;
+
+            while (true)
+            {
+                var read = gz.Read(buffer, 0, buffer.Length);
+                if (read == 0)
+                    break;
+
+                total += read;
+                if (total > maxOutputBytes)
+                    throw new InvalidOperationException(
+                        $"Decompressed frame exceeds configured limit of {maxOutputBytes} bytes.");
+
+                output.Write(buffer, 0, read);
+            }
+
             return output.ToArray();
         }
 

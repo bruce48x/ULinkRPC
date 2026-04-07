@@ -16,6 +16,7 @@ namespace ULinkRPC.Client
         private readonly ITransport _transport;
         private readonly IRpcSerializer _serializer;
         private readonly RpcKeepAliveOptions _keepAlive;
+        private int _disposed;
         private int _nextId;
         private int _started;
         private int _keepAliveTimedOut;
@@ -57,6 +58,7 @@ namespace ULinkRPC.Client
 
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
                 throw new InvalidOperationException("RpcClient already started.");
 
@@ -78,6 +80,7 @@ namespace ULinkRPC.Client
 
         public void RegisterPushHandler<TArg>(RpcPushMethod<TArg> method, Action<TArg> handler)
         {
+            ThrowIfDisposed();
             if (handler is null) throw new ArgumentNullException(nameof(handler));
             _pushHandlers[(method.ServiceId, method.MethodId)] = payload =>
             {
@@ -95,6 +98,7 @@ namespace ULinkRPC.Client
         public async ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg? arg,
             CancellationToken ct = default)
         {
+            ThrowIfDisposed();
             var id = NextRequestId();
             var tcs = new TaskCompletionSource<RpcResponseEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
             _pending[id] = tcs;
@@ -137,7 +141,11 @@ namespace ULinkRPC.Client
 
         public async ValueTask DisposeAsync()
         {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
             try { _cts.Cancel(); } catch (ObjectDisposedException) { }
+            FailAllPending(new ObjectDisposedException(nameof(RpcClientRuntime)));
             Interlocked.Exchange(ref _started, 0);
             if (_recvLoop is not null)
                 try
@@ -191,7 +199,25 @@ namespace ULinkRPC.Client
                         {
                             var push = RpcEnvelopeCodec.DecodePush(frame.Span);
                             if (_pushHandlers.TryGetValue((push.ServiceId, push.MethodId), out var handler))
-                                handler(push.Payload.AsSpan());
+                            {
+                                try
+                                {
+                                    handler(push.Payload.AsSpan());
+                                }
+                                catch
+                                {
+                                }
+                            }
+                            break;
+                        }
+                        case RpcFrameType.KeepAlivePing:
+                        {
+                            var ping = RpcEnvelopeCodec.DecodeKeepAlivePing(frame.Span);
+                            var pong = RpcEnvelopeCodec.EncodeKeepAlivePong(new RpcKeepAlivePongEnvelope
+                            {
+                                TimestampTicksUtc = ping.TimestampTicksUtc
+                            });
+                            await SendFrameAsyncSerialized(pong, ct).ConfigureAwait(false);
                             break;
                         }
                         case RpcFrameType.KeepAlivePong:
@@ -261,8 +287,10 @@ namespace ULinkRPC.Client
                     continue;
                 }
 
-                var lastActivity = Math.Max(Volatile.Read(ref _lastReceiveTicksUtc), Volatile.Read(ref _lastSendTicksUtc));
-                if (new TimeSpan(nowTicks - lastActivity) < interval)
+                // Outbound traffic does not prove the server is alive.
+                // Only inbound frames suppress probes, which keeps the semantics aligned with the server.
+                var lastReceive = Volatile.Read(ref _lastReceiveTicksUtc);
+                if (new TimeSpan(nowTicks - lastReceive) < interval)
                     continue;
 
                 var pingTimestamp = DateTimeOffset.UtcNow.UtcTicks;
@@ -362,6 +390,12 @@ namespace ULinkRPC.Client
         {
             if (Interlocked.CompareExchange(ref _disconnectReasonSet, 1, 0) == 0)
                 _disconnectReason = ex;
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref _disposed) != 0)
+                throw new ObjectDisposedException(nameof(RpcClientRuntime));
         }
 
         private static long GetTimestampOrNow(long utcTicks) =>

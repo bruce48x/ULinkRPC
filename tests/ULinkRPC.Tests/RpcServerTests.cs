@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ULinkRPC.Client;
 using ULinkRPC.Core;
 using ULinkRPC.Server;
 using ULinkRPC.Serializer.Json;
@@ -496,6 +497,50 @@ public class RpcSessionTests
         var timeout = Assert.IsType<TimeoutException>(error);
         Assert.Contains("keepalive", timeout.Message, StringComparison.OrdinalIgnoreCase);
 
+        await server.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task KeepAlive_WithResponsiveIdleClient_KeepsSessionAlive()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var server = new RpcSession(
+            serverTransport,
+            serializer,
+            registry: null,
+            contextId: "keepalive-responsive",
+            ownsTransport: false,
+            keepAlive: new RpcKeepAliveOptions
+            {
+                Enabled = true,
+                Interval = TimeSpan.FromMilliseconds(40),
+                Timeout = TimeSpan.FromMilliseconds(120),
+                MeasureRtt = false
+            });
+
+        server.Register(1, 1, (req, ct) => ValueTask.FromResult(new RpcResponseEnvelope
+        {
+            RequestId = req.RequestId,
+            Status = RpcStatus.Ok,
+            Payload = serializer.Serialize("alive")
+        }));
+
+        var disconnected = 0;
+        server.Disconnected += _ => Interlocked.Increment(ref disconnected);
+
+        await server.StartAsync();
+
+        var client = new RpcClientRuntime(clientTransport, serializer);
+        await client.StartAsync();
+
+        await Task.Delay(300);
+        var reply = await client.CallAsync(new RpcMethod<string, string>(1, 1), string.Empty);
+
+        Assert.Equal("alive", reply);
+        Assert.Equal(0, disconnected);
+
+        await client.DisposeAsync();
         await server.DisposeAsync();
     }
 
