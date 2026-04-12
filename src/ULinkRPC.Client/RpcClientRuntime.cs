@@ -86,8 +86,9 @@ namespace ULinkRPC.Client
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            var id = NextRequestId();
-            var tcs = _pending.Add(id);
+            var reservation = _pending.Reserve(ref _nextId);
+            var id = reservation.RequestId;
+            var tcs = reservation.CompletionSource;
 
             try
             {
@@ -310,18 +311,6 @@ namespace ULinkRPC.Client
                 _sendLock.Release();
             }
         }
-
-        private uint NextRequestId()
-        {
-            uint id;
-            do
-            {
-                id = unchecked((uint)Interlocked.Increment(ref _nextId));
-            } while (id == 0);
-
-            return id;
-        }
-
 
         private void SetDisconnectReason(Exception ex)
         {

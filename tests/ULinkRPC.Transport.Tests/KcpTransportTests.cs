@@ -12,6 +12,32 @@ namespace ULinkRPC.Transport.Tests;
 public class KcpTransportTests
 {
     [Fact]
+    public async Task KcpTransport_HandshakeHonorsCancellation()
+    {
+        using var serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        serverSocket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        var serverEndPoint = (IPEndPoint)serverSocket.LocalEndPoint!;
+        var handshakeObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _ = Task.Run(async () =>
+        {
+            var buffer = new byte[32];
+            EndPoint any = new IPEndPoint(IPAddress.Any, 0);
+            var received = await serverSocket.ReceiveFromAsync(buffer, SocketFlags.None, any);
+            if (received.ReceivedBytes > 0)
+                handshakeObserved.TrySetResult();
+        });
+
+        await using var client = new KcpTransport(IPAddress.Loopback.ToString(), serverEndPoint.Port);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
+        using var observeCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.ConnectAsync(cts.Token).AsTask());
+        await WithTimeout(handshakeObserved.Task, observeCts.Token);
+        Assert.False(client.IsConnected);
+    }
+
+    [Fact]
     public async Task KcpTransport_Roundtrip()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));

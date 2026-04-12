@@ -39,17 +39,25 @@ namespace ULinkRPC.Transport.Kcp
             var ipAddress = await ResolveHostAsync(_host).ConfigureAwait(false);
             var bootstrapEndPoint = new IPEndPoint(ipAddress, _port);
             var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            socket.Bind(new IPEndPoint(IPAddress.Any, 0));
+            try
+            {
+                socket.Bind(new IPEndPoint(IPAddress.Any, 0));
 
-            var conv = CreateConversationId();
-            socket.SendTo(CreateHandshakeRequest(conv), bootstrapEndPoint);
+                var conv = CreateConversationId();
+                socket.SendTo(CreateHandshakeRequest(conv), bootstrapEndPoint);
 
-            var sessionPort = await ReceiveHandshakeAckAsync(socket, bootstrapEndPoint, conv).ConfigureAwait(false);
-            _remote = new IPEndPoint(ipAddress, sessionPort);
-            _socket = socket;
-            _kcp = new SimpleSegManager.Kcp(conv, this, this);
-            IsConnected = true;
-            _updateLoop = Task.Run(UpdateLoopAsync);
+                var sessionPort = await ReceiveHandshakeAckAsync(socket, bootstrapEndPoint, conv, ct).ConfigureAwait(false);
+                _remote = new IPEndPoint(ipAddress, sessionPort);
+                _socket = socket;
+                _kcp = new SimpleSegManager.Kcp(conv, this, this);
+                IsConnected = true;
+                _updateLoop = Task.Run(UpdateLoopAsync);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
         }
 
         public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
@@ -150,17 +158,45 @@ namespace ULinkRPC.Transport.Kcp
             return MemoryPool<byte>.Shared.Rent(size);
         }
 
-        private async Task<int> ReceiveHandshakeAckAsync(Socket socket, EndPoint bootstrapEndPoint, uint conv)
+        private async Task<int> ReceiveHandshakeAckAsync(
+            Socket socket,
+            EndPoint bootstrapEndPoint,
+            uint conv,
+            CancellationToken ct)
         {
             var buffer = new byte[32];
             EndPoint any = new IPEndPoint(IPAddress.Any, 0);
+#if !NET8_0_OR_GREATER
+            using var registration = ct.Register(static state =>
+            {
+                try
+                {
+                    ((Socket)state!).Dispose();
+                }
+                catch
+                {
+                }
+            }, socket);
+#endif
 
             while (true)
             {
 #if NET8_0_OR_GREATER
-                var received = await socket.ReceiveFromAsync(buffer, SocketFlags.None, any).ConfigureAwait(false);
+                var received = await socket.ReceiveFromAsync(buffer, SocketFlags.None, any, ct).ConfigureAwait(false);
 #else
-                var received = await socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);
+                SocketReceiveFromResult received;
+                try
+                {
+                    received = await socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException) when (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(ct);
+                }
+                catch (SocketException) when (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(ct);
+                }
 #endif
                 if (!EndPointEquals(received.RemoteEndPoint, bootstrapEndPoint))
                     continue;

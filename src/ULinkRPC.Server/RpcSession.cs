@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Net;
+using Microsoft.Extensions.Logging;
 using ULinkRPC.Core;
 
 namespace ULinkRPC.Server
@@ -8,6 +9,7 @@ namespace ULinkRPC.Server
 
     public sealed class RpcSession : IAsyncDisposable
     {
+        private const string HandlerExecutionErrorMessage = "RPC handler failed.";
         private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RpcHandler> _handlers = new();
         private readonly TrackedTaskCollection _inflightRequests = new();
         private readonly System.Collections.Concurrent.ConcurrentDictionary<int, object> _scopedServices = new();
@@ -16,6 +18,7 @@ namespace ULinkRPC.Server
         private readonly ITransport _transport;
         private readonly IRpcSerializer _serializer;
         private readonly RpcKeepAliveOptions _keepAlive;
+        private readonly ILogger _logger;
         private readonly bool _ownsTransport;
         private readonly SemaphoreSlim _sendLock = new(1, 1);
 
@@ -63,13 +66,21 @@ namespace ULinkRPC.Server
         {
         }
 
-        public RpcSession(ITransport transport, IRpcSerializer serializer, RpcServiceRegistry? registry, string contextId, bool ownsTransport, RpcKeepAliveOptions? keepAlive = null)
+        public RpcSession(
+            ITransport transport,
+            IRpcSerializer serializer,
+            RpcServiceRegistry? registry,
+            string contextId,
+            bool ownsTransport,
+            RpcKeepAliveOptions? keepAlive = null,
+            ILogger? logger = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             _registry = registry;
             _ownsTransport = ownsTransport;
             _keepAlive = keepAlive ?? RpcKeepAliveOptions.Disabled;
+            _logger = logger ?? DefaultRpcLogging.CreateLogger<RpcSession>();
             _keepAliveState = new RpcKeepAliveState(_keepAlive.MeasureRtt);
             ContextId = contextId ?? throw new ArgumentNullException(nameof(contextId));
             RemoteEndPoint = ResolveRemoteEndPoint(_transport);
@@ -361,12 +372,13 @@ namespace ULinkRPC.Server
                 }
                 catch (Exception ex)
                 {
+                    LogHandlerFailure(req, ex);
                     resp = new RpcResponseEnvelope
                     {
                         RequestId = req.RequestId,
                         Status = RpcStatus.Exception,
                         Payload = Array.Empty<byte>(),
-                        ErrorMessage = ex.ToString()
+                        ErrorMessage = HandlerExecutionErrorMessage
                     };
                 }
             }
@@ -392,12 +404,13 @@ namespace ULinkRPC.Server
                 }
                 catch (Exception ex)
                 {
+                    LogHandlerFailure(req, ex);
                     resp = new RpcResponseEnvelope
                     {
                         RequestId = req.RequestId,
                         Status = RpcStatus.Exception,
                         Payload = Array.Empty<byte>(),
-                        ErrorMessage = ex.ToString()
+                        ErrorMessage = HandlerExecutionErrorMessage
                     };
                 }
             }
@@ -440,6 +453,17 @@ namespace ULinkRPC.Server
             {
                 _sendLock.Release();
             }
+        }
+
+        private void LogHandlerFailure(RpcRequestEnvelope req, Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "RPC handler failed for request {RequestId} service {ServiceId} method {MethodId} in session {ContextId}.",
+                req.RequestId,
+                req.ServiceId,
+                req.MethodId,
+                ContextId);
         }
 
         private void ResetRuntimeState(CancellationTokenSource serverCts)

@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Client</PackageId>
-    <Version>0.6.4</Version>
+    <Version>0.7.0</Version>
     <Authors>ULinkRPC</Authors>
     <Description>ULinkRPC client runtime and client-side transports.</Description>
     <PackageTags>rpc;unity;client;tcp;loopback</PackageTags>

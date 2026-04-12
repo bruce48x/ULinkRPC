@@ -31,12 +31,46 @@ namespace ULinkRPC.Transport.Tcp
             if (_stream is not null)
                 return;
 
-            _client = new TcpClient();
-            await _client.ConnectAsync(_host, _port).ConfigureAwait(false);
-            ct.ThrowIfCancellationRequested();
-            _stream = _client.GetStream();
-            _framing = new TcpPipeFraming(_stream, MaxFrameSize);
-            _connected = true;
+            var client = new TcpClient();
+            try
+            {
+#if NET10_0_OR_GREATER || NET8_0_OR_GREATER
+                await client.ConnectAsync(_host, _port, ct).ConfigureAwait(false);
+#else
+                using var registration = ct.Register(static state =>
+                {
+                    try
+                    {
+                        ((TcpClient)state!).Dispose();
+                    }
+                    catch
+                    {
+                    }
+                }, client);
+
+                try
+                {
+                    await client.ConnectAsync(_host, _port).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException) when (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(ct);
+                }
+                catch (SocketException) when (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(ct);
+                }
+#endif
+                _stream = client.GetStream();
+                _framing = new TcpPipeFraming(_stream, MaxFrameSize);
+                _client = client;
+                _connected = true;
+            }
+            catch
+            {
+                client.Dispose();
+                throw;
+            }
         }
 
         public async ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)

@@ -161,7 +161,7 @@ namespace ULinkRPC.Core
             var ciphertext = data.Slice(IvSize, data.Length - IvSize - HmacSize).ToArray();
 
             var expected = ComputeHmac(iv, ciphertext);
-            if (!FixedTimeEquals(expected, tag))
+            if (!CryptographicOperations.FixedTimeEquals(expected, tag))
                 throw new InvalidOperationException("Encrypted frame authentication failed.");
 
             using var aes = Aes.Create();
@@ -184,23 +184,44 @@ namespace ULinkRPC.Core
 
         private static byte[] DeriveKey(byte[] master, string purpose)
         {
-            using var sha = SHA256.Create();
-            var purposeBytes = Encoding.ASCII.GetBytes(purpose);
-            var input = new byte[master.Length + purposeBytes.Length];
-            Buffer.BlockCopy(master, 0, input, 0, master.Length);
-            Buffer.BlockCopy(purposeBytes, 0, input, master.Length, purposeBytes.Length);
-            return sha.ComputeHash(input);
+            var info = Encoding.UTF8.GetBytes(purpose);
+            return HkdfSha256(master, info, HmacSize);
         }
 
-        private static bool FixedTimeEquals(byte[] a, byte[] b)
+        private static byte[] HkdfSha256(byte[] ikm, byte[] info, int outputLength)
         {
-            if (a.Length != b.Length)
-                return false;
+            if (outputLength <= 0)
+                throw new ArgumentOutOfRangeException(nameof(outputLength));
 
-            var diff = 0;
-            for (var i = 0; i < a.Length; i++)
-                diff |= a[i] ^ b[i];
-            return diff == 0;
+            var hashLength = HmacSize;
+            var blocks = (outputLength + hashLength - 1) / hashLength;
+            if (blocks > 255)
+                throw new ArgumentOutOfRangeException(nameof(outputLength), "HKDF output too long.");
+
+            using var extractHmac = new HMACSHA256(new byte[hashLength]);
+            var prk = extractHmac.ComputeHash(ikm);
+
+            using var expandHmac = new HMACSHA256(prk);
+            var okm = new byte[outputLength];
+            var previous = Array.Empty<byte>();
+            var offset = 0;
+
+            for (byte blockIndex = 1; blockIndex <= blocks; blockIndex++)
+            {
+                var input = new byte[previous.Length + info.Length + 1];
+                Buffer.BlockCopy(previous, 0, input, 0, previous.Length);
+                Buffer.BlockCopy(info, 0, input, previous.Length, info.Length);
+                input[^1] = blockIndex;
+
+                previous = expandHmac.ComputeHash(input);
+                var bytesToCopy = Math.Min(previous.Length, outputLength - offset);
+                Buffer.BlockCopy(previous, 0, okm, offset, bytesToCopy);
+                offset += bytesToCopy;
+            }
+
+            CryptographicOperations.ZeroMemory(prk);
+            CryptographicOperations.ZeroMemory(previous);
+            return okm;
         }
     }
 }

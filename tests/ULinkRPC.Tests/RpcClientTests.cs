@@ -3,6 +3,9 @@ using ULinkRPC.Core;
 using ULinkRPC.Serializer.Json;
 using ULinkRPC.Server;
 using ULinkRPC.Transport.Loopback;
+using System.Collections.Concurrent;
+using System.Reflection;
+using System.Threading.Channels;
 
 namespace ULinkRPC.Tests;
 
@@ -313,6 +316,60 @@ public class RpcClientRuntimeTests
     }
 
     [Fact]
+    public async Task CallAsync_RequestIdCollision_ReusesNextAvailableId()
+    {
+        var serializer = new JsonRpcSerializer();
+        var transport = new ControlledClientTransport();
+        var client = new RpcClientRuntime(transport, serializer);
+        await client.StartAsync();
+
+        SetNextRequestId(client, 0);
+        var firstCall = client.CallAsync(EchoMethod, "first").AsTask();
+        await transport.WaitForSentRequestCountAsync(1);
+
+        SetNextRequestId(client, 0);
+        var secondCall = client.CallAsync(EchoMethod, "second").AsTask();
+        await transport.WaitForSentRequestCountAsync(2);
+
+        Assert.Equal(new uint[] { 1, 2 }, transport.SentRequestIds.ToArray());
+
+        transport.Complete(1, serializer.Serialize("ok-1"));
+        transport.Complete(2, serializer.Serialize("ok-2"));
+
+        Assert.Equal("ok-1", await firstCall);
+        Assert.Equal("ok-2", await secondCall);
+
+        await client.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task CallAsync_RequestIdWraparound_SkipsZeroAndCollisions()
+    {
+        var serializer = new JsonRpcSerializer();
+        var transport = new ControlledClientTransport();
+        var client = new RpcClientRuntime(transport, serializer);
+        await client.StartAsync();
+
+        SetNextRequestId(client, -2);
+        var firstCall = client.CallAsync(EchoMethod, "first").AsTask();
+        await transport.WaitForSentRequestCountAsync(1);
+
+        SetNextRequestId(client, -2);
+        var secondCall = client.CallAsync(EchoMethod, "second").AsTask();
+        await transport.WaitForSentRequestCountAsync(2);
+
+        Assert.Equal(new uint[] { uint.MaxValue, 1 }, transport.SentRequestIds.ToArray());
+
+        transport.Complete(uint.MaxValue, serializer.Serialize("wrapped-max"));
+        transport.Complete(1, serializer.Serialize("wrapped-one"));
+
+        Assert.Equal("wrapped-max", await firstCall);
+        Assert.Equal("wrapped-one", await secondCall);
+
+        await client.DisposeAsync();
+    }
+
+    [Fact]
     public async Task KeepAlive_WithServerPong_UpdatesLastRtt()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
@@ -454,5 +511,64 @@ public class RpcClientRuntimeTests
             IsConnected = false;
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class ControlledClientTransport : ITransport
+    {
+        private readonly Channel<ReadOnlyMemory<byte>> _responses = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+        private readonly ConcurrentQueue<uint> _sentRequestIds = new();
+
+        public IReadOnlyCollection<uint> SentRequestIds => _sentRequestIds;
+
+        public bool IsConnected { get; private set; }
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            IsConnected = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+        {
+            var request = RpcEnvelopeCodec.DecodeRequest(frame.Span);
+            _sentRequestIds.Enqueue(request.RequestId);
+            return ValueTask.CompletedTask;
+        }
+
+        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        {
+            return await _responses.Reader.ReadAsync(ct);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsConnected = false;
+            _responses.Writer.TryComplete();
+            return ValueTask.CompletedTask;
+        }
+
+        public void Complete(uint requestId, byte[] payload)
+        {
+            _responses.Writer.TryWrite(RpcEnvelopeCodec.EncodeResponse(new RpcResponseEnvelope
+            {
+                RequestId = requestId,
+                Status = RpcStatus.Ok,
+                Payload = payload
+            }));
+        }
+
+        public async Task WaitForSentRequestCountAsync(int count)
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            while (_sentRequestIds.Count < count)
+                await Task.Delay(10, cts.Token);
+        }
+    }
+
+    private static void SetNextRequestId(RpcClientRuntime client, int value)
+    {
+        typeof(RpcClientRuntime)
+            .GetField("_nextId", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(client, value);
     }
 }

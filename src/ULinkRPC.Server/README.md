@@ -60,3 +60,17 @@ When `ownsTransport` is `true`, disposing the session also disposes the transpor
 
 - The server automatically replies to client keepalive pings with pong.
 - When enabled on the host, each `RpcSession` also tracks idle time and disconnects sessions that remain inactive longer than the configured timeout.
+
+## Authentication And Authorization Boundary
+
+`ULinkRPC.Server` is intentionally focused on RPC session management, transport integration, request dispatch, and connection-level concerns such as framing, keepalive, and transport security.
+
+Request-level authorization is not built into the server runtime by design.
+
+- Transport security belongs in the RPC layer because it protects the connection itself.
+- Authentication may be integrated at the application boundary, but the concrete identity model is application-specific.
+- Authorization is expected to live in an upper application/business layer because access rules depend on domain concepts such as users, roles, tenants, resources, and policies.
+
+This boundary is intentional: the RPC runtime should carry calls correctly and safely, but it should not hard-code business authorization semantics into the communication layer.
+
+Future evolution may add authentication / authorization extension points, but the core runtime is not intended to become a built-in policy engine.

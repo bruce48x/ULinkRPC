@@ -7,13 +7,20 @@ internal sealed class RpcPendingRequestCollection
 {
     private readonly ConcurrentDictionary<uint, TaskCompletionSource<RpcResponseEnvelope>> _pending = new();
 
-    public TaskCompletionSource<RpcResponseEnvelope> Add(uint requestId)
+    public (uint RequestId, TaskCompletionSource<RpcResponseEnvelope> CompletionSource) Reserve(ref int nextRequestId)
     {
-        var tcs = new TaskCompletionSource<RpcResponseEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!_pending.TryAdd(requestId, tcs))
-            throw new InvalidOperationException($"RPC request id collision: {requestId}");
+        for (uint attempts = 0; attempts < uint.MaxValue; attempts++)
+        {
+            var requestId = unchecked((uint)Interlocked.Increment(ref nextRequestId));
+            if (requestId == 0)
+                continue;
 
-        return tcs;
+            var tcs = new TaskCompletionSource<RpcResponseEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (_pending.TryAdd(requestId, tcs))
+                return (requestId, tcs);
+        }
+
+        throw new InvalidOperationException("No RPC request id available; too many pending requests.");
     }
 
     public void Remove(uint requestId)

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using ULinkRPC.Client;
 using ULinkRPC.Core;
 using ULinkRPC.Server;
@@ -95,7 +96,15 @@ public class RpcSessionTests
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
-        var server = new RpcSession(serverTransport, serializer);
+        var logger = new TestLogger();
+        var server = new RpcSession(
+            serverTransport,
+            serializer,
+            registry: null,
+            contextId: Guid.NewGuid().ToString("N"),
+            ownsTransport: false,
+            keepAlive: null,
+            logger: logger);
 
         server.Register(1, 1, (req, ct) => throw new InvalidOperationException("test error"));
 
@@ -115,7 +124,14 @@ public class RpcSessionTests
         var resp = RpcEnvelopeCodec.DecodeResponse(respFrame.Span);
 
         Assert.Equal(RpcStatus.Exception, resp.Status);
-        Assert.Contains("test error", resp.ErrorMessage);
+        Assert.Equal("RPC handler failed.", resp.ErrorMessage);
+        Assert.DoesNotContain("test error", resp.ErrorMessage);
+        Assert.DoesNotContain(nameof(InvalidOperationException), resp.ErrorMessage);
+        Assert.Contains(logger.Entries, entry =>
+            entry.LogLevel == LogLevel.Error &&
+            entry.Exception is InvalidOperationException ioe &&
+            ioe.Message == "test error" &&
+            entry.Message.Contains("request 1", StringComparison.OrdinalIgnoreCase));
 
         await server.StopAsync();
         await clientTransport.DisposeAsync();
@@ -650,6 +666,42 @@ public class RpcSessionTests
         {
             IsConnected = false;
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class TestLogger : ILogger
+    {
+        public List<LogEntry> Entries { get; } = [];
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull
+        {
+            return NullScope.Instance;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+        }
+
+        public sealed record LogEntry(LogLevel LogLevel, string Message, Exception? Exception);
+
+        private sealed class NullScope : IDisposable
+        {
+            public static NullScope Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

@@ -8,6 +8,26 @@ namespace ULinkRPC.Tests;
 public sealed class TcpTransportTests
 {
     [Fact]
+    public async Task ConnectAsync_WhenCanceledBeforeConnect_DoesNotOpenConnection()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+
+        var endpoint = (IPEndPoint)listener.LocalEndpoint;
+        await using var client = new TcpTransport(IPAddress.Loopback.ToString(), endpoint.Port);
+        var acceptTask = listener.AcceptTcpClientAsync();
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.ConnectAsync(cts.Token).AsTask());
+        await Task.Delay(100);
+
+        Assert.False(client.IsConnected);
+        Assert.False(acceptTask.IsCompleted);
+    }
+
+    [Fact]
     public async Task ClientAndServerTransports_CanRoundTripFrames()
     {
         await using var pair = await ConnectedPair.CreateAsync();

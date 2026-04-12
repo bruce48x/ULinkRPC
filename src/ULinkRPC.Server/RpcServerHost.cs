@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using ULinkRPC.Core;
 
 namespace ULinkRPC.Server;
@@ -5,7 +6,7 @@ namespace ULinkRPC.Server;
 public sealed class RpcServerHost
 {
     private readonly Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>> _acceptorFactory;
-    private readonly Action<string> _logger;
+    private readonly ILogger _logger;
     private readonly RpcKeepAliveOptions _keepAlive;
     private readonly RpcServiceRegistry _registry;
     private readonly TransportSecurityConfig _security;
@@ -16,7 +17,7 @@ public sealed class RpcServerHost
         TransportSecurityConfig security,
         RpcKeepAliveOptions keepAlive,
         Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>> acceptorFactory,
-        Action<string> logger)
+        ILogger logger)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -42,7 +43,7 @@ public sealed class RpcServerHost
         try
         {
             await using var acceptor = await _acceptorFactory(cts.Token).ConfigureAwait(false);
-            _logger($"RPC server listening on {acceptor.ListenAddress}. Press Ctrl+C to stop.");
+            _logger.LogInformation("RPC server listening on {ListenAddress}. Press Ctrl+C to stop.", acceptor.ListenAddress);
 
             while (!cts.IsCancellationRequested)
             {
@@ -56,7 +57,7 @@ public sealed class RpcServerHost
                     break;
                 }
 
-                _logger($"[{connection.DisplayName}] accepted.");
+                _logger.LogInformation("[{DisplayName}] accepted.", connection.DisplayName);
 
                 var connectionTask = RunConnectionAsync(connection, cts.Token);
                 connectionTasks.Track(connectionTask);
@@ -68,7 +69,7 @@ public sealed class RpcServerHost
         finally
         {
             Console.CancelKeyPress -= cancelHandler;
-            _logger("Server stopped.");
+            _logger.LogInformation("Server stopped.");
         }
     }
 
@@ -81,7 +82,8 @@ public sealed class RpcServerHost
             _registry,
             connection.DisplayName,
             ownsTransport: true,
-            keepAlive: _keepAlive);
+            keepAlive: _keepAlive,
+            logger: _logger);
 
         try
         {
@@ -92,11 +94,11 @@ public sealed class RpcServerHost
         }
         catch (Exception ex)
         {
-            _logger($"[{connection.DisplayName}] Error: {ex}");
+            _logger.LogError(ex, "[{DisplayName}] Error.", connection.DisplayName);
         }
         finally
         {
-            _logger($"[{connection.DisplayName}] disconnected.");
+            _logger.LogInformation("[{DisplayName}] disconnected.", connection.DisplayName);
         }
     }
 

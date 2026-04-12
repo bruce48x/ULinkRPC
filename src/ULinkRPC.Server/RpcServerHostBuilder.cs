@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 using ULinkRPC.Core;
 
 namespace ULinkRPC.Server;
@@ -7,7 +8,7 @@ public sealed class RpcServerHostBuilder
 {
     private Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>>? _acceptorFactory;
     private RpcKeepAliveOptions _keepAlive = RpcKeepAliveOptions.Disabled;
-    private Action<string> _logger = Console.WriteLine;
+    private ILogger _logger = DefaultRpcLogging.CreateLogger<RpcServerHost>();
     private bool _servicesConfigured;
     private IRpcSerializer? _serializer;
 
@@ -63,6 +64,12 @@ public sealed class RpcServerHostBuilder
     }
 
     public RpcServerHostBuilder UseLogger(Action<string> logger)
+    {
+        _logger = new DelegateLogger(logger ?? throw new ArgumentNullException(nameof(logger)));
+        return this;
+    }
+
+    public RpcServerHostBuilder UseLogger(ILogger logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         return this;

@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Reflection;
+using System.Text;
 using ULinkRPC.Core;
 
 namespace ULinkRPC.Tests;
@@ -212,5 +214,63 @@ public class TransportFrameCodecTests
         var encoded = codec.Encode(data);
 
         Assert.Throws<InvalidOperationException>(() => codec.Decode(encoded));
+    }
+
+    [Fact]
+    public void DeriveKey_UsesHkdfSha256()
+    {
+        var master = Enumerable.Range(1, 32).Select(i => (byte)i).ToArray();
+
+        var derived = InvokeDeriveKey(master, "enc");
+        var expected = ComputeHkdfSha256(master, Encoding.UTF8.GetBytes("enc"), 32);
+
+        Assert.Equal(expected, derived);
+    }
+
+    [Fact]
+    public void DeriveKey_DifferentPurpose_ProducesDifferentKeys()
+    {
+        var master = Enumerable.Range(1, 32).Select(i => (byte)i).ToArray();
+
+        var enc = InvokeDeriveKey(master, "enc");
+        var mac = InvokeDeriveKey(master, "mac");
+
+        Assert.NotEqual(enc, mac);
+    }
+
+    private static byte[] InvokeDeriveKey(byte[] master, string purpose)
+    {
+        var method = typeof(TransportFrameCodec).GetMethod(
+            "DeriveKey",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        return (byte[])method.Invoke(null, [master, purpose])!;
+    }
+
+    private static byte[] ComputeHkdfSha256(byte[] ikm, byte[] info, int outputLength)
+    {
+        const int hashLength = 32;
+        using var extractHmac = new HMACSHA256(new byte[hashLength]);
+        var prk = extractHmac.ComputeHash(ikm);
+
+        using var expandHmac = new HMACSHA256(prk);
+        var okm = new byte[outputLength];
+        var previous = Array.Empty<byte>();
+        var offset = 0;
+        var blocks = (outputLength + hashLength - 1) / hashLength;
+
+        for (byte blockIndex = 1; blockIndex <= blocks; blockIndex++)
+        {
+            var input = new byte[previous.Length + info.Length + 1];
+            Buffer.BlockCopy(previous, 0, input, 0, previous.Length);
+            Buffer.BlockCopy(info, 0, input, previous.Length, info.Length);
+            input[^1] = blockIndex;
+
+            previous = expandHmac.ComputeHash(input);
+            var bytesToCopy = Math.Min(previous.Length, outputLength - offset);
+            Buffer.BlockCopy(previous, 0, okm, offset, bytesToCopy);
+            offset += bytesToCopy;
+        }
+
+        return okm;
     }
 }
