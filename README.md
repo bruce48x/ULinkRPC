@@ -23,6 +23,18 @@ Typical stack:
 - TCP, WebSocket, or KCP transport
 - MemoryPack or JSON serializer
 
+## Design Boundary
+
+ULinkRPC intentionally keeps its responsibility boundary at the communication framework layer.
+
+- Transport integration, frame security, session management, request dispatch, and keepalive belong to the framework.
+- Authentication may be handled at the application integration boundary, but the concrete identity model is not built into the framework.
+- Request-level authorization is intentionally not built into ULinkRPC. This is a design choice, not a missing implementation.
+
+The reason is straightforward: authorization rules are inherently tied to business semantics such as users, roles, tenants, resource ownership, and policy composition. Those rules are better handled in an upper application or business framework than in a low-level RPC communication layer.
+
+ULinkRPC may grow authentication / authorization extension points in the future, but the core runtime is not intended to become a built-in policy engine.
+
 ## Quick Start
 
 1. Define shared contracts with `[RpcService]`, `[RpcMethod]`, and optional callback contracts.
