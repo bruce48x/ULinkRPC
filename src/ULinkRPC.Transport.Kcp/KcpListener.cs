@@ -1,13 +1,21 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Channels;
 
 namespace ULinkRPC.Transport.Kcp
 {
     public sealed class KcpListener : IAsyncDisposable
     {
+        private readonly Channel<KcpAcceptResult> _accepted = Channel.CreateUnbounded<KcpAcceptResult>(new UnboundedChannelOptions
+        {
+            SingleReader = false,
+            SingleWriter = true
+        });
+        private readonly CancellationTokenSource _cts = new();
         private readonly ConcurrentDictionary<string, SessionRecord> _sessions = new();
         private readonly Socket _socket;
+        private readonly Task _receiveLoop;
 
         public KcpListener(int port)
             : this(new IPEndPoint(IPAddress.Any, port))
@@ -21,83 +29,120 @@ namespace ULinkRPC.Transport.Kcp
 
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             _socket.Bind(endPoint);
+            _receiveLoop = Task.Run(ReceiveLoopAsync);
         }
 
         public EndPoint? LocalEndPoint => _socket.LocalEndPoint;
 
         public async ValueTask<KcpAcceptResult> AcceptAsync(CancellationToken ct = default)
         {
+            return await _accepted.Reader.ReadAsync(ct).ConfigureAwait(false);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            _cts.Cancel();
+            _accepted.Writer.TryComplete();
+            _socket.Dispose();
+
+            try
+            {
+                await _receiveLoop.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            var sessions = _sessions.Values.Select(record => record.Transport).Distinct().ToArray();
+            _sessions.Clear();
+            foreach (var transport in sessions)
+                await transport.DisposeAsync().ConfigureAwait(false);
+
+            _cts.Dispose();
+        }
+
+        private async Task ReceiveLoopAsync()
+        {
             var buffer = new byte[2048];
             EndPoint any = new IPEndPoint(IPAddress.Any, 0);
+            var localPort = ((IPEndPoint)_socket.LocalEndPoint!).Port;
 
-            while (true)
+            while (!_cts.IsCancellationRequested)
             {
+                SocketReceiveFromResult received;
 #if NET8_0_OR_GREATER
-                var received = await _socket.ReceiveFromAsync(buffer, SocketFlags.None, any, ct).ConfigureAwait(false);
+                try
+                {
+                    received = await _socket.ReceiveFromAsync(buffer, SocketFlags.None, any, _cts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
 #else
-                var received = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);
+                received = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);
 #endif
                 if (received.RemoteEndPoint is not IPEndPoint remoteEndPoint)
                     continue;
 
                 var packet = buffer.AsMemory(0, received.ReceivedBytes);
-                if (!KcpHandshake.TryParseRequest(packet.Span, out var conv))
-                    continue;
-
                 var key = remoteEndPoint.ToString();
+                if (!KcpHandshake.TryParseRequest(packet.Span, out var conv))
+                {
+                    if (_sessions.TryGetValue(key, out var existingSession))
+                        existingSession.Transport.ProcessDatagram(packet.Span);
+
+                    continue;
+                }
+
                 if (_sessions.TryGetValue(key, out var existing))
                 {
-                    var ack = KcpHandshake.CreateAck(existing.ConversationId, existing.Port);
+                    var ack = KcpHandshake.CreateAck(existing.ConversationId, localPort);
 #if NET8_0_OR_GREATER
-                    await _socket.SendToAsync(ack, SocketFlags.None, remoteEndPoint, ct).ConfigureAwait(false);
+                    await _socket.SendToAsync(ack, SocketFlags.None, remoteEndPoint, _cts.Token).ConfigureAwait(false);
 #else
                     await _socket.SendToAsync(new ArraySegment<byte>(ack), SocketFlags.None, remoteEndPoint).ConfigureAwait(false);
 #endif
                     continue;
                 }
 
-                var sessionSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                sessionSocket.Bind(new IPEndPoint(IPAddress.Any, 0));
-                var sessionPort = ((IPEndPoint)sessionSocket.LocalEndPoint!).Port;
-
-                var sessionAck = KcpHandshake.CreateAck(conv, sessionPort);
+                var transport = new KcpServerTransport(
+                    _socket,
+                    remoteEndPoint,
+                    conv,
+                    onDispose: () => _sessions.TryRemove(key, out _));
+                await transport.ConnectAsync(_cts.Token).ConfigureAwait(false);
+                var sessionAck = KcpHandshake.CreateAck(conv, localPort);
 #if NET8_0_OR_GREATER
-                await _socket.SendToAsync(sessionAck, SocketFlags.None, remoteEndPoint, ct).ConfigureAwait(false);
+                await _socket.SendToAsync(sessionAck, SocketFlags.None, remoteEndPoint, _cts.Token).ConfigureAwait(false);
 #else
                 await _socket.SendToAsync(new ArraySegment<byte>(sessionAck), SocketFlags.None, remoteEndPoint).ConfigureAwait(false);
 #endif
 
-                var record = new SessionRecord(conv, sessionPort);
+                var record = new SessionRecord(conv, transport);
                 _sessions[key] = record;
-
-                var transport = new KcpServerTransport(
-                    sessionSocket,
-                    remoteEndPoint,
-                    conv,
-                    ReadOnlyMemory<byte>.Empty,
-                    ownsSocket: true,
-                    onDispose: () => _sessions.TryRemove(key, out _));
-
-                return new KcpAcceptResult(transport, remoteEndPoint, conv, sessionPort);
+                _accepted.Writer.TryWrite(new KcpAcceptResult(transport, remoteEndPoint, conv, localPort));
+                continue;
             }
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            _socket.Dispose();
-            return default;
         }
 
         private sealed class SessionRecord
         {
-            public SessionRecord(uint conversationId, int port)
+            public SessionRecord(uint conversationId, KcpServerTransport transport)
             {
                 ConversationId = conversationId;
-                Port = port;
+                Transport = transport;
             }
 
             public uint ConversationId { get; }
-            public int Port { get; }
+            public KcpServerTransport Transport { get; }
         }
     }
 }

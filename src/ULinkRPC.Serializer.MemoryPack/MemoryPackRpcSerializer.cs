@@ -6,9 +6,17 @@ namespace ULinkRPC.Serializer.MemoryPack
 {
     public sealed class MemoryPackRpcSerializer : IRpcSerializer
     {
+        public TransportFrame SerializeFrame<T>(T value)
+        {
+            using var buffer = new PooledFrameBufferWriter();
+            MemoryPackSerializer.Serialize(buffer, value);
+            return buffer.DetachFrame();
+        }
+
         public byte[] Serialize<T>(T value)
         {
-            return MemoryPackSerializer.Serialize(value);
+            using var frame = SerializeFrame(value);
+            return frame.ToArray();
         }
 
         public T Deserialize<T>(ReadOnlySpan<byte> data)

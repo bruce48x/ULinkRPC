@@ -14,28 +14,21 @@ namespace ULinkRPC.Transport.Kcp
     public sealed class KcpServerTransport : ITransport, IKcpCallback, IRentable, IRemoteEndPointProvider
     {
         private const int MaxFrameSize = 64 * 1024 * 1024;
-        private const int UpdateIntervalMs = 10;
-        private readonly CancellationTokenSource _cts = new();
-        private readonly ConcurrentQueue<ReadOnlyMemory<byte>> _frames = new();
-        private readonly ReadOnlyMemory<byte> _initialPacket;
+        private readonly ConcurrentQueue<TransportFrame> _frames = new();
+        private readonly SemaphoreSlim _frameSignal = new(0);
         private readonly SimpleSegManager.Kcp _kcp;
         private readonly object _kcpGate = new();
         private readonly Action? _onDispose;
-        private readonly bool _ownsSocket;
         private readonly EndPoint _remote;
-
         private readonly Socket _socket;
-        private byte[] _accum = Array.Empty<byte>();
+        private readonly LengthPrefixedFrameAccumulator _accumulator = new();
+        private readonly CancellationTokenSource _cts = new();
+        private IDisposable? _updateRegistration;
 
-        private Task? _updateLoop;
-
-        public KcpServerTransport(Socket socket, EndPoint remote, uint conv, ReadOnlyMemory<byte> initialPacket,
-            bool ownsSocket = false, Action? onDispose = null)
+        public KcpServerTransport(Socket socket, EndPoint remote, uint conv, Action? onDispose = null)
         {
             _socket = socket ?? throw new ArgumentNullException(nameof(socket));
             _remote = remote ?? throw new ArgumentNullException(nameof(remote));
-            _initialPacket = initialPacket;
-            _ownsSocket = ownsSocket;
             _onDispose = onDispose;
 
             _kcp = new SimpleSegManager.Kcp(conv, this, this);
@@ -74,10 +67,7 @@ namespace ULinkRPC.Transport.Kcp
                 return default;
 
             IsConnected = true;
-            _updateLoop = Task.Run(UpdateLoopAsync);
-
-            if (!_initialPacket.IsEmpty)
-                ProcessInput(_initialPacket.Span);
+            _updateRegistration = KcpUpdateScheduler.Register(UpdateKcp);
 
             return default;
         }
@@ -87,10 +77,10 @@ namespace ULinkRPC.Transport.Kcp
             if (!IsConnected)
                 throw new InvalidOperationException("Not connected.");
 
-            var packed = LengthPrefix.Pack(frame.Span);
+            using var packed = LengthPrefix.Pack(frame.Span);
             lock (_kcpGate)
             {
-                _kcp.Send(packed);
+                _kcp.Send(packed.Span, null!);
                 var now = DateTimeOffset.UtcNow;
                 _kcp.Update(in now);
             }
@@ -98,33 +88,20 @@ namespace ULinkRPC.Transport.Kcp
             return default;
         }
 
-        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
             if (!IsConnected)
                 throw new InvalidOperationException("Not connected.");
-
-            var buffer = new byte[64 * 1024];
-            EndPoint any = new IPEndPoint(IPAddress.Any, 0);
 
             while (true)
             {
                 if (TryDequeueFrame(out var queued))
                     return queued;
 
-                SocketReceiveFromResult res;
-#if NET8_0_OR_GREATER
-                res = await _socket.ReceiveFromAsync(buffer, SocketFlags.None, any, ct).ConfigureAwait(false);
-#else
-                res = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any)
-                    .ConfigureAwait(false);
-#endif
-                if (!EndPointEquals(res.RemoteEndPoint, _remote))
-                    continue;
-
-                ProcessInput(buffer.AsSpan(0, res.ReceivedBytes));
-
-                if (TryDequeueFrame(out var frame))
-                    return frame;
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
+                await _frameSignal.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                if (!IsConnected && _frames.IsEmpty)
+                    return TransportFrame.Empty;
             }
         }
 
@@ -132,33 +109,22 @@ namespace ULinkRPC.Transport.Kcp
         {
             IsConnected = false;
             _cts.Cancel();
-
-            if (_updateLoop is not null)
-                try
-                {
-                    await _updateLoop.ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                }
-
-            _cts.Dispose();
+            _updateRegistration?.Dispose();
+            _updateRegistration = null;
             _kcp.Dispose();
-
-            if (_ownsSocket)
-                try
-                {
-                    _socket.Dispose();
-                }
-                catch
-                {
-                }
+            _frameSignal.Release();
+            _cts.Dispose();
 
             _onDispose?.Invoke();
+            while (_frames.TryDequeue(out var frame))
+                frame.Dispose();
         }
 
-        private void ProcessInput(ReadOnlySpan<byte> data)
+        internal void ProcessDatagram(ReadOnlySpan<byte> data)
         {
+            if (!IsConnected)
+                return;
+
             lock (_kcpGate)
             {
                 _kcp.Input(data);
@@ -177,65 +143,45 @@ namespace ULinkRPC.Transport.Kcp
                 if (size > MaxFrameSize)
                     throw new InvalidOperationException($"Frame too large: {size} bytes");
 
-                var buf = new byte[size];
-                _kcp.Recv(buf);
-                AppendAndUnpack(buf);
+                using var payload = TransportFrame.Allocate(size);
+                _kcp.Recv(payload.GetWritableSpan());
+                AppendAndUnpack(payload.Span);
             }
         }
 
         private void AppendAndUnpack(ReadOnlySpan<byte> payload)
         {
-            var oldLen = _accum.Length;
-            Array.Resize(ref _accum, oldLen + payload.Length);
-            payload.CopyTo(_accum.AsSpan(oldLen));
+            _accumulator.Append(payload, MaxFrameSize);
 
-            while (true)
-            {
-                var seq = new ReadOnlySequence<byte>(_accum);
-                if (!LengthPrefix.TryUnpack(ref seq, out var payloadSeq))
-                    break;
-
-                var frame = payloadSeq.ToArray();
-                if (frame.Length > 0)
-                    EnqueueFrame(frame);
-
-                _accum = seq.ToArray();
-            }
+            while (_accumulator.TryReadFrame(out var frame))
+                EnqueueFrame(frame);
         }
 
-        private bool TryDequeueFrame(out ReadOnlyMemory<byte> frame)
+        private bool TryDequeueFrame(out TransportFrame frame)
         {
-            return _frames.TryDequeue(out frame);
+            if (_frames.TryDequeue(out var queued))
+            {
+                frame = queued;
+                return true;
+            }
+
+            frame = TransportFrame.Empty;
+            return false;
         }
 
-        private void EnqueueFrame(ReadOnlyMemory<byte> frame)
+        private void EnqueueFrame(TransportFrame frame)
         {
             _frames.Enqueue(frame);
+            _frameSignal.Release();
         }
 
-        private async Task UpdateLoopAsync()
+        private void UpdateKcp()
         {
-            try
+            lock (_kcpGate)
             {
-                while (!_cts.IsCancellationRequested)
-                {
-                    lock (_kcpGate)
-                    {
-                        var now = DateTimeOffset.UtcNow;
-                        _kcp.Update(in now);
-                    }
-
-                    await Task.Delay(UpdateIntervalMs, _cts.Token).ConfigureAwait(false);
-                }
+                var now = DateTimeOffset.UtcNow;
+                _kcp.Update(in now);
             }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-
-        private static bool EndPointEquals(EndPoint? a, EndPoint? b)
-        {
-            return a is not null && b is not null && a.Equals(b);
         }
     }
 }

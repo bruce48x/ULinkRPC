@@ -9,6 +9,6 @@ namespace ULinkRPC.Core
         bool IsConnected { get; }
         ValueTask ConnectAsync(CancellationToken ct = default);
         ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default);
-        ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default);
+        ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default);
     }
 }

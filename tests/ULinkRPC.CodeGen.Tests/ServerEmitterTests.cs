@@ -81,7 +81,7 @@ public class ServerEmitterTests
 
         Assert.Contains("registry.Register(ServiceId, 1,", code);
         Assert.Contains("var impl = server.GetOrAddScopedService(ServiceId, implFactory);", code);
-        Assert.Contains("var arg = server.Serializer.Deserialize<PingRequest>(req.Payload.AsSpan())!;", code);
+        Assert.Contains("var arg = server.Serializer.Deserialize<PingRequest>(req.Payload)!;", code);
         Assert.Contains("await impl.Ping(arg)", code);
     }
 
@@ -91,7 +91,7 @@ public class ServerEmitterTests
         var svc = MakeService(VoidMethod("Set", 1, Param("SetRequest", "request")));
         var code = ServerEmitter.GenerateBinder(svc, "S", "ULinkRPC.Core", "ULinkRPC.Server");
 
-        Assert.Contains("var arg = server.Serializer.Deserialize<SetRequest>(req.Payload.AsSpan())!;", code);
+        Assert.Contains("var arg = server.Serializer.Deserialize<SetRequest>(req.Payload)!;", code);
         Assert.Contains("await impl.Set(arg)", code);
     }
 

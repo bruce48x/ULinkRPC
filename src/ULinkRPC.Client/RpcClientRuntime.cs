@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using ULinkRPC.Core;
 
@@ -12,6 +13,11 @@ namespace ULinkRPC.Client
         private readonly RpcKeepAliveState _keepAliveState;
         private readonly RpcPendingRequestCollection _pending = new();
         private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RpcPushPayloadHandler> _pushHandlers = new();
+        private readonly Channel<RpcPushFrame> _pushQueue = Channel.CreateUnbounded<RpcPushFrame>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = true
+        });
         private readonly SemaphoreSlim _sendLock = new(1, 1);
         private readonly ITransport _transport;
         private readonly IRpcSerializer _serializer;
@@ -23,6 +29,7 @@ namespace ULinkRPC.Client
 
         private Task? _recvLoop;
         private Task? _keepAliveLoop;
+        private Task? _pushLoop;
         private Exception? _disconnectReason;
 
         public RpcClientRuntime(ITransport transport, IRpcSerializer serializer, RpcKeepAliveOptions? keepAlive = null)
@@ -54,6 +61,7 @@ namespace ULinkRPC.Client
                 await _transport.ConnectAsync(ct);
                 _keepAliveState.MarkSent();
                 _keepAliveState.MarkReceived();
+                _pushLoop = Task.Run(ProcessPushLoopAsync);
                 _recvLoop = Task.Run(ReceiveLoopAsync);
                 if (_keepAlive.Enabled)
                     _keepAliveLoop = Task.Run(KeepAliveLoopAsync);
@@ -92,32 +100,31 @@ namespace ULinkRPC.Client
 
             try
             {
-                var argBytes = arg is null ? Array.Empty<byte>() : _serializer.Serialize(arg);
-
+                using var argFrame = arg is null ? TransportFrame.Empty : _serializer.SerializeFrame(arg);
                 var req = new RpcRequestEnvelope
                 {
                     RequestId = id,
                     ServiceId = method.ServiceId,
                     MethodId = method.MethodId,
-                    Payload = argBytes
+                    Payload = argFrame.Memory
                 };
 
-                var reqBytes = RpcEnvelopeCodec.EncodeRequest(req);
-                await SendFrameAsyncSerialized(reqBytes, ct).ConfigureAwait(false);
+                using var reqBytes = RpcEnvelopeCodec.EncodeRequest(req);
+                await SendFrameAsyncSerialized(reqBytes.Memory, ct).ConfigureAwait(false);
 
                 using var reg = ct.Register(() =>
                 {
                     _pending.TryCancel(id, ct);
                 });
 
-                var resp = await tcs.Task.ConfigureAwait(false);
+                using var resp = await tcs.Task.ConfigureAwait(false);
                 if (resp.Status != RpcStatus.Ok)
                     throw new InvalidOperationException($"RPC failed: {resp.Status}, {resp.ErrorMessage}");
 
                 if (typeof(TResult) == typeof(RpcVoid))
                     return (TResult)(object)RpcVoid.Instance;
 
-                return _serializer.Deserialize<TResult>(resp.Payload.AsSpan())!;
+                return _serializer.Deserialize<TResult>(resp.Payload.Memory)!;
             }
             finally
             {
@@ -151,6 +158,16 @@ namespace ULinkRPC.Client
                 {
                 }
 
+            _pushQueue.Writer.TryComplete();
+            if (_pushLoop is not null)
+                try
+                {
+                    await _pushLoop.ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+
             await _transport.DisposeAsync().ConfigureAwait(false);
             _sendLock.Dispose();
             try { _cts.Dispose(); } catch (ObjectDisposedException) { }
@@ -165,7 +182,7 @@ namespace ULinkRPC.Client
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    var frame = await _transport.ReceiveFrameAsync(ct).ConfigureAwait(false);
+                    using var frame = await _transport.ReceiveFrameAsync(ct).ConfigureAwait(false);
                     if (frame.IsEmpty)
                         throw new InvalidOperationException("Transport closed.");
 
@@ -175,33 +192,24 @@ namespace ULinkRPC.Client
                     {
                         case RpcFrameType.Response:
                         {
-                            var resp = RpcEnvelopeCodec.DecodeResponse(frame.Span);
+                            var resp = RpcEnvelopeCodec.DecodeResponse(frame);
                             _pending.TrySetResult(resp);
                             break;
                         }
                         case RpcFrameType.Push:
                         {
-                            var push = RpcEnvelopeCodec.DecodePush(frame.Span);
-                            if (_pushHandlers.TryGetValue((push.ServiceId, push.MethodId), out var handler))
-                            {
-                                try
-                                {
-                                    handler(push.Payload.AsSpan());
-                                }
-                                catch
-                                {
-                                }
-                            }
+                            var push = RpcEnvelopeCodec.DecodePush(frame);
+                            _pushQueue.Writer.TryWrite(push);
                             break;
                         }
                         case RpcFrameType.KeepAlivePing:
                         {
                             var ping = RpcEnvelopeCodec.DecodeKeepAlivePing(frame.Span);
-                            var pong = RpcEnvelopeCodec.EncodeKeepAlivePong(new RpcKeepAlivePongEnvelope
+                            using var pong = RpcEnvelopeCodec.EncodeKeepAlivePong(new RpcKeepAlivePongEnvelope
                             {
                                 TimestampTicksUtc = ping.TimestampTicksUtc
                             });
-                            await SendFrameAsyncSerialized(pong, ct).ConfigureAwait(false);
+                            await SendFrameAsyncSerialized(pong.Memory, ct).ConfigureAwait(false);
                             break;
                         }
                         case RpcFrameType.KeepAlivePong:
@@ -228,7 +236,37 @@ namespace ULinkRPC.Client
                 if (err is not null)
                     _pending.FailAll(err);
 
+                _pushQueue.Writer.TryComplete();
                 Disconnected?.Invoke(err);
+            }
+        }
+
+        private async Task ProcessPushLoopAsync()
+        {
+            try
+            {
+                await foreach (var push in _pushQueue.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
+                {
+                    using (push)
+                    {
+                        if (!_pushHandlers.TryGetValue((push.ServiceId, push.MethodId), out var handler))
+                            continue;
+
+                        try
+                        {
+                            handler(push.Payload.Span);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ChannelClosedException)
+            {
             }
         }
 
@@ -273,14 +311,14 @@ namespace ULinkRPC.Client
                 }
 
                 var pingTimestamp = DateTimeOffset.UtcNow.UtcTicks;
-                var ping = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
+                using var ping = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
                 {
                     TimestampTicksUtc = pingTimestamp
                 });
 
                 try
                 {
-                    await SendFrameAsyncSerialized(ping, _cts.Token).ConfigureAwait(false);
+                    await SendFrameAsyncSerialized(ping.Memory, _cts.Token).ConfigureAwait(false);
                     _keepAliveState.MarkPingSent(pingTimestamp);
                 }
                 catch (OperationCanceledException)

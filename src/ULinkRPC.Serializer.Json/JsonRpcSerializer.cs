@@ -19,7 +19,19 @@ namespace ULinkRPC.Serializer.Json
 
         public byte[] Serialize<T>(T value)
         {
-            return JsonSerializer.SerializeToUtf8Bytes(value, _options);
+            using var frame = SerializeFrame(value);
+            return frame.ToArray();
+        }
+
+        public TransportFrame SerializeFrame<T>(T value)
+        {
+            using var buffer = new PooledFrameBufferWriter();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                JsonSerializer.Serialize(writer, value, _options);
+            }
+
+            return buffer.DetachFrame();
         }
 
         public T Deserialize<T>(ReadOnlySpan<byte> data)

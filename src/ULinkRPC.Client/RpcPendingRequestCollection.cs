@@ -5,9 +5,9 @@ namespace ULinkRPC.Client;
 
 internal sealed class RpcPendingRequestCollection
 {
-    private readonly ConcurrentDictionary<uint, TaskCompletionSource<RpcResponseEnvelope>> _pending = new();
+    private readonly ConcurrentDictionary<uint, TaskCompletionSource<RpcResponseFrame>> _pending = new();
 
-    public (uint RequestId, TaskCompletionSource<RpcResponseEnvelope> CompletionSource) Reserve(ref int nextRequestId)
+    public (uint RequestId, TaskCompletionSource<RpcResponseFrame> CompletionSource) Reserve(ref int nextRequestId)
     {
         for (uint attempts = 0; attempts < uint.MaxValue; attempts++)
         {
@@ -15,7 +15,7 @@ internal sealed class RpcPendingRequestCollection
             if (requestId == 0)
                 continue;
 
-            var tcs = new TaskCompletionSource<RpcResponseEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<RpcResponseFrame>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (_pending.TryAdd(requestId, tcs))
                 return (requestId, tcs);
         }
@@ -39,7 +39,7 @@ internal sealed class RpcPendingRequestCollection
         return false;
     }
 
-    public bool TrySetResult(RpcResponseEnvelope response)
+    public bool TrySetResult(RpcResponseFrame response)
     {
         if (_pending.TryRemove(response.RequestId, out var pending))
         {

@@ -11,16 +11,17 @@ namespace ULinkRPC.Core
     {
         public const int DefaultMaxFrameSize = 64 * 1024 * 1024;
 
-        public static byte[] Pack(ReadOnlySpan<byte> payload)
+        public static TransportFrame Pack(ReadOnlySpan<byte> payload)
         {
-            var buf = new byte[4 + payload.Length];
+            var frame = TransportFrame.Allocate(4 + payload.Length);
+            var buf = frame.GetWritableSpan();
             var len = (uint)payload.Length;
             buf[0] = (byte)(len >> 24);
             buf[1] = (byte)(len >> 16);
             buf[2] = (byte)(len >> 8);
             buf[3] = (byte)len;
-            payload.CopyTo(buf.AsSpan(4));
-            return buf;
+            payload.CopyTo(buf.Slice(4));
+            return frame;
         }
 
         public static bool TryUnpack(ref ReadOnlySequence<byte> seq, out ReadOnlySequence<byte> payload)

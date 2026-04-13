@@ -8,16 +8,14 @@ public class RpcEnvelopesTests
     public void RpcRequestEnvelope_DefaultPayload_IsEmpty()
     {
         var req = new RpcRequestEnvelope();
-        Assert.NotNull(req.Payload);
-        Assert.Empty(req.Payload);
+        Assert.True(req.Payload.IsEmpty);
     }
 
     [Fact]
     public void RpcResponseEnvelope_DefaultPayload_IsEmpty()
     {
         var resp = new RpcResponseEnvelope();
-        Assert.NotNull(resp.Payload);
-        Assert.Empty(resp.Payload);
+        Assert.True(resp.Payload.IsEmpty);
     }
 
     [Fact]
@@ -31,8 +29,7 @@ public class RpcEnvelopesTests
     public void RpcPushEnvelope_DefaultPayload_IsEmpty()
     {
         var push = new RpcPushEnvelope();
-        Assert.NotNull(push.Payload);
-        Assert.Empty(push.Payload);
+        Assert.True(push.Payload.IsEmpty);
     }
 
     [Fact]

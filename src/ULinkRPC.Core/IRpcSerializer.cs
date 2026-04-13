@@ -8,6 +8,7 @@ namespace ULinkRPC.Core
     /// </summary>
     public interface IRpcSerializer
     {
+        TransportFrame SerializeFrame<T>(T value);
         byte[] Serialize<T>(T value);
         T Deserialize<T>(ReadOnlySpan<byte> data);
         T Deserialize<T>(ReadOnlyMemory<byte> data);

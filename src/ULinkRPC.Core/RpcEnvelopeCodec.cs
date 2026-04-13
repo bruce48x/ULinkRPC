@@ -15,13 +15,14 @@ namespace ULinkRPC.Core
             return (RpcFrameType)data[0];
         }
 
-        public static byte[] EncodeRequest(RpcRequestEnvelope req)
+        public static TransportFrame EncodeRequest(RpcRequestEnvelope req)
         {
             if (req is null) throw new ArgumentNullException(nameof(req));
 
-            var payload = req.Payload ?? Array.Empty<byte>();
+            var payload = req.Payload;
             var total = 1 + 4 + 4 + 4 + 4 + payload.Length;
-            var data = new byte[total];
+            var frame = TransportFrame.Allocate(total);
+            var data = frame.GetWritableSpan();
             var offset = 0;
 
             data[offset++] = (byte)RpcFrameType.Request;
@@ -29,157 +30,146 @@ namespace ULinkRPC.Core
             WriteInt32(data, ref offset, req.ServiceId);
             WriteInt32(data, ref offset, req.MethodId);
             WriteInt32(data, ref offset, payload.Length);
-            payload.AsSpan().CopyTo(data.AsSpan(offset));
-            return data;
+            payload.Span.CopyTo(data.Slice(offset));
+            return frame;
         }
 
-        public static RpcRequestEnvelope DecodeRequest(ReadOnlySpan<byte> data)
+        public static RpcRequestFrame DecodeRequest(TransportFrame data)
         {
             var offset = 0;
-            var frameType = (RpcFrameType)ReadByte(data, ref offset);
+            var span = data.Span;
+            var frameType = (RpcFrameType)ReadByte(span, ref offset);
             if (frameType != RpcFrameType.Request)
                 throw new InvalidOperationException($"Expected Request frame, got {frameType}.");
 
-            var requestId = ReadUInt32(data, ref offset);
-            var serviceId = ReadInt32(data, ref offset);
-            var methodId = ReadInt32(data, ref offset);
-            var payloadLen = ReadInt32(data, ref offset);
+            var requestId = ReadUInt32(span, ref offset);
+            var serviceId = ReadInt32(span, ref offset);
+            var methodId = ReadInt32(span, ref offset);
+            var payloadLen = ReadInt32(span, ref offset);
             ValidateLength(payloadLen);
-            EnsureRemaining(data, offset, payloadLen);
+            EnsureRemaining(span, offset, payloadLen);
 
-            var payload = data.Slice(offset, payloadLen).ToArray();
+            var payload = data.Slice(offset, payloadLen);
             offset += payloadLen;
             if (offset != data.Length)
                 throw new InvalidOperationException("Request envelope has extra trailing bytes.");
 
-            return new RpcRequestEnvelope
-            {
-                RequestId = requestId,
-                ServiceId = serviceId,
-                MethodId = methodId,
-                Payload = payload
-            };
+            return new RpcRequestFrame(requestId, serviceId, methodId, payload);
         }
 
-        public static byte[] EncodeResponse(RpcResponseEnvelope resp)
+        public static TransportFrame EncodeResponse(RpcResponseEnvelope resp)
         {
             if (resp is null) throw new ArgumentNullException(nameof(resp));
 
-            var payload = resp.Payload ?? Array.Empty<byte>();
+            var payload = resp.Payload;
             var hasError = !string.IsNullOrEmpty(resp.ErrorMessage);
             var errorBytes = hasError ? Encoding.UTF8.GetBytes(resp.ErrorMessage!) : Array.Empty<byte>();
 
             var total = 1 + 4 + 1 + 4 + payload.Length + 1 + (hasError ? 4 + errorBytes.Length : 0);
-            var data = new byte[total];
+            var frame = TransportFrame.Allocate(total);
+            var data = frame.GetWritableSpan();
             var offset = 0;
 
             data[offset++] = (byte)RpcFrameType.Response;
             WriteUInt32(data, ref offset, resp.RequestId);
             data[offset++] = (byte)resp.Status;
             WriteInt32(data, ref offset, payload.Length);
-            payload.AsSpan().CopyTo(data.AsSpan(offset));
+            payload.Span.CopyTo(data.Slice(offset));
             offset += payload.Length;
             data[offset++] = hasError ? (byte)1 : (byte)0;
 
             if (hasError)
             {
                 WriteInt32(data, ref offset, errorBytes.Length);
-                errorBytes.AsSpan().CopyTo(data.AsSpan(offset));
+                errorBytes.AsSpan().CopyTo(data.Slice(offset));
             }
 
-            return data;
+            return frame;
         }
 
-        public static RpcResponseEnvelope DecodeResponse(ReadOnlySpan<byte> data)
+        public static RpcResponseFrame DecodeResponse(TransportFrame data)
         {
             var offset = 0;
-            var frameType = (RpcFrameType)ReadByte(data, ref offset);
+            var span = data.Span;
+            var frameType = (RpcFrameType)ReadByte(span, ref offset);
             if (frameType != RpcFrameType.Response)
                 throw new InvalidOperationException($"Expected Response frame, got {frameType}.");
 
-            var requestId = ReadUInt32(data, ref offset);
-            var status = (RpcStatus)ReadByte(data, ref offset);
-            var payloadLen = ReadInt32(data, ref offset);
+            var requestId = ReadUInt32(span, ref offset);
+            var status = (RpcStatus)ReadByte(span, ref offset);
+            var payloadLen = ReadInt32(span, ref offset);
             ValidateLength(payloadLen);
-            EnsureRemaining(data, offset, payloadLen);
-            var payload = data.Slice(offset, payloadLen).ToArray();
+            EnsureRemaining(span, offset, payloadLen);
+            var payload = data.Slice(offset, payloadLen);
             offset += payloadLen;
 
-            var hasError = ReadByte(data, ref offset) != 0;
+            var hasError = ReadByte(span, ref offset) != 0;
             string? error = null;
             if (hasError)
             {
-                var errLen = ReadInt32(data, ref offset);
+                var errLen = ReadInt32(span, ref offset);
                 ValidateLength(errLen);
-                EnsureRemaining(data, offset, errLen);
-                error = Encoding.UTF8.GetString(data.Slice(offset, errLen));
+                EnsureRemaining(span, offset, errLen);
+                error = Encoding.UTF8.GetString(span.Slice(offset, errLen));
                 offset += errLen;
             }
 
             if (offset != data.Length)
                 throw new InvalidOperationException("Response envelope has extra trailing bytes.");
 
-            return new RpcResponseEnvelope
-            {
-                RequestId = requestId,
-                Status = status,
-                Payload = payload,
-                ErrorMessage = error
-            };
+            return new RpcResponseFrame(requestId, status, payload, error);
         }
 
-        public static byte[] EncodePush(RpcPushEnvelope push)
+        public static TransportFrame EncodePush(RpcPushEnvelope push)
         {
             if (push is null) throw new ArgumentNullException(nameof(push));
 
-            var payload = push.Payload ?? Array.Empty<byte>();
+            var payload = push.Payload;
             var total = 1 + 4 + 4 + 4 + payload.Length;
-            var data = new byte[total];
+            var frame = TransportFrame.Allocate(total);
+            var data = frame.GetWritableSpan();
             var offset = 0;
 
             data[offset++] = (byte)RpcFrameType.Push;
             WriteInt32(data, ref offset, push.ServiceId);
             WriteInt32(data, ref offset, push.MethodId);
             WriteInt32(data, ref offset, payload.Length);
-            payload.AsSpan().CopyTo(data.AsSpan(offset));
-            return data;
+            payload.Span.CopyTo(data.Slice(offset));
+            return frame;
         }
 
-        public static RpcPushEnvelope DecodePush(ReadOnlySpan<byte> data)
+        public static RpcPushFrame DecodePush(TransportFrame data)
         {
             var offset = 0;
-            var frameType = (RpcFrameType)ReadByte(data, ref offset);
+            var span = data.Span;
+            var frameType = (RpcFrameType)ReadByte(span, ref offset);
             if (frameType != RpcFrameType.Push)
                 throw new InvalidOperationException($"Expected Push frame, got {frameType}.");
 
-            var serviceId = ReadInt32(data, ref offset);
-            var methodId = ReadInt32(data, ref offset);
-            var payloadLen = ReadInt32(data, ref offset);
+            var serviceId = ReadInt32(span, ref offset);
+            var methodId = ReadInt32(span, ref offset);
+            var payloadLen = ReadInt32(span, ref offset);
             ValidateLength(payloadLen);
-            EnsureRemaining(data, offset, payloadLen);
+            EnsureRemaining(span, offset, payloadLen);
 
-            var payload = data.Slice(offset, payloadLen).ToArray();
+            var payload = data.Slice(offset, payloadLen);
             offset += payloadLen;
             if (offset != data.Length)
                 throw new InvalidOperationException("Push envelope has extra trailing bytes.");
 
-            return new RpcPushEnvelope
-            {
-                ServiceId = serviceId,
-                MethodId = methodId,
-                Payload = payload
-            };
+            return new RpcPushFrame(serviceId, methodId, payload);
         }
 
-        public static byte[] EncodeKeepAlivePing(RpcKeepAlivePingEnvelope ping)
+        public static TransportFrame EncodeKeepAlivePing(RpcKeepAlivePingEnvelope ping)
         {
             if (ping is null) throw new ArgumentNullException(nameof(ping));
 
-            var data = new byte[1 + 8];
+            var frame = TransportFrame.Allocate(1 + 8);
+            var data = frame.GetWritableSpan();
             var offset = 0;
             data[offset++] = (byte)RpcFrameType.KeepAlivePing;
             WriteInt64(data, ref offset, ping.TimestampTicksUtc);
-            return data;
+            return frame;
         }
 
         public static RpcKeepAlivePingEnvelope DecodeKeepAlivePing(ReadOnlySpan<byte> data)
@@ -199,15 +189,16 @@ namespace ULinkRPC.Core
             };
         }
 
-        public static byte[] EncodeKeepAlivePong(RpcKeepAlivePongEnvelope pong)
+        public static TransportFrame EncodeKeepAlivePong(RpcKeepAlivePongEnvelope pong)
         {
             if (pong is null) throw new ArgumentNullException(nameof(pong));
 
-            var data = new byte[1 + 8];
+            var frame = TransportFrame.Allocate(1 + 8);
+            var data = frame.GetWritableSpan();
             var offset = 0;
             data[offset++] = (byte)RpcFrameType.KeepAlivePong;
             WriteInt64(data, ref offset, pong.TimestampTicksUtc);
-            return data;
+            return frame;
         }
 
         public static RpcKeepAlivePongEnvelope DecodeKeepAlivePong(ReadOnlySpan<byte> data)

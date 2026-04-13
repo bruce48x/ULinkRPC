@@ -17,13 +17,13 @@ public class RpcEnvelopeCodecTests
             Payload = new byte[] { 1, 2, 3, 4, 5 }
         };
 
-        var encoded = RpcEnvelopeCodec.EncodeRequest(original);
-        var decoded = RpcEnvelopeCodec.DecodeRequest(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodeRequest(original);
+        using var decoded = RpcEnvelopeCodec.DecodeRequest(encoded);
 
         Assert.Equal(original.RequestId, decoded.RequestId);
         Assert.Equal(original.ServiceId, decoded.ServiceId);
         Assert.Equal(original.MethodId, decoded.MethodId);
-        Assert.Equal(original.Payload, decoded.Payload);
+        Assert.Equal(original.Payload.ToArray(), decoded.Payload.ToArray());
     }
 
     [Fact]
@@ -37,12 +37,12 @@ public class RpcEnvelopeCodecTests
             ErrorMessage = null
         };
 
-        var encoded = RpcEnvelopeCodec.EncodeResponse(original);
-        var decoded = RpcEnvelopeCodec.DecodeResponse(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodeResponse(original);
+        using var decoded = RpcEnvelopeCodec.DecodeResponse(encoded);
 
         Assert.Equal(original.RequestId, decoded.RequestId);
         Assert.Equal(original.Status, decoded.Status);
-        Assert.Equal(original.Payload, decoded.Payload);
+        Assert.Equal(original.Payload.ToArray(), decoded.Payload.ToArray());
         Assert.Null(decoded.ErrorMessage);
     }
 
@@ -57,8 +57,8 @@ public class RpcEnvelopeCodecTests
             ErrorMessage = "something went wrong"
         };
 
-        var encoded = RpcEnvelopeCodec.EncodeResponse(original);
-        var decoded = RpcEnvelopeCodec.DecodeResponse(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodeResponse(original);
+        using var decoded = RpcEnvelopeCodec.DecodeResponse(encoded);
 
         Assert.Equal(RpcStatus.Exception, decoded.Status);
         Assert.Equal("something went wrong", decoded.ErrorMessage);
@@ -80,14 +80,20 @@ public class RpcEnvelopeCodecTests
     public void DecodeRequest_TruncatedData_Throws()
     {
         Assert.Throws<InvalidOperationException>(() =>
-            RpcEnvelopeCodec.DecodeRequest(new byte[] { 0, 0 }));
+        {
+            using var frame = TransportFrame.CopyOf(new byte[] { 0, 0 });
+            using var _ = RpcEnvelopeCodec.DecodeRequest(frame);
+        });
     }
 
     [Fact]
     public void DecodeResponse_TruncatedData_Throws()
     {
         Assert.Throws<InvalidOperationException>(() =>
-            RpcEnvelopeCodec.DecodeResponse(new byte[] { 0, 0 }));
+        {
+            using var frame = TransportFrame.CopyOf(new byte[] { 0, 0 });
+            using var _ = RpcEnvelopeCodec.DecodeResponse(frame);
+        });
     }
 
     [Fact]
@@ -98,13 +104,16 @@ public class RpcEnvelopeCodecTests
             RequestId = 1, ServiceId = 1, MethodId = 1,
             Payload = new byte[] { 42 }
         };
-        var valid = RpcEnvelopeCodec.EncodeRequest(req);
+        using var valid = RpcEnvelopeCodec.EncodeRequest(req);
         var withExtra = new byte[valid.Length + 1];
         valid.CopyTo(withExtra, 0);
         withExtra[^1] = 0xFF;
 
         Assert.Throws<InvalidOperationException>(() =>
-            RpcEnvelopeCodec.DecodeRequest(withExtra));
+        {
+            using var frame = TransportFrame.CopyOf(withExtra);
+            using var _ = RpcEnvelopeCodec.DecodeRequest(frame);
+        });
     }
 
     [Fact]
@@ -115,13 +124,16 @@ public class RpcEnvelopeCodecTests
             RequestId = 1, Status = RpcStatus.Ok,
             Payload = new byte[] { 42 }
         };
-        var valid = RpcEnvelopeCodec.EncodeResponse(resp);
+        using var valid = RpcEnvelopeCodec.EncodeResponse(resp);
         var withExtra = new byte[valid.Length + 1];
         valid.CopyTo(withExtra, 0);
         withExtra[^1] = 0xFF;
 
         Assert.Throws<InvalidOperationException>(() =>
-            RpcEnvelopeCodec.DecodeResponse(withExtra));
+        {
+            using var frame = TransportFrame.CopyOf(withExtra);
+            using var _ = RpcEnvelopeCodec.DecodeResponse(frame);
+        });
     }
 
     [Fact]
@@ -136,7 +148,10 @@ public class RpcEnvelopeCodecTests
         BinaryPrimitives.WriteInt32BigEndian(data.AsSpan(offset), -1);
 
         Assert.Throws<InvalidOperationException>(() =>
-            RpcEnvelopeCodec.DecodeRequest(data));
+        {
+            using var frame = TransportFrame.CopyOf(data);
+            using var _ = RpcEnvelopeCodec.DecodeRequest(frame);
+        });
     }
 
     [Fact]
@@ -152,7 +167,10 @@ public class RpcEnvelopeCodecTests
         BinaryPrimitives.WriteInt32BigEndian(data.AsSpan(offset), payloadLen);
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            RpcEnvelopeCodec.DecodeRequest(data));
+        {
+            using var frame = TransportFrame.CopyOf(data);
+            using var _ = RpcEnvelopeCodec.DecodeRequest(frame);
+        });
         Assert.Contains("invalid", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -168,7 +186,10 @@ public class RpcEnvelopeCodecTests
         BinaryPrimitives.WriteInt32BigEndian(data.AsSpan(offset), payloadLen);
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            RpcEnvelopeCodec.DecodeResponse(data));
+        {
+            using var frame = TransportFrame.CopyOf(data);
+            using var _ = RpcEnvelopeCodec.DecodeResponse(frame);
+        });
         Assert.Contains("invalid", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -182,12 +203,12 @@ public class RpcEnvelopeCodecTests
             Payload = new byte[] { 10, 20, 30 }
         };
 
-        var encoded = RpcEnvelopeCodec.EncodePush(original);
-        var decoded = RpcEnvelopeCodec.DecodePush(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodePush(original);
+        using var decoded = RpcEnvelopeCodec.DecodePush(encoded);
 
         Assert.Equal(original.ServiceId, decoded.ServiceId);
         Assert.Equal(original.MethodId, decoded.MethodId);
-        Assert.Equal(original.Payload, decoded.Payload);
+        Assert.Equal(original.Payload.ToArray(), decoded.Payload.ToArray());
     }
 
     [Fact]
@@ -198,8 +219,8 @@ public class RpcEnvelopeCodecTests
             TimestampTicksUtc = DateTimeOffset.UtcNow.UtcTicks
         };
 
-        var encoded = RpcEnvelopeCodec.EncodeKeepAlivePing(original);
-        var decoded = RpcEnvelopeCodec.DecodeKeepAlivePing(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodeKeepAlivePing(original);
+        var decoded = RpcEnvelopeCodec.DecodeKeepAlivePing(encoded.Span);
 
         Assert.Equal(original.TimestampTicksUtc, decoded.TimestampTicksUtc);
     }
@@ -212,8 +233,8 @@ public class RpcEnvelopeCodecTests
             TimestampTicksUtc = DateTimeOffset.UtcNow.UtcTicks
         };
 
-        var encoded = RpcEnvelopeCodec.EncodeKeepAlivePong(original);
-        var decoded = RpcEnvelopeCodec.DecodeKeepAlivePong(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodeKeepAlivePong(original);
+        var decoded = RpcEnvelopeCodec.DecodeKeepAlivePong(encoded.Span);
 
         Assert.Equal(original.TimestampTicksUtc, decoded.TimestampTicksUtc);
     }
@@ -221,22 +242,22 @@ public class RpcEnvelopeCodecTests
     [Fact]
     public void PeekFrameType_ReturnsCorrectType()
     {
-        var req = RpcEnvelopeCodec.EncodeRequest(new RpcRequestEnvelope
+        using var req = RpcEnvelopeCodec.EncodeRequest(new RpcRequestEnvelope
             { RequestId = 1, ServiceId = 1, MethodId = 1 });
-        var resp = RpcEnvelopeCodec.EncodeResponse(new RpcResponseEnvelope
+        using var resp = RpcEnvelopeCodec.EncodeResponse(new RpcResponseEnvelope
             { RequestId = 1, Status = RpcStatus.Ok });
-        var push = RpcEnvelopeCodec.EncodePush(new RpcPushEnvelope
+        using var push = RpcEnvelopeCodec.EncodePush(new RpcPushEnvelope
             { ServiceId = 1, MethodId = 1 });
-        var ping = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
+        using var ping = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
             { TimestampTicksUtc = 1 });
-        var pong = RpcEnvelopeCodec.EncodeKeepAlivePong(new RpcKeepAlivePongEnvelope
+        using var pong = RpcEnvelopeCodec.EncodeKeepAlivePong(new RpcKeepAlivePongEnvelope
             { TimestampTicksUtc = 2 });
 
-        Assert.Equal(RpcFrameType.Request, RpcEnvelopeCodec.PeekFrameType(req));
-        Assert.Equal(RpcFrameType.Response, RpcEnvelopeCodec.PeekFrameType(resp));
-        Assert.Equal(RpcFrameType.Push, RpcEnvelopeCodec.PeekFrameType(push));
-        Assert.Equal(RpcFrameType.KeepAlivePing, RpcEnvelopeCodec.PeekFrameType(ping));
-        Assert.Equal(RpcFrameType.KeepAlivePong, RpcEnvelopeCodec.PeekFrameType(pong));
+        Assert.Equal(RpcFrameType.Request, RpcEnvelopeCodec.PeekFrameType(req.Span));
+        Assert.Equal(RpcFrameType.Response, RpcEnvelopeCodec.PeekFrameType(resp.Span));
+        Assert.Equal(RpcFrameType.Push, RpcEnvelopeCodec.PeekFrameType(push.Span));
+        Assert.Equal(RpcFrameType.KeepAlivePing, RpcEnvelopeCodec.PeekFrameType(ping.Span));
+        Assert.Equal(RpcFrameType.KeepAlivePong, RpcEnvelopeCodec.PeekFrameType(pong.Span));
     }
 
     [Fact]
@@ -249,11 +270,13 @@ public class RpcEnvelopeCodecTests
     [Fact]
     public void DecodeRequest_WrongFrameType_Throws()
     {
-        var push = RpcEnvelopeCodec.EncodePush(new RpcPushEnvelope
+        using var push = RpcEnvelopeCodec.EncodePush(new RpcPushEnvelope
             { ServiceId = 1, MethodId = 1 });
 
         Assert.Throws<InvalidOperationException>(() =>
-            RpcEnvelopeCodec.DecodeRequest(push));
+        {
+            using var _ = RpcEnvelopeCodec.DecodeRequest(push);
+        });
     }
 
     [Fact]
@@ -273,10 +296,10 @@ public class RpcEnvelopeCodecTests
             Payload = Array.Empty<byte>()
         };
 
-        var encoded = RpcEnvelopeCodec.EncodeRequest(original);
-        var decoded = RpcEnvelopeCodec.DecodeRequest(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodeRequest(original);
+        using var decoded = RpcEnvelopeCodec.DecodeRequest(encoded);
 
-        Assert.Empty(decoded.Payload);
+        Assert.True(decoded.Payload.IsEmpty);
     }
 
     [Fact]
@@ -290,10 +313,10 @@ public class RpcEnvelopeCodecTests
             Payload = null!
         };
 
-        var encoded = RpcEnvelopeCodec.EncodeRequest(original);
-        var decoded = RpcEnvelopeCodec.DecodeRequest(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodeRequest(original);
+        using var decoded = RpcEnvelopeCodec.DecodeRequest(encoded);
 
-        Assert.Empty(decoded.Payload);
+        Assert.True(decoded.Payload.IsEmpty);
     }
 
     [Fact]
@@ -307,8 +330,8 @@ public class RpcEnvelopeCodecTests
             ErrorMessage = "错误消息 with emoji 🎉"
         };
 
-        var encoded = RpcEnvelopeCodec.EncodeResponse(original);
-        var decoded = RpcEnvelopeCodec.DecodeResponse(encoded);
+        using var encoded = RpcEnvelopeCodec.EncodeResponse(original);
+        using var decoded = RpcEnvelopeCodec.DecodeResponse(encoded);
 
         Assert.Equal(original.ErrorMessage, decoded.ErrorMessage);
     }

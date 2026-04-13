@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -42,69 +43,69 @@ namespace ULinkRPC.Core
             }
         }
 
-        public ReadOnlyMemory<byte> Encode(ReadOnlyMemory<byte> frame)
+        public bool IsPassthrough => !_compressEnabled && !_encryptEnabled;
+
+        public TransportFrame Encode(ReadOnlySpan<byte> frame)
         {
-            if (!_compressEnabled && !_encryptEnabled)
-                return frame.ToArray();
+            if (IsPassthrough)
+                return TransportFrame.CopyOf(frame);
 
-            var payload = frame.ToArray();
-            var flags = (byte)0;
-
-            if (_compressEnabled && payload.Length >= _compressThreshold)
+            if (_compressEnabled && frame.Length >= _compressThreshold)
             {
-                var compressed = Compress(payload);
-                if (compressed.Length < payload.Length)
-                {
-                    payload = compressed;
-                    flags |= FlagCompressed;
-                }
+                using var compressed = CompressToFrame(frame);
+                if (compressed.Length < frame.Length)
+                    return _encryptEnabled
+                        ? Encrypt(FlagCompressed, compressed.Memory)
+                        : PrependFlags(FlagCompressed, compressed.Memory.Span);
             }
-
-            var header = new byte[1 + payload.Length];
-            header[0] = flags;
-            Buffer.BlockCopy(payload, 0, header, 1, payload.Length);
 
             if (_encryptEnabled)
-                return Encrypt(header);
+                return Encrypt(0, frame);
 
-            return header;
+            return PrependFlags(0, frame);
         }
 
-        public ReadOnlyMemory<byte> Decode(ReadOnlyMemory<byte> frame)
+        public TransportFrame Decode(TransportFrame frame)
         {
-            if (!_compressEnabled && !_encryptEnabled)
-                return frame.ToArray();
+            if (IsPassthrough)
+                return frame.Slice(0, frame.Length);
 
-            var payload = _encryptEnabled ? Decrypt(frame) : frame.ToArray();
+            if (_encryptEnabled)
+            {
+                using var decrypted = DecryptFrame(frame.Memory);
+                return DecodeDecodedPayload(decrypted);
+            }
 
-            if (payload.Length < 1)
+            return DecodeDecodedPayload(frame);
+        }
+
+        private TransportFrame DecodeDecodedPayload(TransportFrame payloadFrame)
+        {
+            if (payloadFrame.Length < 1)
                 throw new InvalidOperationException("Security header missing.");
 
-            var flags = payload[0];
-            var body = new byte[payload.Length - 1];
-            Buffer.BlockCopy(payload, 1, body, 0, body.Length);
-
+            var flags = payloadFrame.Span[0];
             if (_compressEnabled && (flags & FlagCompressed) != 0)
-                return Decompress(body, _maxDecompressedFrameBytes);
+                return DecompressToFrame(payloadFrame.Memory.Slice(1), _maxDecompressedFrameBytes);
 
-            return body;
+            return payloadFrame.Slice(1, payloadFrame.Length - 1);
         }
 
-        private static byte[] Compress(byte[] data)
+        private static TransportFrame CompressToFrame(ReadOnlySpan<byte> data)
         {
-            using var ms = new MemoryStream();
-            using (var gz = new GZipStream(ms, CompressionLevel.Fastest, leaveOpen: true))
+            using var output = new PooledBufferStream(data.Length);
+            using (var gz = new GZipStream(output, CompressionLevel.Fastest, leaveOpen: true))
             {
-                gz.Write(data, 0, data.Length);
+                gz.Write(data);
             }
-            return ms.ToArray();
+            return output.DetachFrame();
         }
 
-        private static byte[] Decompress(byte[] data, int maxOutputBytes)
+        private static TransportFrame DecompressToFrame(ReadOnlyMemory<byte> data, int maxOutputBytes)
         {
-            using var input = new MemoryStream(data);
+            using var input = new ReadOnlyMemoryStream(data);
             using var gz = new GZipStream(input, CompressionMode.Decompress);
-            using var output = new MemoryStream();
+            using var output = new PooledBufferStream();
             var buffer = new byte[CopyBufferSize];
             var total = 0;
 
@@ -122,43 +123,65 @@ namespace ULinkRPC.Core
                 output.Write(buffer, 0, read);
             }
 
-            return output.ToArray();
+            return output.DetachFrame();
         }
 
-        private byte[] Encrypt(byte[] plaintext)
+        private TransportFrame Encrypt(byte flags, ReadOnlySpan<byte> payload)
+        {
+            using var plaintext = TransportFrame.Allocate(1 + payload.Length);
+            var span = plaintext.GetWritableSpan();
+            span[0] = flags;
+            payload.CopyTo(span.Slice(1));
+            return EncryptPlaintext(plaintext.Memory);
+        }
+
+        private TransportFrame Encrypt(byte flags, ReadOnlyMemory<byte> payload)
+        {
+            using var plaintext = TransportFrame.Allocate(1 + payload.Length);
+            var span = plaintext.GetWritableSpan();
+            span[0] = flags;
+            payload.Span.CopyTo(span.Slice(1));
+            return EncryptPlaintext(plaintext.Memory);
+        }
+
+        private TransportFrame EncryptPlaintext(ReadOnlyMemory<byte> plaintext)
         {
             var iv = new byte[IvSize];
             RandomNumberGenerator.Fill(iv);
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.PKCS7;
+            aes.Key = _encKey!;
+            aes.IV = iv;
 
-            byte[] ciphertext;
-            using (var aes = Aes.Create())
+            using var encryptor = aes.CreateEncryptor();
+            using var source = new ReadOnlyMemoryStream(plaintext);
+            using var output = new PooledBufferStream(plaintext.Length + 32);
+            using (var crypto = new CryptoStream(output, encryptor, CryptoStreamMode.Write, leaveOpen: true))
             {
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.Key = _encKey!;
-                aes.IV = iv;
-
-                using var enc = aes.CreateEncryptor();
-                ciphertext = enc.TransformFinalBlock(plaintext, 0, plaintext.Length);
+                source.CopyTo(crypto);
+                crypto.FlushFinalBlock();
             }
 
-            var tag = ComputeHmac(iv, ciphertext);
+            using var ciphertext = output.DetachFrame();
+            var tag = ComputeHmac(iv, ciphertext.Memory);
 
-            var output = new byte[iv.Length + ciphertext.Length + tag.Length];
-            Buffer.BlockCopy(iv, 0, output, 0, iv.Length);
-            Buffer.BlockCopy(ciphertext, 0, output, iv.Length, ciphertext.Length);
-            Buffer.BlockCopy(tag, 0, output, iv.Length + ciphertext.Length, tag.Length);
-            return output;
+            var encrypted = TransportFrame.Allocate(iv.Length + ciphertext.Length + tag.Length);
+            var span = encrypted.GetWritableSpan();
+            iv.CopyTo(span);
+            ciphertext.Span.CopyTo(span.Slice(iv.Length));
+            tag.CopyTo(span.Slice(iv.Length + ciphertext.Length));
+            return encrypted;
         }
 
-        private byte[] Decrypt(ReadOnlyMemory<byte> data)
+        private TransportFrame DecryptFrame(ReadOnlyMemory<byte> data)
         {
             if (data.Length < IvSize + HmacSize)
                 throw new InvalidOperationException("Encrypted frame too small.");
 
             var iv = data.Slice(0, IvSize).ToArray();
-            var tag = data.Slice(data.Length - HmacSize, HmacSize).ToArray();
-            var ciphertext = data.Slice(IvSize, data.Length - IvSize - HmacSize).ToArray();
+            var ciphertext = data.Slice(IvSize, data.Length - IvSize - HmacSize);
+            var tag = data.Span.Slice(data.Length - HmacSize, HmacSize);
 
             var expected = ComputeHmac(iv, ciphertext);
             if (!CryptographicOperations.FixedTimeEquals(expected, tag))
@@ -169,17 +192,37 @@ namespace ULinkRPC.Core
             aes.Padding = PaddingMode.PKCS7;
             aes.Key = _encKey!;
             aes.IV = iv;
-            using var dec = aes.CreateDecryptor();
-            return dec.TransformFinalBlock(ciphertext, 0, ciphertext.Length);
+            using var decryptor = aes.CreateDecryptor();
+            using var source = new ReadOnlyMemoryStream(ciphertext);
+            using var crypto = new CryptoStream(source, decryptor, CryptoStreamMode.Read);
+            using var output = new PooledBufferStream(ciphertext.Length);
+            crypto.CopyTo(output);
+            return output.DetachFrame();
         }
 
-        private byte[] ComputeHmac(byte[] iv, byte[] ciphertext)
+        private byte[] ComputeHmac(byte[] iv, ReadOnlyMemory<byte> ciphertext)
         {
             using var hmac = new HMACSHA256(_macKey!);
-            var input = new byte[iv.Length + ciphertext.Length];
-            Buffer.BlockCopy(iv, 0, input, 0, iv.Length);
-            Buffer.BlockCopy(ciphertext, 0, input, iv.Length, ciphertext.Length);
-            return hmac.ComputeHash(input);
+            hmac.TransformBlock(iv, 0, iv.Length, null, 0);
+            if (MemoryMarshal.TryGetArray(ciphertext, out ArraySegment<byte> segment))
+            {
+                hmac.TransformFinalBlock(segment.Array!, segment.Offset, segment.Count);
+            }
+            else
+            {
+                var copy = ciphertext.ToArray();
+                hmac.TransformFinalBlock(copy, 0, copy.Length);
+            }
+            return hmac.Hash!;
+        }
+
+        private static TransportFrame PrependFlags(byte flags, ReadOnlySpan<byte> payload)
+        {
+            var frame = TransportFrame.Allocate(1 + payload.Length);
+            var span = frame.GetWritableSpan();
+            span[0] = flags;
+            payload.CopyTo(span.Slice(1));
+            return frame;
         }
 
         private static byte[] DeriveKey(byte[] master, string purpose)

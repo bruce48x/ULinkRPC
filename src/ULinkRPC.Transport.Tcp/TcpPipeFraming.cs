@@ -46,7 +46,7 @@ namespace ULinkRPC.Transport.Tcp
             }
         }
 
-        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct)
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct)
         {
             while (true)
             {
@@ -92,14 +92,14 @@ namespace ULinkRPC.Transport.Tcp
             _sendGate.Dispose();
         }
 
-        private static ReadOnlyMemory<byte> CopyPayload(in ReadOnlySequence<byte> payload)
+        private static TransportFrame CopyPayload(in ReadOnlySequence<byte> payload)
         {
             if (payload.IsEmpty)
-                return Array.Empty<byte>();
+                return TransportFrame.Empty;
 
-            var bytes = new byte[payload.Length];
-            payload.CopyTo(bytes);
-            return bytes;
+            var frame = TransportFrame.Allocate(checked((int)payload.Length));
+            payload.CopyTo(frame.GetWritableSpan());
+            return frame;
         }
     }
 }

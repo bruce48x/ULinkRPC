@@ -48,10 +48,13 @@ public class GeneratedCodeCompilationTests
 
             public interface IRpcSerializer
             {
+                TransportFrame SerializeFrame<T>(T value);
                 byte[] Serialize<T>(T value);
                 T Deserialize<T>(ReadOnlySpan<byte> data);
                 T Deserialize<T>(ReadOnlyMemory<byte> data);
             }
+
+            public sealed class TransportFrame { }
 
             public struct RpcVoid { }
 
@@ -143,20 +146,24 @@ public class GeneratedCodeCompilationTests
             public interface IRpcSerializer
             {
                 T? Deserialize<T>(ReadOnlySpan<byte> data);
+                T? Deserialize<T>(ReadOnlyMemory<byte> data);
+                TransportFrame SerializeFrame<T>(T value);
                 byte[] Serialize<T>(T value);
             }
+
+            public sealed class TransportFrame { }
 
             public class RpcRequestEnvelope
             {
                 public int RequestId { get; set; }
-                public byte[] Payload { get; set; } = Array.Empty<byte>();
+                public ReadOnlyMemory<byte> Payload { get; set; } = ReadOnlyMemory<byte>.Empty;
             }
 
             public class RpcResponseEnvelope
             {
                 public int RequestId { get; set; }
                 public RpcStatus Status { get; set; }
-                public byte[] Payload { get; set; } = Array.Empty<byte>();
+                public ReadOnlyMemory<byte> Payload { get; set; } = ReadOnlyMemory<byte>.Empty;
             }
         }
         """;

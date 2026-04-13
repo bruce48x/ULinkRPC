@@ -39,10 +39,10 @@ namespace ULinkRPC.Transport.Loopback
             if (!_connected)
                 throw new InvalidOperationException("Not connected.");
 
-            await _outgoing.WriteAsync(frame.ToArray(), ct).ConfigureAwait(false);
+            await _outgoing.WriteAsync(TransportFrame.CopyOf(frame.Span), ct).ConfigureAwait(false);
         }
 
-        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
             if (!_connected)
                 throw new InvalidOperationException("Not connected.");
@@ -61,15 +61,18 @@ namespace ULinkRPC.Transport.Loopback
 
         private sealed class LoopbackQueue : IDisposable
         {
-            private readonly ConcurrentQueue<ReadOnlyMemory<byte>> _queue = new();
+            private readonly ConcurrentQueue<TransportFrame> _queue = new();
             private readonly SemaphoreSlim _signal = new(0);
             private volatile bool _completed;
             private int _disposed;
 
-            public ValueTask WriteAsync(ReadOnlyMemory<byte> item, CancellationToken ct)
+            public ValueTask WriteAsync(TransportFrame item, CancellationToken ct)
             {
                 if (_completed)
+                {
+                    item.Dispose();
                     throw new InvalidOperationException("Loopback queue is completed.");
+                }
 
                 ct.ThrowIfCancellationRequested();
                 _queue.Enqueue(item);
@@ -77,7 +80,7 @@ namespace ULinkRPC.Transport.Loopback
                 return default;
             }
 
-            public async ValueTask<ReadOnlyMemory<byte>> ReadAsync(CancellationToken ct)
+            public async ValueTask<TransportFrame> ReadAsync(CancellationToken ct)
             {
                 while (true)
                 {
@@ -85,7 +88,7 @@ namespace ULinkRPC.Transport.Loopback
                         return item;
 
                     if (_completed)
-                        return ReadOnlyMemory<byte>.Empty;
+                        return TransportFrame.Empty;
 
                     try
                     {
@@ -93,7 +96,7 @@ namespace ULinkRPC.Transport.Loopback
                     }
                     catch (ObjectDisposedException)
                     {
-                        return ReadOnlyMemory<byte>.Empty;
+                        return TransportFrame.Empty;
                     }
                 }
             }
@@ -107,7 +110,12 @@ namespace ULinkRPC.Transport.Loopback
             public void Dispose()
             {
                 if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 0)
+                {
+                    while (_queue.TryDequeue(out var frame))
+                        frame.Dispose();
+
                     _signal.Dispose();
+                }
             }
         }
     }

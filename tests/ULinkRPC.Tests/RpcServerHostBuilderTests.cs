@@ -46,6 +46,22 @@ public class RpcServerHostBuilderTests
     }
 
     [Fact]
+    public void UseLimits_UpdatesBuilderLimits()
+    {
+        var builder = RpcServerHostBuilder.Create()
+            .UseLimits(limits =>
+            {
+                limits.MaxConcurrentRequestsPerSession = 8;
+                limits.MaxQueuedRequestsPerSession = 32;
+                limits.MaxPendingAcceptedConnections = 12;
+            });
+
+        Assert.Equal(8, builder.Limits.MaxConcurrentRequestsPerSession);
+        Assert.Equal(32, builder.Limits.MaxQueuedRequestsPerSession);
+        Assert.Equal(12, builder.Limits.MaxPendingAcceptedConnections);
+    }
+
+    [Fact]
     public void Build_WhenServicesConfiguredExplicitly_DoesNotRequireGeneratedBinderDiscovery()
     {
         var builder = RpcServerHostBuilder.Create()

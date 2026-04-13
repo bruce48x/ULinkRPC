@@ -8,6 +8,7 @@ public sealed class RpcServerHostBuilder
 {
     private Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>>? _acceptorFactory;
     private RpcKeepAliveOptions _keepAlive = RpcKeepAliveOptions.Disabled;
+    private readonly RpcServerLimits _limits = new();
     private ILogger _logger = DefaultRpcLogging.CreateLogger<RpcServerHost>();
     private bool _servicesConfigured;
     private IRpcSerializer? _serializer;
@@ -19,6 +20,8 @@ public sealed class RpcServerHostBuilder
     public TransportSecurityConfig Security { get; } = new();
 
     public RpcKeepAliveOptions KeepAlive => _keepAlive;
+
+    public RpcServerLimits Limits => _limits;
 
     public static RpcServerHostBuilder Create()
     {
@@ -93,6 +96,22 @@ public sealed class RpcServerHostBuilder
         return this;
     }
 
+    public RpcServerHostBuilder UseLimits(Action<RpcServerLimits> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        configure(_limits);
+        return this;
+    }
+
+    public RpcServerHostBuilder UseLimits(RpcServerLimits limits)
+    {
+        ArgumentNullException.ThrowIfNull(limits);
+        _limits.MaxConcurrentRequestsPerSession = limits.MaxConcurrentRequestsPerSession;
+        _limits.MaxQueuedRequestsPerSession = limits.MaxQueuedRequestsPerSession;
+        _limits.MaxPendingAcceptedConnections = limits.MaxPendingAcceptedConnections;
+        return this;
+    }
+
     public RpcServerHostBuilder ConfigureServices(Action<RpcServiceRegistry> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
@@ -129,10 +148,12 @@ public sealed class RpcServerHostBuilder
         if (_acceptorFactory is null)
             throw new InvalidOperationException("RPC transport is not configured.");
 
+        _limits.Validate();
+
         if (!_servicesConfigured && ServiceRegistry.IsEmpty)
             BindGeneratedServicesFromEntryAssembly();
 
-        return new RpcServerHost(_serializer, ServiceRegistry, Security, _keepAlive, _acceptorFactory, _logger);
+        return new RpcServerHost(_serializer, ServiceRegistry, Security, _keepAlive, _acceptorFactory, _logger, _limits.Clone());
     }
 
     public ValueTask RunAsync(CancellationToken ct = default)

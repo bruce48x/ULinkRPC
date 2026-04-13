@@ -8,7 +8,7 @@ public sealed class WsServerTransport : ITransport, IRemoteEndPointProvider
 {
     private readonly Action? _onDispose;
     private readonly NetWebSocket _webSocket;
-    private byte[] _accum = Array.Empty<byte>();
+    private readonly LengthPrefixedFrameAccumulator _accumulator = new();
 
     public WsServerTransport(NetWebSocket webSocket, EndPoint? remoteEndPoint = null, Action? onDispose = null)
     {
@@ -31,9 +31,9 @@ public sealed class WsServerTransport : ITransport, IRemoteEndPointProvider
         return WsTransportFraming.SendFrameAsync(_webSocket, frame, ct);
     }
 
-    public ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+    public ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
     {
-        return WsTransportFraming.ReceiveFrameAsync(_webSocket, _accum, value => _accum = value, ct);
+        return WsTransportFraming.ReceiveFrameAsync(_webSocket, _accumulator, ct);
     }
 
     public ValueTask DisposeAsync()

@@ -25,7 +25,7 @@ public class RpcClientRuntimeTests
         var server = new RpcSession(serverTransport, serializer);
         server.Register(1, 1, (req, ct) =>
         {
-            var arg = serializer.Deserialize<string>(req.Payload.AsSpan());
+            var arg = serializer.Deserialize<string>(req.Payload);
             var result = serializer.Serialize($"Hello {arg}");
             return ValueTask.FromResult(new RpcResponseEnvelope
             {
@@ -228,7 +228,7 @@ public class RpcClientRuntimeTests
         var server = new RpcSession(serverTransport, serializer);
         server.Register(1, 1, (req, ct) =>
         {
-            var arg = serializer.Deserialize<string>(req.Payload.AsSpan());
+            var arg = serializer.Deserialize<string>(req.Payload);
             return ValueTask.FromResult(new RpcResponseEnvelope
             {
                 RequestId = req.RequestId,
@@ -248,6 +248,49 @@ public class RpcClientRuntimeTests
 
         var response = await client.CallAsync(EchoMethod, "still-alive");
         Assert.Equal("STILL-ALIVE", response);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task SlowPushHandler_DoesNotBlockResponses()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcSession(serverTransport, serializer);
+        server.Register(1, 1, (req, ct) =>
+        {
+            var arg = serializer.Deserialize<string>(req.Payload);
+            return ValueTask.FromResult(new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = serializer.Serialize(arg + "-reply")
+            });
+        });
+
+        await server.StartAsync();
+
+        var pushStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePushHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var client = new RpcClientRuntime(clientTransport, serializer);
+        client.RegisterPushHandler(NotifyPushMethod, _ =>
+        {
+            pushStarted.TrySetResult();
+            releasePushHandler.Task.GetAwaiter().GetResult();
+        });
+
+        await client.StartAsync();
+
+        await server.PushAsync(1, 1, "block");
+        await pushStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var response = await client.CallAsync(EchoMethod, "fast");
+        Assert.Equal("fast-reply", response);
+
+        releasePushHandler.TrySetResult();
 
         await client.DisposeAsync();
         await server.StopAsync();
@@ -287,7 +330,7 @@ public class RpcClientRuntimeTests
         var server = new RpcSession(serverTransport, serializer);
         server.Register(1, 1, async (req, ct) =>
         {
-            var arg = serializer.Deserialize<int>(req.Payload.AsSpan());
+            var arg = serializer.Deserialize<int>(req.Payload);
             await Task.Delay(10, ct);
             return new RpcResponseEnvelope
             {
@@ -500,10 +543,10 @@ public class RpcClientRuntimeTests
             return ValueTask.CompletedTask;
         }
 
-        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
-            return ReadOnlyMemory<byte>.Empty;
+            return TransportFrame.Empty;
         }
 
         public ValueTask DisposeAsync()
@@ -515,7 +558,7 @@ public class RpcClientRuntimeTests
 
     private sealed class ControlledClientTransport : ITransport
     {
-        private readonly Channel<ReadOnlyMemory<byte>> _responses = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+        private readonly Channel<TransportFrame> _responses = Channel.CreateUnbounded<TransportFrame>();
         private readonly ConcurrentQueue<uint> _sentRequestIds = new();
 
         public IReadOnlyCollection<uint> SentRequestIds => _sentRequestIds;
@@ -530,12 +573,13 @@ public class RpcClientRuntimeTests
 
         public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
         {
-            var request = RpcEnvelopeCodec.DecodeRequest(frame.Span);
+            using var ownedFrame = TransportFrame.CopyOf(frame.Span);
+            using var request = RpcEnvelopeCodec.DecodeRequest(ownedFrame);
             _sentRequestIds.Enqueue(request.RequestId);
             return ValueTask.CompletedTask;
         }
 
-        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
             return await _responses.Reader.ReadAsync(ct);
         }

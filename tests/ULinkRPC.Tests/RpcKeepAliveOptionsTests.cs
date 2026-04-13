@@ -39,14 +39,16 @@ public sealed class RpcKeepAliveOptionsTests
 
         public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default) => default;
 
-        public ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default) =>
-            ValueTask.FromResult<ReadOnlyMemory<byte>>(Array.Empty<byte>());
+        public ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default) =>
+            ValueTask.FromResult(TransportFrame.Empty);
 
         public ValueTask DisposeAsync() => default;
     }
 
     private sealed class StubSerializer : IRpcSerializer
     {
+        public TransportFrame SerializeFrame<T>(T value) => TransportFrame.Empty;
+
         public byte[] Serialize<T>(T value) => Array.Empty<byte>();
 
         public T Deserialize<T>(ReadOnlySpan<byte> payload) => default!;

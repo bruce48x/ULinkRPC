@@ -43,7 +43,7 @@ internal static partial class ServerEmitter
             var argType = NamingHelper.GetRequestPayloadType(m);
             w.OpenBlock($"registry.Register(ServiceId, {m.MethodId}, async (server, req, ct) =>");
             w.Line($"var impl = server.GetOrAddScopedService(ServiceId, implFactory);");
-            w.Line($"var arg = server.Serializer.Deserialize<{argType}>(req.Payload.AsSpan())!;");
+            w.Line($"var arg = server.Serializer.Deserialize<{argType}>(req.Payload)!;");
             if (m.IsVoid)
             {
                 w.Line($"await impl.{m.Name}(arg);");

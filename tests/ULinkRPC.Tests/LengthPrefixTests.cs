@@ -9,7 +9,7 @@ public class LengthPrefixTests
     public void Pack_ProducesCorrectHeader()
     {
         var payload = new byte[] { 0xAA, 0xBB };
-        var packed = LengthPrefix.Pack(payload);
+        using var packed = LengthPrefix.Pack(payload);
 
         Assert.Equal(6, packed.Length);
         Assert.Equal(0, packed[0]);
@@ -23,17 +23,17 @@ public class LengthPrefixTests
     [Fact]
     public void Pack_EmptyPayload()
     {
-        var packed = LengthPrefix.Pack(ReadOnlySpan<byte>.Empty);
+        using var packed = LengthPrefix.Pack(ReadOnlySpan<byte>.Empty);
         Assert.Equal(4, packed.Length);
-        Assert.Equal(new byte[] { 0, 0, 0, 0 }, packed);
+        Assert.Equal(new byte[] { 0, 0, 0, 0 }, packed.ToArray());
     }
 
     [Fact]
     public void TryUnpack_CompleteFrame_Succeeds()
     {
         var payload = new byte[] { 1, 2, 3 };
-        var packed = LengthPrefix.Pack(payload);
-        var seq = new ReadOnlySequence<byte>(packed);
+        using var packed = LengthPrefix.Pack(payload);
+        var seq = new ReadOnlySequence<byte>(packed.Memory);
 
         var result = LengthPrefix.TryUnpack(ref seq, out var payloadSeq);
 
@@ -77,8 +77,8 @@ public class LengthPrefixTests
     public void TryUnpack_CustomMaxFrameSize()
     {
         var payload = new byte[100];
-        var packed = LengthPrefix.Pack(payload);
-        var seq = new ReadOnlySequence<byte>(packed);
+        using var packed = LengthPrefix.Pack(payload);
+        var seq = new ReadOnlySequence<byte>(packed.Memory);
 
         Assert.Throws<InvalidOperationException>(() =>
             LengthPrefix.TryUnpack(ref seq, out _, maxFrameSize: 50));
@@ -87,8 +87,8 @@ public class LengthPrefixTests
     [Fact]
     public void TryUnpack_MultipleFrames_ConsumesCorrectly()
     {
-        var frame1 = LengthPrefix.Pack(new byte[] { 10 });
-        var frame2 = LengthPrefix.Pack(new byte[] { 20 });
+        using var frame1 = LengthPrefix.Pack(new byte[] { 10 });
+        using var frame2 = LengthPrefix.Pack(new byte[] { 20 });
         var combined = new byte[frame1.Length + frame2.Length];
         frame1.CopyTo(combined, 0);
         frame2.CopyTo(combined, frame1.Length);
@@ -108,8 +108,8 @@ public class LengthPrefixTests
     {
         var payload = new byte[8192];
         new Random(42).NextBytes(payload);
-        var packed = LengthPrefix.Pack(payload);
-        var seq = new ReadOnlySequence<byte>(packed);
+        using var packed = LengthPrefix.Pack(payload);
+        var seq = new ReadOnlySequence<byte>(packed.Memory);
 
         Assert.True(LengthPrefix.TryUnpack(ref seq, out var result));
         Assert.Equal(payload, result.ToArray());

@@ -35,17 +35,14 @@ public class TransportFrameCodecTests
     }
 
     [Fact]
-    public void Decode_NoSecurity_ReturnsCopy_NotOriginalReference()
+    public void Decode_NoSecurity_ReturnsRetainedView()
     {
         var codec = new TransportFrameCodec(NoSecurityConfig());
         var original = new byte[] { 1, 2, 3, 4, 5 };
-        ReadOnlyMemory<byte> input = original;
-
-        var decoded = codec.Decode(input);
-
+        using var input = TransportFrame.CopyOf(original);
+        using var decoded = codec.Decode(input);
         Assert.Equal(original, decoded.ToArray());
-        Assert.False(decoded.Span == input.Span,
-            "Decode should return a copy, not the same memory");
+        Assert.Equal(input.Span.ToArray(), decoded.Span.ToArray());
     }
 
     [Fact]
@@ -54,7 +51,7 @@ public class TransportFrameCodecTests
         var codec = new TransportFrameCodec(NoSecurityConfig());
         var original = new byte[] { 1, 2, 3 };
 
-        var encoded = codec.Encode(original);
+        using var encoded = codec.Encode(original);
         Assert.Equal(original, encoded.ToArray());
     }
 
@@ -64,8 +61,8 @@ public class TransportFrameCodecTests
         var codec = new TransportFrameCodec(NoSecurityConfig());
         var data = new byte[] { 10, 20, 30 };
 
-        var encoded = codec.Encode(data);
-        var decoded = codec.Decode(encoded);
+        using var encoded = codec.Encode(data);
+        using var decoded = codec.Decode(encoded);
 
         Assert.Equal(data, decoded.ToArray());
     }
@@ -76,8 +73,8 @@ public class TransportFrameCodecTests
         var codec = new TransportFrameCodec(CompressionOnlyConfig(threshold: 1024));
         var data = new byte[] { 1, 2, 3, 4, 5 };
 
-        var encoded = codec.Encode(data);
-        var decoded = codec.Decode(encoded);
+        using var encoded = codec.Encode(data);
+        using var decoded = codec.Decode(encoded);
 
         Assert.Equal(data, decoded.ToArray());
     }
@@ -89,8 +86,8 @@ public class TransportFrameCodecTests
         var data = new byte[4096];
         Array.Fill(data, (byte)0xAB);
 
-        var encoded = codec.Encode(data);
-        var decoded = codec.Decode(encoded);
+        using var encoded = codec.Encode(data);
+        using var decoded = codec.Decode(encoded);
 
         Assert.Equal(data, decoded.ToArray());
         Assert.True(encoded.Length < data.Length,
@@ -104,8 +101,8 @@ public class TransportFrameCodecTests
         var codec = new TransportFrameCodec(config);
         var data = new byte[] { 100, 200, 255, 0, 1 };
 
-        var encoded = codec.Encode(data);
-        var decoded = codec.Decode(encoded);
+        using var encoded = codec.Encode(data);
+        using var decoded = codec.Decode(encoded);
 
         Assert.Equal(data, decoded.ToArray());
         Assert.NotEqual(data, encoded.ToArray());
@@ -119,8 +116,8 @@ public class TransportFrameCodecTests
         var data = new byte[2048];
         new Random(42).NextBytes(data);
 
-        var encoded = codec.Encode(data);
-        var decoded = codec.Decode(encoded);
+        using var encoded = codec.Encode(data);
+        using var decoded = codec.Decode(encoded);
 
         Assert.Equal(data, decoded.ToArray());
     }
@@ -132,10 +129,15 @@ public class TransportFrameCodecTests
         var codec = new TransportFrameCodec(config);
         var data = new byte[] { 1, 2, 3 };
 
-        var encoded = codec.Encode(data).ToArray();
-        encoded[20] ^= 0xFF;
+        using var encoded = codec.Encode(data);
+        var tampered = encoded.ToArray();
+        tampered[20] ^= 0xFF;
 
-        Assert.Throws<InvalidOperationException>(() => codec.Decode(encoded));
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            using var frame = TransportFrame.CopyOf(tampered);
+            using var _ = codec.Decode(frame);
+        });
     }
 
     [Fact]
@@ -145,7 +147,10 @@ public class TransportFrameCodecTests
         var codec = new TransportFrameCodec(config);
 
         Assert.Throws<InvalidOperationException>(() =>
-            codec.Decode(new byte[10]));
+        {
+            using var frame = TransportFrame.CopyOf(new byte[10]);
+            using var _ = codec.Decode(frame);
+        });
     }
 
     [Fact]
@@ -171,8 +176,8 @@ public class TransportFrameCodecTests
         var codec = new TransportFrameCodec(NoSecurityConfig());
         var data = Array.Empty<byte>();
 
-        var encoded = codec.Encode(data);
-        var decoded = codec.Decode(encoded);
+        using var encoded = codec.Encode(data);
+        using var decoded = codec.Decode(encoded);
 
         Assert.Empty(decoded.ToArray());
     }
@@ -192,9 +197,11 @@ public class TransportFrameCodecTests
         });
 
         var data = new byte[] { 1, 2, 3, 4 };
-        var encoded = codec1.Encode(data);
-
-        Assert.ThrowsAny<Exception>(() => codec2.Decode(encoded));
+        using var encoded = codec1.Encode(data);
+        Assert.ThrowsAny<Exception>(() =>
+        {
+            using var _ = codec2.Decode(encoded);
+        });
     }
 
     [Fact]
@@ -211,9 +218,11 @@ public class TransportFrameCodecTests
         var data = new byte[1024];
         Array.Fill(data, (byte)'A');
 
-        var encoded = codec.Encode(data);
-
-        Assert.Throws<InvalidOperationException>(() => codec.Decode(encoded));
+        using var encoded = codec.Encode(data);
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            using var _ = codec.Decode(encoded);
+        });
     }
 
     [Fact]

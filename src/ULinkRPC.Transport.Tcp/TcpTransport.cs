@@ -81,7 +81,7 @@ namespace ULinkRPC.Transport.Tcp
             await _framing.SendFrameAsync(frame, ct).ConfigureAwait(false);
         }
 
-        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
             if (_framing is null)
                 throw new InvalidOperationException("Not connected.");

@@ -14,14 +14,13 @@ internal static class WsTransportFraming
         if (webSocket.State != WebSocketState.Open)
             throw new InvalidOperationException("Not connected.");
 
-        var packed = LengthPrefix.Pack(frame.Span);
-        await webSocket.SendAsync(packed, WebSocketMessageType.Binary, true, ct).ConfigureAwait(false);
+        using var packed = LengthPrefix.Pack(frame.Span);
+        await webSocket.SendAsync(packed.Memory, WebSocketMessageType.Binary, true, ct).ConfigureAwait(false);
     }
 
-    public static async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(
+    public static async ValueTask<TransportFrame> ReceiveFrameAsync(
         NetWebSocket webSocket,
-        byte[] accum,
-        Action<byte[]> setAccum,
+        LengthPrefixedFrameAccumulator accumulator,
         CancellationToken ct)
     {
         if (webSocket.State != WebSocketState.Open)
@@ -36,22 +35,10 @@ internal static class WsTransportFraming
                 if (res.MessageType == WebSocketMessageType.Close)
                     throw new IOException("WebSocket closed.");
 
-                var oldLen = accum.Length;
-                if (oldLen + res.Count > MaxBufferedBytes)
-                    throw new InvalidOperationException("WebSocket frame buffer exceeded maximum size.");
+                accumulator.Append(tmp.AsSpan(0, res.Count), MaxBufferedBytes);
 
-                Array.Resize(ref accum, oldLen + res.Count);
-                Array.Copy(tmp, 0, accum, oldLen, res.Count);
-
-                var seq = new ReadOnlySequence<byte>(accum);
-                if (LengthPrefix.TryUnpack(ref seq, out var payloadSeq))
-                {
-                    var payload = payloadSeq.ToArray();
-                    setAccum(seq.ToArray());
+                if (accumulator.TryReadFrame(out var payload))
                     return payload;
-                }
-
-                setAccum(accum);
             }
             finally
             {

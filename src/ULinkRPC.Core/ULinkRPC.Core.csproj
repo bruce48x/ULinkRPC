@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Core</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.10.0</Version>
     <Authors>ULinkRPC</Authors>
     <Description>ULinkRPC core abstractions, contracts, envelopes, and framing helpers.</Description>
     <PackageTags>rpc;unity;dotnet;transport</PackageTags>
@@ -20,5 +20,10 @@
   <ItemGroup>
     <InternalsVisibleTo Include="ULinkRPC.Client" />
     <InternalsVisibleTo Include="ULinkRPC.Server" />
+    <InternalsVisibleTo Include="ULinkRPC.Transport.Kcp" />
+    <InternalsVisibleTo Include="ULinkRPC.Transport.Loopback" />
+    <InternalsVisibleTo Include="ULinkRPC.Transport.Tcp" />
+    <InternalsVisibleTo Include="ULinkRPC.Transport.WebSocket" />
+    <InternalsVisibleTo Include="ULinkRPC.Transport.Tests" />
   </ItemGroup>
 </Project>

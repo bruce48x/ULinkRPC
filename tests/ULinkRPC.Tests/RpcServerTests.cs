@@ -51,8 +51,7 @@ public class RpcSessionTests
         };
         await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(reqEnv));
 
-        var respFrame = await clientTransport.ReceiveFrameAsync();
-        var resp = RpcEnvelopeCodec.DecodeResponse(respFrame.Span);
+        using var resp = await ReceiveResponseAsync(clientTransport);
 
         Assert.Equal(RpcStatus.Ok, resp.Status);
         Assert.NotNull(receivedReq);
@@ -81,8 +80,7 @@ public class RpcSessionTests
         };
         await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(reqEnv));
 
-        var respFrame = await clientTransport.ReceiveFrameAsync();
-        var resp = RpcEnvelopeCodec.DecodeResponse(respFrame.Span);
+        using var resp = await ReceiveResponseAsync(clientTransport);
 
         Assert.Equal(RpcStatus.NotFound, resp.Status);
         Assert.Contains("No handler", resp.ErrorMessage);
@@ -120,8 +118,7 @@ public class RpcSessionTests
         };
         await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(reqEnv));
 
-        var respFrame = await clientTransport.ReceiveFrameAsync();
-        var resp = RpcEnvelopeCodec.DecodeResponse(respFrame.Span);
+        using var resp = await ReceiveResponseAsync(clientTransport);
 
         Assert.Equal(RpcStatus.Exception, resp.Status);
         Assert.Equal("RPC handler failed.", resp.ErrorMessage);
@@ -214,8 +211,7 @@ public class RpcSessionTests
                     Payload = Array.Empty<byte>()
                 };
                 await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(reqEnv));
-                var respFrame = await clientTransport.ReceiveFrameAsync();
-                var resp = RpcEnvelopeCodec.DecodeResponse(respFrame.Span);
+                using var resp = await ReceiveResponseAsync(clientTransport);
                 Assert.Equal(RpcStatus.Ok, resp.Status);
             }
         });
@@ -269,12 +265,12 @@ public class RpcSessionTests
             Payload = Array.Empty<byte>()
         }));
 
-        var resp1 = RpcEnvelopeCodec.DecodeResponse((await clientTransport1.ReceiveFrameAsync()).Span);
-        var resp2 = RpcEnvelopeCodec.DecodeResponse((await clientTransport2.ReceiveFrameAsync()).Span);
+        using var resp1 = await ReceiveResponseAsync(clientTransport1);
+        using var resp2 = await ReceiveResponseAsync(clientTransport2);
 
         Assert.Equal(RpcStatus.Ok, resp1.Status);
         Assert.Equal(RpcStatus.Ok, resp2.Status);
-        Assert.NotEqual(serializer.Deserialize<string>(resp1.Payload.AsSpan()), serializer.Deserialize<string>(resp2.Payload.AsSpan()));
+        Assert.NotEqual(serializer.Deserialize<string>(resp1.Payload), serializer.Deserialize<string>(resp2.Payload));
         Assert.Equal(2, handledConnections);
 
         await server1.StopAsync();
@@ -315,8 +311,7 @@ public class RpcSessionTests
         await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(reqEnv));
 
         using var readCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        var respFrame = await clientTransport.ReceiveFrameAsync(readCts.Token);
-        var resp = RpcEnvelopeCodec.DecodeResponse(respFrame.Span);
+        using var resp = await ReceiveResponseAsync(clientTransport, readCts.Token);
 
         Assert.Equal(RpcStatus.Ok, resp.Status);
 
@@ -393,9 +388,9 @@ public class RpcSessionTests
         await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(slowReq));
         await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(fastReq));
 
-        var firstResp = RpcEnvelopeCodec.DecodeResponse((await clientTransport.ReceiveFrameAsync()).Span);
+        using var firstResp = await ReceiveResponseAsync(clientTransport);
         var fastResponseElapsed = sw.ElapsedMilliseconds;
-        var secondResp = RpcEnvelopeCodec.DecodeResponse((await clientTransport.ReceiveFrameAsync()).Span);
+        using var secondResp = await ReceiveResponseAsync(clientTransport);
 
         Assert.Equal(2u, firstResp.RequestId);
         Assert.Equal(1u, secondResp.RequestId);
@@ -419,6 +414,113 @@ public class RpcSessionTests
 
         Assert.Equal(1, transport.MaxConcurrentSends);
         await server.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task RequestQueueLimit_RejectsRequestsBeyondBudget()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var releaseFirstRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstRequestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var server = new RpcSession(
+            serverTransport,
+            serializer,
+            registry: null,
+            contextId: "queue-limit-test",
+            ownsTransport: false,
+            keepAlive: null,
+            logger: null,
+            limits: new RpcServerLimits
+            {
+                MaxConcurrentRequestsPerSession = 1,
+                MaxQueuedRequestsPerSession = 1,
+                MaxPendingAcceptedConnections = 8
+            });
+
+        server.Register(1, 1, async (req, ct) =>
+        {
+            firstRequestStarted.TrySetResult();
+            await releaseFirstRequest.Task.WaitAsync(ct);
+            return new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = Array.Empty<byte>()
+            };
+        });
+
+        await server.StartAsync();
+        await clientTransport.ConnectAsync();
+
+        await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(new RpcRequestEnvelope
+        {
+            RequestId = 1,
+            ServiceId = 1,
+            MethodId = 1,
+            Payload = Array.Empty<byte>()
+        }));
+
+        await firstRequestStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(new RpcRequestEnvelope
+        {
+            RequestId = 2,
+            ServiceId = 1,
+            MethodId = 1,
+            Payload = Array.Empty<byte>()
+        }));
+
+        await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(new RpcRequestEnvelope
+        {
+            RequestId = 3,
+            ServiceId = 1,
+            MethodId = 1,
+            Payload = Array.Empty<byte>()
+        }));
+
+        using var overloadResponse = await ReceiveResponseAsync(clientTransport);
+        Assert.Equal(3u, overloadResponse.RequestId);
+        Assert.Equal(RpcStatus.Exception, overloadResponse.Status);
+        Assert.Contains("overloaded", overloadResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+
+        releaseFirstRequest.TrySetResult();
+
+        using var remainingResponse1 = await ReceiveResponseAsync(clientTransport);
+        using var remainingResponse2 = await ReceiveResponseAsync(clientTransport);
+        var remainingResponses = new[]
+        {
+            (remainingResponse1.RequestId, remainingResponse1.Status),
+            (remainingResponse2.RequestId, remainingResponse2.Status)
+        }.OrderBy(response => response.RequestId).ToArray();
+
+        Assert.Equal(1u, remainingResponses[0].RequestId);
+        Assert.Equal(RpcStatus.Ok, remainingResponses[0].Status);
+        Assert.Equal(2u, remainingResponses[1].RequestId);
+        Assert.Equal(RpcStatus.Ok, remainingResponses[1].Status);
+
+        await server.StopAsync();
+        await clientTransport.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task BoundedConnectionAcceptor_DropsConnectionsBeyondQueueLimit()
+    {
+        var acceptor = new BurstConnectionAcceptor(3);
+        var logger = new TestLogger();
+        await using var bounded = new BoundedConnectionAcceptor(acceptor, 1, logger);
+
+        await Task.Delay(100);
+
+        var accepted = await bounded.AcceptAsync(new CancellationTokenSource(TimeSpan.FromSeconds(2)).Token);
+
+        Assert.Equal(1, acceptor.ActiveTransportCount);
+        Assert.Equal(2, acceptor.DisposedTransportCount);
+        Assert.Contains(logger.Entries, entry =>
+            entry.LogLevel == LogLevel.Warning &&
+            entry.Message.Contains("pending accepted connection queue is full", StringComparison.OrdinalIgnoreCase));
+
+        await accepted.Transport.DisposeAsync();
     }
 
     [Fact]
@@ -585,9 +687,9 @@ public class RpcSessionTests
             Interlocked.Decrement(ref _currentSends);
         }
 
-        public ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
-            return ValueTask.FromResult<ReadOnlyMemory<byte>>(ReadOnlyMemory<byte>.Empty);
+            return ValueTask.FromResult(TransportFrame.Empty);
         }
 
         public ValueTask DisposeAsync()
@@ -611,6 +713,12 @@ public class RpcSessionTests
         }
     }
 
+    private static async Task<RpcResponseFrame> ReceiveResponseAsync(ITransport transport, CancellationToken ct = default)
+    {
+        using var frame = await transport.ReceiveFrameAsync(ct);
+        return RpcEnvelopeCodec.DecodeResponse(frame);
+    }
+
     private sealed class ReconnectableEmptyFrameTransport : ITransport
     {
         public int ConnectCount { get; private set; }
@@ -628,10 +736,10 @@ public class RpcSessionTests
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
             IsConnected = false;
-            return ValueTask.FromResult<ReadOnlyMemory<byte>>(ReadOnlyMemory<byte>.Empty);
+            return ValueTask.FromResult(TransportFrame.Empty);
         }
 
         public ValueTask DisposeAsync()
@@ -656,16 +764,91 @@ public class RpcSessionTests
             return ValueTask.CompletedTask;
         }
 
-        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
-            return ReadOnlyMemory<byte>.Empty;
+            return TransportFrame.Empty;
         }
 
         public ValueTask DisposeAsync()
         {
             IsConnected = false;
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class BurstConnectionAcceptor : IRpcConnectionAcceptor
+    {
+        private readonly Queue<RpcAcceptedConnection> _connections;
+        private int _activeTransportCount;
+        private int _disposedTransportCount;
+
+        public BurstConnectionAcceptor(int count)
+        {
+            _connections = new Queue<RpcAcceptedConnection>(count);
+            for (var i = 0; i < count; i++)
+            {
+                var transport = new DisposableConnectionTransport(this);
+                _connections.Enqueue(new RpcAcceptedConnection(transport, $"test-{i}"));
+            }
+            _activeTransportCount = count;
+        }
+
+        public int ActiveTransportCount => Volatile.Read(ref _activeTransportCount);
+
+        public int DisposedTransportCount => Volatile.Read(ref _disposedTransportCount);
+
+        public string ListenAddress => "test://burst";
+
+        public ValueTask<RpcAcceptedConnection> AcceptAsync(CancellationToken ct = default)
+        {
+            if (_connections.Count == 0)
+                return ValueTask.FromCanceled<RpcAcceptedConnection>(ct.IsCancellationRequested ? ct : new CancellationToken(true));
+
+            return ValueTask.FromResult(_connections.Dequeue());
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        private sealed class DisposableConnectionTransport : ITransport
+        {
+            private readonly BurstConnectionAcceptor _owner;
+            private int _disposed;
+
+            public DisposableConnectionTransport(BurstConnectionAcceptor owner)
+            {
+                _owner = owner;
+            }
+
+            public bool IsConnected => Volatile.Read(ref _disposed) == 0;
+
+            public ValueTask ConnectAsync(CancellationToken ct = default)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
+            {
+                return ValueTask.FromResult(TransportFrame.Empty);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                    return ValueTask.CompletedTask;
+
+                Interlocked.Decrement(ref _owner._activeTransportCount);
+                Interlocked.Increment(ref _owner._disposedTransportCount);
+                return ValueTask.CompletedTask;
+            }
         }
     }
 

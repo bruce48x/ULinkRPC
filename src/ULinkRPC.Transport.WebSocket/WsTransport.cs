@@ -7,7 +7,7 @@ public sealed class WsTransport : ITransport
 {
     private readonly Uri _uri;
     private readonly ClientWebSocket _webSocket = new();
-    private byte[] _accum = Array.Empty<byte>();
+    private readonly LengthPrefixedFrameAccumulator _accumulator = new();
 
     public WsTransport(string url)
     {
@@ -37,9 +37,9 @@ public sealed class WsTransport : ITransport
         return WsTransportFraming.SendFrameAsync(_webSocket, frame, ct);
     }
 
-    public ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+    public ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
     {
-        return WsTransportFraming.ReceiveFrameAsync(_webSocket, _accum, value => _accum = value, ct);
+        return WsTransportFraming.ReceiveFrameAsync(_webSocket, _accumulator, ct);
     }
 
     public ValueTask DisposeAsync()

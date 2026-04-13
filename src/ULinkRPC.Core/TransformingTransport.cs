@@ -27,22 +27,39 @@ namespace ULinkRPC.Core
 
         public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
         {
-            var encoded = _codec.Encode(frame);
-            return _inner.SendFrameAsync(encoded, ct);
+            return SendCoreAsync(frame, ct);
         }
 
-        public async ValueTask<ReadOnlyMemory<byte>> ReceiveFrameAsync(CancellationToken ct = default)
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
         {
             var raw = await _inner.ReceiveFrameAsync(ct).ConfigureAwait(false);
             if (raw.IsEmpty)
                 return raw;
 
-            return _codec.Decode(raw);
+            if (_codec.IsPassthrough)
+                return raw;
+
+            using (raw)
+            {
+                return _codec.Decode(raw);
+            }
         }
 
         public ValueTask DisposeAsync()
         {
             return _inner.DisposeAsync();
+        }
+
+        private async ValueTask SendCoreAsync(ReadOnlyMemory<byte> frame, CancellationToken ct)
+        {
+            if (_codec.IsPassthrough)
+            {
+                await _inner.SendFrameAsync(frame, ct).ConfigureAwait(false);
+                return;
+            }
+
+            using var encoded = _codec.Encode(frame.Span);
+            await _inner.SendFrameAsync(encoded.Memory, ct).ConfigureAwait(false);
         }
     }
 }

@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Client</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.10.0</Version>
     <Authors>ULinkRPC</Authors>
     <Description>ULinkRPC client runtime and client-side transports.</Description>
     <PackageTags>rpc;unity;client;tcp;loopback</PackageTags>
@@ -15,6 +15,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ULinkRPC.Core\ULinkRPC.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="System.Threading.Channels" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>

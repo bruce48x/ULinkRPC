@@ -8,6 +8,7 @@ public sealed class RpcServerHost
     private readonly Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>> _acceptorFactory;
     private readonly ILogger _logger;
     private readonly RpcKeepAliveOptions _keepAlive;
+    private readonly RpcServerLimits _limits;
     private readonly RpcServiceRegistry _registry;
     private readonly TransportSecurityConfig _security;
     private readonly IRpcSerializer _serializer;
@@ -17,7 +18,8 @@ public sealed class RpcServerHost
         TransportSecurityConfig security,
         RpcKeepAliveOptions keepAlive,
         Func<CancellationToken, ValueTask<IRpcConnectionAcceptor>> acceptorFactory,
-        ILogger logger)
+        ILogger logger,
+        RpcServerLimits limits)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -25,6 +27,7 @@ public sealed class RpcServerHost
         _keepAlive = keepAlive ?? throw new ArgumentNullException(nameof(keepAlive));
         _acceptorFactory = acceptorFactory ?? throw new ArgumentNullException(nameof(acceptorFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _limits = limits ?? throw new ArgumentNullException(nameof(limits));
     }
 
     public async ValueTask RunAsync(CancellationToken ct = default)
@@ -42,8 +45,13 @@ public sealed class RpcServerHost
 
         try
         {
-            await using var acceptor = await _acceptorFactory(cts.Token).ConfigureAwait(false);
-            _logger.LogInformation("RPC server listening on {ListenAddress}. Press Ctrl+C to stop.", acceptor.ListenAddress);
+            await using var baseAcceptor = await _acceptorFactory(cts.Token).ConfigureAwait(false);
+            await using var acceptor = new BoundedConnectionAcceptor(
+                baseAcceptor,
+                _limits.MaxPendingAcceptedConnections,
+                _logger,
+                cts.Token);
+            _logger.LogInformation("RPC server listening on {ListenAddress}. Press Ctrl+C to stop.", baseAcceptor.ListenAddress);
 
             while (!cts.IsCancellationRequested)
             {
@@ -83,7 +91,8 @@ public sealed class RpcServerHost
             connection.DisplayName,
             ownsTransport: true,
             keepAlive: _keepAlive,
-            logger: _logger);
+            logger: _logger,
+            limits: _limits);
 
         try
         {

@@ -48,15 +48,15 @@ internal static class NuGetVersionResolver
 
 internal static class StarterReleaseVersions
 {
-    public const string Core = "0.6.2";
-    public const string Server = "0.8.2";
-    public const string Client = "0.6.4";
-    public const string TransportTcp = "0.7.0";
-    public const string TransportWebSocket = "0.8.0";
-    public const string TransportKcp = "0.8.0";
-    public const string SerializerJson = "0.7.0";
-    public const string SerializerMemoryPack = "0.7.0";
-    public const string CodeGen = "0.13.6";
+    public const string Core = "0.10.0";
+    public const string Server = "0.10.0";
+    public const string Client = "0.10.0";
+    public const string TransportTcp = "0.10.0";
+    public const string TransportWebSocket = "0.10.0";
+    public const string TransportKcp = "0.10.0";
+    public const string SerializerJson = "0.10.0";
+    public const string SerializerMemoryPack = "0.10.0";
+    public const string CodeGen = "0.14.0";
     public const string MemoryPackRuntime = "1.21.4";
     public const string MemoryPackRuntimeCore = "1.21.4";
 }
