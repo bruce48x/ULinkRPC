@@ -55,6 +55,7 @@ internal sealed record UnityClientArtifacts(
     string Readme,
     string ProjectVersion,
     string EditorBuildSettings,
+    string GeneratedAssemblyDefinition,
     string TesterScript,
     string TesterScriptMeta,
     string SceneContent,
@@ -70,6 +71,7 @@ internal static class UnityPackageVersions
     public const string SystemIoPipelinesForJson = "10.0.2";
     public const string SystemMemoryForJson = "4.6.3";
     public const string SystemMemoryForKcp = "4.5.4";
+    public const string SystemThreadingChannels = "10.0.0";
     public const string SystemTextEncodingsWeb = "10.0.2";
     public const string SystemTextJson = "10.0.2";
     public const string SystemThreadingTasksExtensionsForJson = "4.6.3";

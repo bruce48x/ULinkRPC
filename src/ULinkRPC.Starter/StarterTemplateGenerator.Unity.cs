@@ -8,6 +8,7 @@ internal static class StarterUnityTemplate
         var artifacts = BuildArtifacts(context);
 
         var clientPath = context.Paths.ClientPath;
+        var generatedAssemblyDefinitionPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Generated", "ULinkRPC.Generated.asmdef");
         var testerScriptPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs");
         var scenePath = Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName()}.unity");
         var autoOpenEditorScriptPath = Path.Combine(clientPath, "Assets", "Editor", "AutoOpenConnectionScene.cs");
@@ -15,6 +16,7 @@ internal static class StarterUnityTemplate
         StarterFileWriter.Write(Path.Combine(clientPath, "Packages", "manifest.json"), artifacts.Manifest);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "packages.config"), artifacts.PackagesConfig);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "NuGet.config"), artifacts.NuGetConfig);
+        StarterFileWriter.Write(generatedAssemblyDefinitionPath, artifacts.GeneratedAssemblyDefinition);
         StarterFileWriter.Write(testerScriptPath, artifacts.TesterScript);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs.meta"), artifacts.TesterScriptMeta);
         StarterFileWriter.Write(scenePath, artifacts.SceneContent);
@@ -32,6 +34,7 @@ internal static class StarterUnityTemplate
         Directory.CreateDirectory(Path.Combine(clientPath, "Packages"));
         Directory.CreateDirectory(Path.Combine(clientPath, "ProjectSettings"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scenes"));
+        Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Generated"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing"));
     }
 
@@ -42,11 +45,32 @@ internal static class StarterUnityTemplate
         BuildReadme(context),
         BuildProjectVersion(),
         GetEditorBuildSettingsAsset(),
+        GetGeneratedAssemblyDefinition(),
         GetUnityTesterScript(context.Transport, context.Serializer),
         GetUnityTesterScriptMeta(),
         GetUnitySceneContent(context.Transport),
         GetUnitySceneMeta(),
         GetAutoOpenSceneEditorScript());
+
+    private static string GetGeneratedAssemblyDefinition() => """
+{
+  "name": "ULinkRPC.Generated",
+  "references": [
+    "Game.Rpc.Contracts",
+    "ULinkRPC.Core",
+    "ULinkRPC.Client"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
+""";
 
     private static string BuildManifest(StarterTemplateContext context) => $$"""
 {
@@ -82,11 +106,16 @@ internal static class StarterUnityTemplate
   <package id="ULinkRPC.Client" version="{{context.Versions.Client}}" manuallyInstalled="true" />
   <package id="{{transportPackage}}" version="{{context.Versions.Transport}}" manuallyInstalled="true" />
   <package id="{{serializerPackage}}" version="{{context.Versions.Serializer}}" manuallyInstalled="true" />
+{{GetUnityClientDependencyPackages()}}
 {{GetUnityTransportDependencyPackages(context.Transport)}}
 {{GetUnitySerializerDependencyPackages(context.Serializer, context.Versions)}}
 </packages>
 """;
     }
+
+    private static string GetUnityClientDependencyPackages() => $"""
+  <package id="System.Threading.Channels" version="{UnityPackageVersions.SystemThreadingChannels}" />
+""";
 
     private static string BuildNuGetConfig() => """
 <?xml version="1.0" encoding="utf-8"?>

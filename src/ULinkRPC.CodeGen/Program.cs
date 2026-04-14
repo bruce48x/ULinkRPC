@@ -122,6 +122,9 @@ internal static class Program
                 ClientRuntimeUsing);
             File.WriteAllText(Path.Combine(options.OutputPath, "RpcApi.cs"), facade, Encoding.UTF8);
             generated++;
+
+            if (UnityAssemblyDefinitionEmitter.TryWriteDefaultAssemblyDefinition(options))
+                generated++;
         }
 
         if (options.Mode == OutputMode.Server)

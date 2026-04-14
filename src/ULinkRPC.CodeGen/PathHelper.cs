@@ -28,6 +28,33 @@ internal static class PathHelper
         return null;
     }
 
+    public static string? TryFindNearestAssemblyDefinitionName(string startPath)
+    {
+        if (string.IsNullOrWhiteSpace(startPath))
+            return null;
+
+        var currentPath = Directory.Exists(startPath)
+            ? startPath
+            : Path.GetDirectoryName(startPath);
+        if (string.IsNullOrWhiteSpace(currentPath))
+            return null;
+
+        var dir = new DirectoryInfo(currentPath);
+        while (dir != null)
+        {
+            var asmdefs = dir.GetFiles("*.asmdef", SearchOption.TopDirectoryOnly);
+            if (asmdefs.Length == 1)
+                return TryReadAssemblyDefinitionName(asmdefs[0].FullName);
+
+            if (asmdefs.Length > 1)
+                return null;
+
+            dir = dir.Parent;
+        }
+
+        return null;
+    }
+
     public static string? FindServerProjectRoot(string startPath)
     {
         var dir = new DirectoryInfo(startPath);
@@ -108,5 +135,29 @@ internal static class PathHelper
             sanitized = $"_{sanitized}";
 
         return sanitized;
+    }
+
+    private static string? TryReadAssemblyDefinitionName(string asmdefPath)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(asmdefPath));
+            if (doc.RootElement.TryGetProperty("name", out var nameElement) &&
+                nameElement.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                return nameElement.GetString();
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+        catch (System.Text.Json.JsonException)
+        {
+        }
+
+        return null;
     }
 }

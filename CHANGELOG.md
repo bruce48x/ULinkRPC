@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.20
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.20`
+- Fixed Unity starter `packages.config` generation to always include `System.Threading.Channels`, matching the direct runtime dependency now required by `ULinkRPC.Client` and WebSocket/KCP transports.
+- Fixed the checked-in Unity samples that were still missing `System.Threading.Channels`, so restored sample clients load `ULinkRPC.Client.dll` cleanly under Unity again.
+
+## 0.16.1 / 0.2.19
+
+- Release packages:
+	- `ULinkRPC.CodeGen` `0.16.1`
+	- `ULinkRPC.Starter` `0.2.19`
+- Fixed Unity client generation so `ULinkRPC.CodeGen` now emits a default `ULinkRPC.Generated.asmdef` when the Unity output folder does not already define its own assembly.
+- The generated Unity asmdef now infers the nearest contracts assembly reference from `--contracts`, reducing manual Unity assembly wiring for generated client code.
+- Fixed `ULinkRPC.Starter` so newly scaffolded Unity clients always include the generated runtime asmdef expected by the sample testing assembly layout.
+- Refreshed the checked-in Unity samples so existing sample projects compile again after the recent generated-client API changes.
+
 ## 0.15.0 / 0.11.0
 
 - Release packages:
