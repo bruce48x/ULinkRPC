@@ -37,21 +37,21 @@ $sampleConfig = @{
         Project = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server.csproj"
         AssemblyName = "RpcCall.MemoryPack.Server"
         Contracts = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Packages/com.samples.contracts"
-        UnityOutput = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Assets/Scripts/Rpc/RpcGenerated"
+        UnityOutput = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Assets/Scripts/Rpc/Generated"
         ServerOutput = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server/Generated"
     }
     "RpcCall.Json" = @{
         Project = "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/RpcCall.Json.Server.csproj"
         AssemblyName = "RpcCall.Json.Server"
         Contracts = "samples/RpcCall.Json/RpcCall.Json.Unity/Packages/com.samples.contracts"
-        UnityOutput = "samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated"
+        UnityOutput = "samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/Generated"
         ServerOutput = "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated"
     }
     "RpcCall.Kcp" = @{
         Project = "samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/RpcCall.Kcp.Server.csproj"
         AssemblyName = "RpcCall.Kcp.Server"
         Contracts = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Packages/com.samples.contracts"
-        UnityOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Assets/Scripts/Rpc/RpcGenerated"
+        UnityOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Assets/Scripts/Rpc/Generated"
         ServerOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/Generated"
     }
 }
@@ -116,7 +116,7 @@ function Remove-GeneratedFiles {
         return
     }
 
-    Get-ChildItem -Path $Path -File | Remove-Item
+    Get-ChildItem -Path $Path -File -Filter "*.cs" | Remove-Item
 }
 
 function Stop-SampleProcesses {

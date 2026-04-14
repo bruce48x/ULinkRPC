@@ -2,14 +2,15 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $artifacts = Join-Path $root "artifacts"
+$release = Join-Path $artifacts "release"
 $apiKey = $env:NUGET_API_KEY
 
 if ([string]::IsNullOrWhiteSpace($apiKey)) {
     throw "NUGET_API_KEY is not set."
 }
 
-if (!(Test-Path $artifacts)) {
-    throw "Artifacts folder not found. Run Tools/nuget-pack.ps1 first."
+if (!(Test-Path $release)) {
+    throw "Release folder not found. Run Tools/nuget-pack.ps1 first."
 }
 
 $patterns = @(
@@ -27,7 +28,7 @@ $patterns = @(
 
 $packages = @()
 foreach ($pattern in $patterns) {
-    $packages += Get-ChildItem -Path $artifacts -Filter $pattern
+    $packages += Get-ChildItem -Path $release -Filter $pattern
 }
 
 if ($packages.Count -eq 0) {

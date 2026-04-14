@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $artifacts = Join-Path $root "artifacts"
+$release = Join-Path $artifacts "release"
 
 $projects = @(
     (Join-Path $root "src\ULinkRPC.Core\ULinkRPC.Core.csproj"),
@@ -20,6 +21,12 @@ if (!(Test-Path $artifacts)) {
     New-Item -ItemType Directory -Path $artifacts | Out-Null
 }
 
+if (Test-Path $release) {
+    Remove-Item -Path $release -Recurse -Force
+}
+
+New-Item -ItemType Directory -Path $release | Out-Null
+
 foreach ($project in $projects) {
-    dotnet pack $project -c Release -o $artifacts
+    dotnet pack $project -c Release -o $release
 }

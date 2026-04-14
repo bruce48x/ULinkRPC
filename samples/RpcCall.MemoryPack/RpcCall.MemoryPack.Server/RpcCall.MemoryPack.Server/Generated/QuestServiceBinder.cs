@@ -63,17 +63,19 @@ namespace Game.Rpc.Server.Generated
             registry.Register(ServiceId, 1, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var arg = server.Serializer.Deserialize<ProgressRequest>(req.Payload.AsSpan())!;
+                var arg = server.Serializer.Deserialize<ProgressRequest>(req.Payload.Memory)!;
                 var resp = await impl.GetProgressAsync(arg);
-                return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
+                using var payloadFrame = server.Serializer.SerializeFrame(resp);
+                return RpcEnvelopeCodec.EncodeResponse(req.RequestId, RpcStatus.Ok, payloadFrame.Memory);
             });
 
             registry.Register(ServiceId, 2, async (server, req, ct) =>
             {
                 var impl = server.GetOrAddScopedService(ServiceId, implFactory);
-                var arg = server.Serializer.Deserialize<ProgressRequest>(req.Payload.AsSpan())!;
+                var arg = server.Serializer.Deserialize<ProgressRequest>(req.Payload.Memory)!;
                 var resp = await impl.IncrProgress(arg);
-                return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };
+                using var payloadFrame = server.Serializer.SerializeFrame(resp);
+                return RpcEnvelopeCodec.EncodeResponse(req.RequestId, RpcStatus.Ok, payloadFrame.Memory);
             });
 
         }

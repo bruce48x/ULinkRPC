@@ -135,21 +135,21 @@ case "$sample" in
     project_rel="samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server.csproj"
     assembly_name="RpcCall.MemoryPack.Server"
     contracts_rel="samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Packages/com.samples.contracts"
-    unity_output_rel="samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Assets/Scripts/Rpc/RpcGenerated"
+    unity_output_rel="samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Assets/Scripts/Rpc/Generated"
     server_output_rel="samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server/Generated"
     ;;
   RpcCall.Json)
     project_rel="samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/RpcCall.Json.Server.csproj"
     assembly_name="RpcCall.Json.Server"
     contracts_rel="samples/RpcCall.Json/RpcCall.Json.Unity/Packages/com.samples.contracts"
-    unity_output_rel="samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/RpcGenerated"
+    unity_output_rel="samples/RpcCall.Json/RpcCall.Json.Unity/Assets/Scripts/Rpc/Generated"
     server_output_rel="samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/Generated"
     ;;
   RpcCall.Kcp)
     project_rel="samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/RpcCall.Kcp.Server.csproj"
     assembly_name="RpcCall.Kcp.Server"
     contracts_rel="samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Packages/com.samples.contracts"
-    unity_output_rel="samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Assets/Scripts/Rpc/RpcGenerated"
+    unity_output_rel="samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Assets/Scripts/Rpc/Generated"
     server_output_rel="samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/Generated"
     ;;
   *)

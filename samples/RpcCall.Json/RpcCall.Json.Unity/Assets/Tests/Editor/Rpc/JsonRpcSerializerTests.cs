@@ -19,8 +19,8 @@ namespace Tests.Editor.Rpc
                 Password = "secret"
             };
 
-            var bytes = serializer.Serialize(input);
-            var output = serializer.Deserialize<LoginRequest>(new ReadOnlyMemory<byte>(bytes));
+            using var bytes = serializer.SerializeFrame(input);
+            var output = serializer.Deserialize<LoginRequest>(bytes.Memory);
 
             NUnitAssert.AreEqual(input.Account, output.Account);
             NUnitAssert.AreEqual(input.Password, output.Password);
@@ -36,8 +36,8 @@ namespace Tests.Editor.Rpc
                 Token = "abc"
             };
 
-            var bytes = serializer.Serialize(input);
-            var output = serializer.Deserialize<LoginReply>(new ReadOnlyMemory<byte>(bytes));
+            using var bytes = serializer.SerializeFrame(input);
+            var output = serializer.Deserialize<LoginReply>(bytes.Memory);
 
             NUnitAssert.AreEqual(input.Code, output.Code);
             NUnitAssert.AreEqual(input.Token, output.Token);
