@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Transport.Tcp</PackageId>
-    <Version>0.10.0</Version>
+    <Version>0.11.0</Version>
     <Authors>ULinkRPC</Authors>
     <Description>TCP client/server transport implementations for ULinkRPC.</Description>
     <PackageTags>rpc;unity;transport;tcp</PackageTags>

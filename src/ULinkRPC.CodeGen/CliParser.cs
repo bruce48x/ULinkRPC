@@ -16,7 +16,7 @@ internal static class CliParser
         Console.WriteLine("  --mode <unity|server>   Generation mode (optional if current directory can be auto-detected)");
         Console.WriteLine();
         Console.WriteLine("Defaults:");
-        Console.WriteLine("  unity: output defaults to Assets/Scripts/Rpc/RpcGenerated under Unity project root.");
+        Console.WriteLine("  unity: output defaults to Assets/Scripts/Rpc/Generated under Unity project root.");
         Console.WriteLine("  unity: namespace defaults to value derived from output path.");
         Console.WriteLine("  server: output defaults to ./Generated");
     }

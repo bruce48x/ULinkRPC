@@ -10,6 +10,12 @@ namespace ULinkRPC.Tests;
 
 public class RpcSessionTests
 {
+    private static byte[] SerializeBytes<T>(IRpcSerializer serializer, T value)
+    {
+        using var frame = serializer.SerializeFrame(value);
+        return frame.ToArray();
+    }
+
     private static (ITransport clientTransport, RpcSession server) CreateServerWithHandler(
         int serviceId, int methodId, RpcHandler handler)
     {
@@ -47,7 +53,7 @@ public class RpcSessionTests
             RequestId = 42,
             ServiceId = 1,
             MethodId = 1,
-            Payload = serializer.Serialize("hello")
+            Payload = SerializeBytes(serializer, "hello")
         };
         await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(reqEnv));
 
@@ -232,12 +238,11 @@ public class RpcSessionTests
         registry.Register(1, 1, (server, req, ct) =>
         {
             Interlocked.Increment(ref handledConnections);
-            return ValueTask.FromResult(new RpcResponseEnvelope
-            {
-                RequestId = req.RequestId,
-                Status = RpcStatus.Ok,
-                Payload = server.Serializer.Serialize(server.ContextId)
-            });
+            using var payload = server.Serializer.SerializeFrame(server.ContextId);
+            return ValueTask.FromResult(RpcEnvelopeCodec.EncodeResponse(
+                req.RequestId,
+                RpcStatus.Ok,
+                payload.Memory));
         });
 
         LoopbackTransport.CreatePair(out var clientTransport1, out var serverTransport1);
@@ -641,7 +646,7 @@ public class RpcSessionTests
         {
             RequestId = req.RequestId,
             Status = RpcStatus.Ok,
-            Payload = serializer.Serialize("alive")
+            Payload = SerializeBytes(serializer, "alive")
         }));
 
         var disconnected = 0;

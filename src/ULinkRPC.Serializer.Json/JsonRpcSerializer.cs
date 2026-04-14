@@ -17,12 +17,6 @@ namespace ULinkRPC.Serializer.Json
             _options.IncludeFields = true;
         }
 
-        public byte[] Serialize<T>(T value)
-        {
-            using var frame = SerializeFrame(value);
-            return frame.ToArray();
-        }
-
         public TransportFrame SerializeFrame<T>(T value)
         {
             using var buffer = new PooledFrameBufferWriter();

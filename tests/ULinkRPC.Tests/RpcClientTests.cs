@@ -16,6 +16,12 @@ public class RpcClientRuntimeTests
     private static readonly RpcMethod<int, int> DoubleMethod = new(1, 1);
     private static readonly RpcPushMethod<string> NotifyPushMethod = new(1, 1);
 
+    private static byte[] SerializeBytes<T>(IRpcSerializer serializer, T value)
+    {
+        using var frame = serializer.SerializeFrame(value);
+        return frame.ToArray();
+    }
+
     [Fact]
     public async Task CallAsync_ReturnsResult()
     {
@@ -26,7 +32,7 @@ public class RpcClientRuntimeTests
         server.Register(1, 1, (req, ct) =>
         {
             var arg = serializer.Deserialize<string>(req.Payload);
-            var result = serializer.Serialize($"Hello {arg}");
+            var result = SerializeBytes(serializer, $"Hello {arg}");
             return ValueTask.FromResult(new RpcResponseEnvelope
             {
                 RequestId = req.RequestId,
@@ -233,7 +239,7 @@ public class RpcClientRuntimeTests
             {
                 RequestId = req.RequestId,
                 Status = RpcStatus.Ok,
-                Payload = serializer.Serialize(arg.ToUpperInvariant())
+                Payload = SerializeBytes(serializer, arg.ToUpperInvariant())
             });
         });
 
@@ -267,7 +273,7 @@ public class RpcClientRuntimeTests
             {
                 RequestId = req.RequestId,
                 Status = RpcStatus.Ok,
-                Payload = serializer.Serialize(arg + "-reply")
+                Payload = SerializeBytes(serializer, arg + "-reply")
             });
         });
 
@@ -336,7 +342,7 @@ public class RpcClientRuntimeTests
             {
                 RequestId = req.RequestId,
                 Status = RpcStatus.Ok,
-                Payload = serializer.Serialize(arg * 2)
+                Payload = SerializeBytes(serializer, arg * 2)
             };
         });
 
@@ -376,8 +382,8 @@ public class RpcClientRuntimeTests
 
         Assert.Equal(new uint[] { 1, 2 }, transport.SentRequestIds.ToArray());
 
-        transport.Complete(1, serializer.Serialize("ok-1"));
-        transport.Complete(2, serializer.Serialize("ok-2"));
+        transport.Complete(1, SerializeBytes(serializer, "ok-1"));
+        transport.Complete(2, SerializeBytes(serializer, "ok-2"));
 
         Assert.Equal("ok-1", await firstCall);
         Assert.Equal("ok-2", await secondCall);
@@ -403,8 +409,8 @@ public class RpcClientRuntimeTests
 
         Assert.Equal(new uint[] { uint.MaxValue, 1 }, transport.SentRequestIds.ToArray());
 
-        transport.Complete(uint.MaxValue, serializer.Serialize("wrapped-max"));
-        transport.Complete(1, serializer.Serialize("wrapped-one"));
+        transport.Complete(uint.MaxValue, SerializeBytes(serializer, "wrapped-max"));
+        transport.Complete(1, SerializeBytes(serializer, "wrapped-one"));
 
         Assert.Equal("wrapped-max", await firstCall);
         Assert.Equal("wrapped-one", await secondCall);

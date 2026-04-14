@@ -105,11 +105,7 @@ public static class TestGeneratedBinder
 {
     public static void BindAll(RpcServiceRegistry registry)
     {
-        registry.Register(7, 9, static (session, request, ct) => ValueTask.FromResult(new RpcResponseEnvelope
-        {
-            RequestId = request.RequestId,
-            Status = RpcStatus.Ok,
-            Payload = Array.Empty<byte>()
-        }));
+        registry.Register(7, 9, static (session, request, ct) => ValueTask.FromResult(
+            RpcEnvelopeCodec.EncodeResponse(request.RequestId, RpcStatus.Ok, ReadOnlyMemory<byte>.Empty)));
     }
 }

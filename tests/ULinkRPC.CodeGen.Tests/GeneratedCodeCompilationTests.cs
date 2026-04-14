@@ -49,12 +49,15 @@ public class GeneratedCodeCompilationTests
             public interface IRpcSerializer
             {
                 TransportFrame SerializeFrame<T>(T value);
-                byte[] Serialize<T>(T value);
                 T Deserialize<T>(ReadOnlySpan<byte> data);
                 T Deserialize<T>(ReadOnlyMemory<byte> data);
             }
 
-            public sealed class TransportFrame { }
+            public sealed class TransportFrame : IDisposable
+            {
+                public ReadOnlyMemory<byte> Memory => ReadOnlyMemory<byte>.Empty;
+                public void Dispose() { }
+            }
 
             public struct RpcVoid { }
 
@@ -133,7 +136,7 @@ public class GeneratedCodeCompilationTests
             public sealed class RpcServiceRegistry
             {
                 public void Register(int serviceId, int methodId,
-                    Func<RpcSession, RpcRequestEnvelope, CancellationToken, ValueTask<RpcResponseEnvelope>> handler) { }
+                    Func<RpcSession, RpcRequestFrame, CancellationToken, ValueTask<TransportFrame>> handler) { }
             }
 
             public class RpcSession
@@ -148,15 +151,18 @@ public class GeneratedCodeCompilationTests
                 T? Deserialize<T>(ReadOnlySpan<byte> data);
                 T? Deserialize<T>(ReadOnlyMemory<byte> data);
                 TransportFrame SerializeFrame<T>(T value);
-                byte[] Serialize<T>(T value);
             }
 
-            public sealed class TransportFrame { }
+            public sealed class TransportFrame : IDisposable
+            {
+                public ReadOnlyMemory<byte> Memory => ReadOnlyMemory<byte>.Empty;
+                public void Dispose() { }
+            }
 
-            public class RpcRequestEnvelope
+            public class RpcRequestFrame
             {
                 public int RequestId { get; set; }
-                public ReadOnlyMemory<byte> Payload { get; set; } = ReadOnlyMemory<byte>.Empty;
+                public TransportFrame Payload { get; } = new();
             }
 
             public class RpcResponseEnvelope
@@ -164,6 +170,11 @@ public class GeneratedCodeCompilationTests
                 public int RequestId { get; set; }
                 public RpcStatus Status { get; set; }
                 public ReadOnlyMemory<byte> Payload { get; set; } = ReadOnlyMemory<byte>.Empty;
+            }
+
+            public static class RpcEnvelopeCodec
+            {
+                public static TransportFrame EncodeResponse(int requestId, RpcStatus status, ReadOnlyMemory<byte> payload) => new();
             }
         }
         """;

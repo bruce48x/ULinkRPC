@@ -13,12 +13,6 @@ namespace ULinkRPC.Serializer.MemoryPack
             return buffer.DetachFrame();
         }
 
-        public byte[] Serialize<T>(T value)
-        {
-            using var frame = SerializeFrame(value);
-            return frame.ToArray();
-        }
-
         public T Deserialize<T>(ReadOnlySpan<byte> data)
         {
             return MemoryPackSerializer.Deserialize<T>(data)!;

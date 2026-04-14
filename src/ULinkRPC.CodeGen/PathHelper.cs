@@ -4,7 +4,7 @@ namespace ULinkRPC.CodeGen;
 
 internal static class PathHelper
 {
-    public const string DefaultUnityOutputRelativePath = "Assets/Scripts/Rpc/RpcGenerated";
+    public const string DefaultUnityOutputRelativePath = "Assets/Scripts/Rpc/Generated";
     public const string DefaultUnityRuntimeNamespace = "Rpc.Generated";
 
     public static bool IsUnityProject(string path) =>

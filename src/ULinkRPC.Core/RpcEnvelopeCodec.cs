@@ -60,10 +60,14 @@ namespace ULinkRPC.Core
         public static TransportFrame EncodeResponse(RpcResponseEnvelope resp)
         {
             if (resp is null) throw new ArgumentNullException(nameof(resp));
+            return EncodeResponse(resp.RequestId, resp.Status, resp.Payload, resp.ErrorMessage);
+        }
 
-            var payload = resp.Payload;
-            var hasError = !string.IsNullOrEmpty(resp.ErrorMessage);
-            var errorBytes = hasError ? Encoding.UTF8.GetBytes(resp.ErrorMessage!) : Array.Empty<byte>();
+        public static TransportFrame EncodeResponse(
+            uint requestId, RpcStatus status, ReadOnlyMemory<byte> payload, string? errorMessage = null)
+        {
+            var hasError = !string.IsNullOrEmpty(errorMessage);
+            var errorBytes = hasError ? Encoding.UTF8.GetBytes(errorMessage!) : Array.Empty<byte>();
 
             var total = 1 + 4 + 1 + 4 + payload.Length + 1 + (hasError ? 4 + errorBytes.Length : 0);
             var frame = TransportFrame.Allocate(total);
@@ -71,8 +75,8 @@ namespace ULinkRPC.Core
             var offset = 0;
 
             data[offset++] = (byte)RpcFrameType.Response;
-            WriteUInt32(data, ref offset, resp.RequestId);
-            data[offset++] = (byte)resp.Status;
+            WriteUInt32(data, ref offset, requestId);
+            data[offset++] = (byte)status;
             WriteInt32(data, ref offset, payload.Length);
             payload.Span.CopyTo(data.Slice(offset));
             offset += payload.Length;

@@ -3,7 +3,7 @@ using ULinkRPC.Core;
 
 namespace ULinkRPC.Server;
 
-public delegate ValueTask<RpcResponseEnvelope> RpcSessionHandler(RpcSession session, RpcRequestEnvelope req, CancellationToken ct);
+public delegate ValueTask<TransportFrame> RpcSessionHandler(RpcSession session, RpcRequestFrame req, CancellationToken ct);
 
 public sealed class RpcServiceRegistry
 {

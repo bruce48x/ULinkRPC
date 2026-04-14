@@ -14,8 +14,8 @@ public class JsonRpcSerializerTests
             Password = "secret"
         };
 
-        var bytes = serializer.Serialize(input);
-        var output = serializer.Deserialize<LoginRequestDto>(bytes.AsSpan());
+        using var bytes = serializer.SerializeFrame(input);
+        var output = serializer.Deserialize<LoginRequestDto>(bytes.Span);
 
         Assert.Equal(input.Account, output.Account);
         Assert.Equal(input.Password, output.Password);
@@ -31,8 +31,8 @@ public class JsonRpcSerializerTests
             Token = "token"
         };
 
-        var bytes = serializer.Serialize(input);
-        var output = serializer.Deserialize<LoginReplyDto>(bytes.AsSpan());
+        using var bytes = serializer.SerializeFrame(input);
+        var output = serializer.Deserialize<LoginReplyDto>(bytes.Span);
 
         Assert.Equal(input.Code, output.Code);
         Assert.Equal(input.Token, output.Token);

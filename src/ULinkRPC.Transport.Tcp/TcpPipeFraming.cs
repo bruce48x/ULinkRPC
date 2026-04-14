@@ -9,7 +9,6 @@ namespace ULinkRPC.Transport.Tcp
     {
         private readonly int _maxFrameSize;
         private readonly PipeReader _reader;
-        private readonly SemaphoreSlim _sendGate = new(1, 1);
         private readonly PipeWriter _writer;
 
         public TcpPipeFraming(Stream stream, int maxFrameSize)
@@ -24,26 +23,18 @@ namespace ULinkRPC.Transport.Tcp
 
         public async ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct)
         {
-            await _sendGate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                var header = _writer.GetSpan(4);
-                var length = (uint)frame.Length;
-                header[0] = (byte)(length >> 24);
-                header[1] = (byte)(length >> 16);
-                header[2] = (byte)(length >> 8);
-                header[3] = (byte)length;
-                _writer.Advance(4);
+            var header = _writer.GetSpan(4);
+            var length = (uint)frame.Length;
+            header[0] = (byte)(length >> 24);
+            header[1] = (byte)(length >> 16);
+            header[2] = (byte)(length >> 8);
+            header[3] = (byte)length;
+            _writer.Advance(4);
 
-                if (!frame.IsEmpty)
-                    _writer.Write(frame.Span);
+            if (!frame.IsEmpty)
+                _writer.Write(frame.Span);
 
-                await _writer.FlushAsync(ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                _sendGate.Release();
-            }
+            await _writer.FlushAsync(ct).ConfigureAwait(false);
         }
 
         public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct)
@@ -88,8 +79,6 @@ namespace ULinkRPC.Transport.Tcp
             catch
             {
             }
-
-            _sendGate.Dispose();
         }
 
         private static TransportFrame CopyPayload(in ReadOnlySequence<byte> payload)

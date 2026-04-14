@@ -381,7 +381,6 @@ namespace ULinkRPC.Server
         private async Task ProcessRequestAsync(RpcRequestFrame req, CancellationToken ct)
         {
             var enteredConcurrencyGate = false;
-            RpcResponseEnvelope resp;
             try
             {
                 await _requestConcurrencyGate.WaitAsync(ct).ConfigureAwait(false);
@@ -389,6 +388,8 @@ namespace ULinkRPC.Server
 
                 if (_handlers.TryGetValue((req.ServiceId, req.MethodId), out var handler))
                 {
+                    // User-registered handler: operates on the envelope model.
+                    RpcResponseEnvelope resp;
                     try
                     {
                         resp = await handler(new RpcRequestEnvelope
@@ -399,7 +400,6 @@ namespace ULinkRPC.Server
                             Payload = req.Payload.Memory
                         }, ct).ConfigureAwait(false);
                         if (resp is null)
-                        {
                             resp = new RpcResponseEnvelope
                             {
                                 RequestId = req.RequestId,
@@ -407,7 +407,6 @@ namespace ULinkRPC.Server
                                 Payload = Array.Empty<byte>(),
                                 ErrorMessage = "RPC handler returned null response."
                             };
-                        }
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
@@ -424,58 +423,48 @@ namespace ULinkRPC.Server
                             ErrorMessage = HandlerExecutionErrorMessage
                         };
                     }
+
+                    using var respBytes = RpcEnvelopeCodec.EncodeResponse(resp);
+                    await SendFrameAsyncSerialized(respBytes.Memory, ct).ConfigureAwait(false);
                 }
                 else if (_registry is not null && _registry.TryGetHandler(req.ServiceId, req.MethodId, out var sessionHandler))
                 {
+                    // Code-generated registry handler: returns the fully-encoded response frame,
+                    // eliminating the RpcResponseEnvelope allocation and the Serialize→ToArray copy.
+                    TransportFrame? respFrame = null;
                     try
                     {
-                        resp = await sessionHandler(this, new RpcRequestEnvelope
+                        try
                         {
-                            RequestId = req.RequestId,
-                            ServiceId = req.ServiceId,
-                            MethodId = req.MethodId,
-                            Payload = req.Payload.Memory
-                        }, ct).ConfigureAwait(false);
-                        if (resp is null)
-                        {
-                            resp = new RpcResponseEnvelope
-                            {
-                                RequestId = req.RequestId,
-                                Status = RpcStatus.Exception,
-                                Payload = Array.Empty<byte>(),
-                                ErrorMessage = "RPC handler returned null response."
-                            };
+                            respFrame = await sessionHandler(this, req, ct).ConfigureAwait(false);
                         }
-                    }
-                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        LogHandlerFailure(req, ex);
-                        resp = new RpcResponseEnvelope
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
                         {
-                            RequestId = req.RequestId,
-                            Status = RpcStatus.Exception,
-                            Payload = Array.Empty<byte>(),
-                            ErrorMessage = HandlerExecutionErrorMessage
-                        };
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            LogHandlerFailure(req, ex);
+                            using var errFrame = RpcEnvelopeCodec.EncodeResponse(
+                                req.RequestId, RpcStatus.Exception, ReadOnlyMemory<byte>.Empty, HandlerExecutionErrorMessage);
+                            await SendFrameAsyncSerialized(errFrame.Memory, ct).ConfigureAwait(false);
+                            return;
+                        }
+
+                        await SendFrameAsyncSerialized(respFrame.Memory, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        respFrame?.Dispose();
                     }
                 }
                 else
                 {
-                    resp = new RpcResponseEnvelope
-                    {
-                        RequestId = req.RequestId,
-                        Status = RpcStatus.NotFound,
-                        Payload = Array.Empty<byte>(),
-                        ErrorMessage = $"No handler for {req.ServiceId}:{req.MethodId}"
-                    };
+                    using var notFoundFrame = RpcEnvelopeCodec.EncodeResponse(
+                        req.RequestId, RpcStatus.NotFound, ReadOnlyMemory<byte>.Empty,
+                        $"No handler for {req.ServiceId}:{req.MethodId}");
+                    await SendFrameAsyncSerialized(notFoundFrame.Memory, ct).ConfigureAwait(false);
                 }
-
-                using var respBytes = RpcEnvelopeCodec.EncodeResponse(resp);
-                await SendFrameAsyncSerialized(respBytes.Memory, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {

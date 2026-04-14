@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.15.0 / 0.11.0
+
+- Release packages:
+	- `ULinkRPC.CodeGen` `0.15.0`
+	- Runtime packages (`ULinkRPC.Core`, `ULinkRPC.Client`, `ULinkRPC.Server`, transports, serializers) `0.11.0`
+- This release fixes a published package mismatch where `ULinkRPC.CodeGen 0.14.0` could still emit server binders that referenced the removed `IRpcSerializer.Serialize(...)` API.
+- Fixed the published code generator so server binders now emit `SerializeFrame(...)` and `RpcEnvelopeCodec.EncodeResponse(...)` instead of referencing the removed `IRpcSerializer.Serialize(...)` API.
+- Removed `IRpcSerializer.Serialize(...)` from the runtime surface and standardized serializers on pooled `TransportFrame` output to eliminate extra response allocations and copies.
+- Changed generated server registry handlers to operate on `RpcRequestFrame` and return encoded `TransportFrame` responses directly, matching the new runtime contract.
+- Removed the redundant inner send semaphore from TCP framing so each TCP send is serialized exactly once.
+- Refreshed the checked-in sample generated code so repository samples compile against the new runtime and code generator.
+- Upgrade guidance:
+	- Regenerate all generated RPC code after upgrading to these packages.
+	- Do not mix `ULinkRPC.CodeGen 0.14.0` with runtime `0.11.0`; use `ULinkRPC.CodeGen 0.15.0` together with runtime `0.11.0`.
+	- If you previously consumed `IRpcSerializer.Serialize(...)` directly, migrate to `SerializeFrame(...)`.
+
 ## 0.2.14 / 0.13.6 / 0.8.2 / 0.6.4 / 0.6.2
 
 - Refactored runtime internals by extracting shared keepalive state and request/task tracking helpers, reducing complexity in `RpcClientRuntime`, `RpcSession`, and `RpcServerHost`.

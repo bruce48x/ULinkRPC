@@ -43,16 +43,17 @@ internal static partial class ServerEmitter
             var argType = NamingHelper.GetRequestPayloadType(m);
             w.OpenBlock($"registry.Register(ServiceId, {m.MethodId}, async (server, req, ct) =>");
             w.Line($"var impl = server.GetOrAddScopedService(ServiceId, implFactory);");
-            w.Line($"var arg = server.Serializer.Deserialize<{argType}>(req.Payload)!;");
+            w.Line($"var arg = server.Serializer.Deserialize<{argType}>(req.Payload.Memory)!;");
             if (m.IsVoid)
             {
                 w.Line($"await impl.{m.Name}(arg);");
-                w.Line("return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = Array.Empty<byte>() };");
+                w.Line("return RpcEnvelopeCodec.EncodeResponse(req.RequestId, RpcStatus.Ok, ReadOnlyMemory<byte>.Empty);");
             }
             else
             {
                 w.Line($"var resp = await impl.{m.Name}(arg);");
-                w.Line("return new RpcResponseEnvelope { RequestId = req.RequestId, Status = RpcStatus.Ok, Payload = server.Serializer.Serialize(resp) };");
+                w.Line("using var payloadFrame = server.Serializer.SerializeFrame(resp);");
+                w.Line("return RpcEnvelopeCodec.EncodeResponse(req.RequestId, RpcStatus.Ok, payloadFrame.Memory);");
             }
 
             w.CloseBlock(");");
