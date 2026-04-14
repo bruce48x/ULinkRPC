@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Sockets.Kcp;
+using System.Runtime.InteropServices;
 using ULinkRPC.Core;
 
 namespace ULinkRPC.Transport.Kcp
@@ -11,16 +12,18 @@ namespace ULinkRPC.Transport.Kcp
     public sealed class KcpTransport : ITransport, IKcpCallback, IRentable
     {
         private const int MaxFrameSize = 64 * 1024 * 1024;
-        private const int UpdateIntervalMs = 10;
+        private const int ReceiveBufferSize = 64 * 1024;
         private readonly ConcurrentQueue<TransportFrame> _frames = new();
         private readonly object _kcpGate = new();
         private readonly string _host;
         private readonly int _port;
         private readonly LengthPrefixedFrameAccumulator _accumulator = new();
+        private readonly EndPoint _receiveAny = new IPEndPoint(IPAddress.Any, 0);
         private IDisposable? _updateRegistration;
         private SimpleSegManager.Kcp? _kcp;
         private EndPoint? _remote;
         private Socket? _socket;
+        private byte[]? _receiveBuffer;
 
         public KcpTransport(string host, int port)
         {
@@ -80,18 +83,16 @@ namespace ULinkRPC.Transport.Kcp
             if (!IsConnected || _socket is null || _remote is null)
                 throw new InvalidOperationException("Not connected.");
 
-            var buffer = new byte[64 * 1024];
-            EndPoint any = new IPEndPoint(IPAddress.Any, 0);
-
+            var buffer = _receiveBuffer ??= ArrayPool<byte>.Shared.Rent(ReceiveBufferSize);
             while (true)
             {
                 if (TryDequeueFrame(out var queued))
                     return queued;
 
 #if NET8_0_OR_GREATER
-                var received = await _socket.ReceiveFromAsync(buffer, SocketFlags.None, any, ct).ConfigureAwait(false);
+                var received = await _socket.ReceiveFromAsync(buffer, SocketFlags.None, _receiveAny, ct).ConfigureAwait(false);
 #else
-                var received = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);
+                var received = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, _receiveAny).ConfigureAwait(false);
 #endif
                 if (!EndPointEquals(received.RemoteEndPoint, _remote))
                     continue;
@@ -110,6 +111,13 @@ namespace ULinkRPC.Transport.Kcp
             _updateRegistration = null;
 
             _kcp?.Dispose();
+
+            var receiveBuffer = Interlocked.Exchange(ref _receiveBuffer, null);
+            if (receiveBuffer is not null)
+                ArrayPool<byte>.Shared.Return(receiveBuffer);
+
+            while (_frames.TryDequeue(out var frame))
+                frame.Dispose();
 
             try
             {
@@ -131,8 +139,23 @@ namespace ULinkRPC.Transport.Kcp
 #if NET8_0_OR_GREATER
                 _socket.SendTo(mem.Span, SocketFlags.None, _remote);
 #else
-                var tmp = mem.ToArray();
-                _socket.SendTo(tmp, 0, tmp.Length, SocketFlags.None, _remote);
+                if (MemoryMarshal.TryGetArray(mem, out ArraySegment<byte> segment))
+                {
+                    _socket.SendTo(segment.Array!, segment.Offset, segment.Count, SocketFlags.None, _remote);
+                }
+                else
+                {
+                    var tmp = ArrayPool<byte>.Shared.Rent(mem.Length);
+                    try
+                    {
+                        mem.Span.CopyTo(tmp);
+                        _socket.SendTo(tmp, 0, mem.Length, SocketFlags.None, _remote);
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(tmp);
+                    }
+                }
 #endif
             }
             finally
@@ -221,9 +244,16 @@ namespace ULinkRPC.Transport.Kcp
                 if (size > MaxFrameSize)
                     throw new InvalidOperationException($"Frame too large: {size} bytes");
 
-                using var payload = TransportFrame.Allocate(size);
-                _kcp.Recv(payload.GetWritableSpan());
-                AppendAndUnpack(payload.Span);
+                var payload = ArrayPool<byte>.Shared.Rent(size);
+                try
+                {
+                    _kcp.Recv(payload.AsSpan(0, size));
+                    AppendAndUnpack(payload.AsSpan(0, size));
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(payload);
+                }
             }
         }
 

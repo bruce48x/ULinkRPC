@@ -1,12 +1,11 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
     "com.github-glitchenzo.nugetforunity": "4.5.0",
     "com.unity.ide.rider": "3.0.39",
     "com.unity.ide.visualstudio": "2.0.23",
-    "com.unity.modules.imageconversion": "1.0.0",
     "com.unity.test-framework": "1.1.33",
     "com.unity.ugui": "1.0.0",
+    "com.unity.modules.imageconversion": "1.0.0",
     "com.unity.modules.uielements": "1.0.0"
   },
   "scopedRegistries": [
