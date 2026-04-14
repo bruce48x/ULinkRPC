@@ -75,6 +75,35 @@ public class RpcServerHostBuilderTests
     }
 
     [Fact]
+    public async Task RunAsync_CancelWithNoActiveConnections_CompletesCleanly()
+    {
+        // Regression: BoundedConnectionAcceptor.DisposeAsync() calls _inner.DisposeAsync(),
+        // but the caller also held an "await using var baseAcceptor" — double-Dispose caused
+        // ObjectDisposedException on the accepting side (reproduced with KCP server, no clients).
+        using var cts = new CancellationTokenSource();
+        var acceptorDisposed = 0;
+        var acceptor = new TrackingNeverAcceptAcceptor(() => Interlocked.Increment(ref acceptorDisposed));
+
+        var host = RpcServerHostBuilder.Create()
+            .UseSerializer(new JsonRpcSerializer())
+            .UseAcceptor(_ => ValueTask.FromResult<IRpcConnectionAcceptor>(acceptor))
+            .ConfigureServices(_ => { })
+            .Build();
+
+        var runTask = host.RunAsync(cts.Token).AsTask();
+        await Task.Delay(50); // let RunAsync reach AcceptAsync
+
+        cts.Cancel();
+
+        // Must complete without throwing ObjectDisposedException
+        var ex = await Record.ExceptionAsync(() => runTask.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Null(ex);
+
+        // The inner acceptor must have been disposed exactly once
+        Assert.Equal(1, acceptorDisposed);
+    }
+
+    [Fact]
     public void BindFromAssembly_UsesAssemblyLevelGeneratedBinderAttribute()
     {
         var registry = new RpcServiceRegistry();
@@ -96,6 +125,27 @@ public class RpcServerHostBuilderTests
 
         public ValueTask DisposeAsync()
         {
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class TrackingNeverAcceptAcceptor : IRpcConnectionAcceptor
+    {
+        private readonly Action _onDispose;
+
+        public TrackingNeverAcceptAcceptor(Action onDispose) => _onDispose = onDispose;
+
+        public string ListenAddress => "test://tracking";
+
+        public async ValueTask<RpcAcceptedConnection> AcceptAsync(CancellationToken ct = default)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return default!;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            _onDispose();
             return ValueTask.CompletedTask;
         }
     }

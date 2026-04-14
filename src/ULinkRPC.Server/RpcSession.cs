@@ -209,6 +209,15 @@ namespace ULinkRPC.Server
         {
             await StartAsync(ct).ConfigureAwait(false);
 
+            // StartAsync creates a fresh internal CancellationTokenSource unlinked from ct.
+            // Register a callback so that cancelling ct also cancels the internal session loop.
+            using var externalCancellation = ct.Register(() =>
+            {
+                var cts = _cts;
+                if (cts is not null)
+                    try { cts.Cancel(); } catch (ObjectDisposedException) { }
+            });
+
             try
             {
                 await WaitForCompletionAsync().ConfigureAwait(false);

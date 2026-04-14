@@ -45,7 +45,10 @@ public sealed class RpcServerHost
 
         try
         {
-            await using var baseAcceptor = await _acceptorFactory(cts.Token).ConfigureAwait(false);
+            var baseAcceptor = await _acceptorFactory(cts.Token).ConfigureAwait(false);
+            // Ownership of baseAcceptor is transferred to BoundedConnectionAcceptor here.
+            // BoundedConnectionAcceptor.DisposeAsync() calls _inner.DisposeAsync() internally,
+            // so baseAcceptor must NOT be held in an "await using" — doing so causes a double-Dispose.
             await using var acceptor = new BoundedConnectionAcceptor(
                 baseAcceptor,
                 _limits.MaxPendingAcceptedConnections,

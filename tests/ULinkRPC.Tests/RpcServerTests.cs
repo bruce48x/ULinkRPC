@@ -667,6 +667,28 @@ public class RpcSessionTests
         await server.DisposeAsync();
     }
 
+    [Fact]
+    public async Task RunAsync_CancellationToken_TerminatesSessionWithActiveConnection()
+    {
+        // Regression: StartAsync creates a fresh CancellationTokenSource that is NOT linked
+        // to the external ct passed to RunAsync/StartAsync. With a no-EOF transport (KCP/UDP),
+        // cancelling the external ct has no effect on the internal LoopAsync — RunAsync hangs.
+        var transport = new IdleSessionTransport();
+        var server = new RpcSession(transport, new JsonRpcSerializer());
+
+        using var cts = new CancellationTokenSource();
+        var runTask = server.RunAsync(cts.Token).AsTask();
+
+        await Task.Delay(100); // let the session loop block in ReceiveFrameAsync
+
+        cts.Cancel();
+
+        var completed = await Task.WhenAny(runTask, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.True(completed == runTask,
+            "RunAsync did not complete within 5 seconds after the CancellationToken was cancelled. " +
+            "The internal CancellationTokenSource in StartAsync must be linked to the external ct.");
+    }
+
     private sealed class ConcurrentSendDetectTransport : ITransport
     {
         private int _currentSends;
