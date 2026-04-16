@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
@@ -65,6 +66,41 @@ public class KcpTransportTests
         await serverTransport.SendFrameAsync(reply, cts.Token);
         var clientReceived = await WithTimeout(client.ReceiveFrameAsync(cts.Token), cts.Token);
         Assert.Equal(reply, clientReceived.ToArray());
+    }
+
+    [Fact]
+    public async Task KcpListener_MalformedSessionDatagram_DoesNotStopAcceptingNewConnections()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        await using var listener = new KcpListener(new IPEndPoint(IPAddress.Loopback, 0));
+        var serverEndPoint = (IPEndPoint)listener.LocalEndPoint!;
+        using var firstClient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        firstClient.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+
+        const uint firstConversationId = 1;
+        firstClient.SendTo(CreateHandshakeRequest(firstConversationId), serverEndPoint);
+
+        var acceptedFirst = await WithTimeout(listener.AcceptAsync(cts.Token), cts.Token);
+        await using var firstTransport = acceptedFirst.Transport;
+
+        firstClient.SendTo(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03 }, serverEndPoint);
+
+        await Task.Delay(150, cts.Token);
+
+        using var secondClient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        secondClient.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+
+        const uint secondConversationId = 2;
+        secondClient.SendTo(CreateHandshakeRequest(secondConversationId), serverEndPoint);
+
+        using var acceptCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, acceptCts.Token);
+
+        var acceptedSecond = await listener.AcceptAsync(linkedCts.Token);
+        await acceptedSecond.Transport.DisposeAsync();
+
+        Assert.Equal(secondConversationId, acceptedSecond.ConversationId);
     }
 
     [Fact]
@@ -199,6 +235,25 @@ public class KcpTransportTests
         Assert.DoesNotContain("mem.ToArray()", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void KcpTransport_Source_NetstandardReceivePaths_DoNotUseUncancellableReceiveFromAsync()
+    {
+        var sourcePath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..", "..",
+            "src", "ULinkRPC.Transport.Kcp", "KcpTransport.cs"));
+
+        var source = File.ReadAllText(sourcePath);
+        Assert.DoesNotContain(
+            "await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, _receiveAny).ConfigureAwait(false);",
+            source,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "received = await socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);",
+            source,
+            StringComparison.Ordinal);
+    }
+
     private static async Task WithTimeout(Task task, CancellationToken ct)
     {
         var delay = Task.Delay(Timeout.InfiniteTimeSpan, ct);
@@ -329,4 +384,5 @@ public class KcpTransportTests
 
         return opCodes;
     }
+
 }

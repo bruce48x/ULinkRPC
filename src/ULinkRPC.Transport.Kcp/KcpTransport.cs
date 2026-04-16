@@ -92,7 +92,7 @@ namespace ULinkRPC.Transport.Kcp
 #if NET8_0_OR_GREATER
                 var received = await _socket.ReceiveFromAsync(buffer, SocketFlags.None, _receiveAny, ct).ConfigureAwait(false);
 #else
-                var received = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, _receiveAny).ConfigureAwait(false);
+                var received = await ReceiveFromAsync(_socket, buffer, ct).ConfigureAwait(false);
 #endif
                 if (!EndPointEquals(received.RemoteEndPoint, _remote))
                     continue;
@@ -177,18 +177,6 @@ namespace ULinkRPC.Transport.Kcp
         {
             var buffer = new byte[32];
             EndPoint any = new IPEndPoint(IPAddress.Any, 0);
-#if !NET8_0_OR_GREATER
-            using var registration = ct.Register(static state =>
-            {
-                try
-                {
-                    ((Socket)state!).Dispose();
-                }
-                catch
-                {
-                }
-            }, socket);
-#endif
 
             while (true)
             {
@@ -206,15 +194,7 @@ namespace ULinkRPC.Transport.Kcp
                 SocketReceiveFromResult received;
                 try
                 {
-                    received = await socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);
-                }
-                catch (ObjectDisposedException) when (ct.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException(ct);
-                }
-                catch (SocketException) when (ct.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException(ct);
+                    received = await ReceiveFromAsync(socket, buffer, ct).ConfigureAwait(false);
                 }
                 catch (SocketException ex) when (ex.SocketErrorCode == SocketError.MessageSize)
                 {
@@ -335,5 +315,44 @@ namespace ULinkRPC.Transport.Kcp
         {
             return left is not null && right is not null && left.Equals(right);
         }
+
+#if !NET8_0_OR_GREATER
+        private static async Task<SocketReceiveFromResult> ReceiveFromAsync(Socket socket, byte[] buffer, CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (!socket.Poll(10_000, SelectMode.SelectRead))
+                {
+                    await Task.Delay(10, ct).ConfigureAwait(false);
+                    continue;
+                }
+
+                EndPoint receiveFrom = new IPEndPoint(IPAddress.Any, 0);
+                try
+                {
+                    var receivedBytes = socket.ReceiveFrom(buffer, 0, buffer.Length, SocketFlags.None, ref receiveFrom);
+                    return new SocketReceiveFromResult
+                    {
+                        ReceivedBytes = receivedBytes,
+                        RemoteEndPoint = receiveFrom
+                    };
+                }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.MessageSize)
+                {
+                    throw;
+                }
+                catch (ObjectDisposedException) when (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(ct);
+                }
+                catch (SocketException) when (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(ct);
+                }
+            }
+        }
+#endif
     }
 }

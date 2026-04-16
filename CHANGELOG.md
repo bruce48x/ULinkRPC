@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.5
+
+- Release packages:
+	- `ULinkRPC.Transport.Kcp` `0.11.5`
+- Fixed the Unity-compatible `netstandard2.1` KCP client receive path so cancellation now stops blocked reads promptly instead of waiting for another UDP packet to arrive.
+- Before this fix, `KcpTransport.ReceiveFrameAsync(...)` used uncancellable `Socket.ReceiveFromAsync(...)` calls outside the `NET8+` branch. In practice that meant Unity 2022 clients could stay hung in KCP receive during shutdown, disconnect, or timeout handling.
+- Reworked the non-`NET8+` KCP receive paths to use a cancellation-aware polling receive loop for both the main data path and the handshake acknowledgement wait, so Unity-side teardown no longer depends on disposing the socket from another path just to break a blocked receive.
+- Tests:
+	- Added a regression test that guards the `netstandard2.1` source path against reintroducing uncancellable `ReceiveFromAsync(...)` calls.
+- Compatibility:
+	- The wire protocol is unchanged.
+	- Server-side `net10.0` behavior is unchanged; the fix is specifically for Unity-compatible `netstandard2.1` KCP runtime behavior.
+
 ## 0.11.4 / 0.11.2 / 0.11.1
 
 - Release packages:
