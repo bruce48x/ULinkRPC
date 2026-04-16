@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.4 / 0.11.2
+
+- Release packages:
+	- `ULinkRPC.Server` `0.11.4`
+	- `ULinkRPC.Transport.Kcp` `0.11.2`
+- This release focuses on removing small but persistent allocations from the real runtime hot paths instead of papering over them with broader caches or compatibility shims.
+- Reworked KCP server session lookup so inbound datagrams are keyed by `(IPAddress, Port)` value semantics instead of `IPEndPoint.ToString()`, eliminating per-packet string allocation in the listener loop.
+- Reworked KCP server receive waiting so `ReceiveFrameAsync` no longer allocates a linked `CancellationTokenSource` on every empty-queue wait cycle; shutdown still wakes waiters via the existing frame signal.
+- Reworked server inflight-request draining so `TrackedTaskCollection.WaitAsync` now waits on a drained signal driven by the final completing task, instead of repeatedly snapshotting the tracked task set with `ToArray()`.
+- Reworked the Unity-compatible KCP server send path so the `netstandard2.1` build no longer materializes outbound buffers with `mem.ToArray()`; it now prefers direct array segments and falls back to pooled copies only when required by the underlying memory owner.
+- Design note:
+	- The guiding rule for these fixes was to remove allocation sources at the point they occur in the transport/session hot path, while keeping the public runtime contract unchanged for Unity 2022 (`netstandard2.1`) and the server runtime (`net10.0`).
+	- The KCP fixes deliberately mirror the more efficient client-side patterns that already existed in the repository, so the server and client transports now follow the same zero-extra-allocation strategy where the underlying APIs allow it.
+	- The server shutdown fix avoids introducing another concurrent collection or background sweeper; instead it models the actual lifecycle directly: first tracked task creates a pending drain signal, last completing task resolves it.
+
 ## 0.11.3 / 0.2.21
 
 - Release packages:

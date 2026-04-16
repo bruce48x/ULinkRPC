@@ -13,7 +13,7 @@ namespace ULinkRPC.Transport.Kcp
             SingleWriter = true
         });
         private readonly CancellationTokenSource _cts = new();
-        private readonly ConcurrentDictionary<string, SessionRecord> _sessions = new();
+        private readonly ConcurrentDictionary<RemoteSessionKey, SessionRecord> _sessions = new();
         private readonly Socket _socket;
         private readonly Task _receiveLoop;
 
@@ -93,7 +93,7 @@ namespace ULinkRPC.Transport.Kcp
                     continue;
 
                 var packet = buffer.AsMemory(0, received.ReceivedBytes);
-                var key = remoteEndPoint.ToString();
+                var key = new RemoteSessionKey(remoteEndPoint);
                 if (!KcpHandshake.TryParseRequest(packet.Span, out var conv))
                 {
                     if (_sessions.TryGetValue(key, out var existingSession))
@@ -143,6 +143,14 @@ namespace ULinkRPC.Transport.Kcp
 
             public uint ConversationId { get; }
             public KcpServerTransport Transport { get; }
+        }
+
+        private readonly record struct RemoteSessionKey(IPAddress Address, int Port)
+        {
+            public RemoteSessionKey(IPEndPoint endPoint)
+                : this(endPoint.Address, endPoint.Port)
+            {
+            }
         }
     }
 }

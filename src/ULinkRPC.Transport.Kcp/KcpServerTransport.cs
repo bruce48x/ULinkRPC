@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Sockets.Kcp;
+using System.Runtime.InteropServices;
 using ULinkRPC.Core;
 
 namespace ULinkRPC.Transport.Kcp
@@ -39,12 +40,23 @@ namespace ULinkRPC.Transport.Kcp
             try
             {
                 var mem = buffer.Memory.Slice(0, avalidLength);
-#if NET8_0_OR_GREATER
-                _socket.SendTo(mem.Span, SocketFlags.None, _remote);
-#else
-                var tmp = mem.ToArray();
-                _socket.SendTo(tmp, 0, tmp.Length, SocketFlags.None, _remote);
-#endif
+                if (MemoryMarshal.TryGetArray(mem, out ArraySegment<byte> segment))
+                {
+                    _socket.SendTo(segment.Array!, segment.Offset, segment.Count, SocketFlags.None, _remote);
+                }
+                else
+                {
+                    var tmp = ArrayPool<byte>.Shared.Rent(mem.Length);
+                    try
+                    {
+                        mem.Span.CopyTo(tmp);
+                        _socket.SendTo(tmp, 0, mem.Length, SocketFlags.None, _remote);
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(tmp);
+                    }
+                }
             }
             finally
             {
@@ -98,8 +110,7 @@ namespace ULinkRPC.Transport.Kcp
                 if (TryDequeueFrame(out var queued))
                     return queued;
 
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
-                await _frameSignal.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                await _frameSignal.WaitAsync(ct).ConfigureAwait(false);
                 if (!IsConnected && _frames.IsEmpty)
                     return TransportFrame.Empty;
             }

@@ -1,24 +1,24 @@
-using System.Collections.Concurrent;
-
 namespace ULinkRPC.Server;
 
 internal sealed class TrackedTaskCollection
 {
-    private readonly ConcurrentDictionary<int, Task> _tasks = new();
-    private int _nextId;
+    private readonly object _sync = new();
+    private int _activeCount;
+    private TaskCompletionSource<object?> _drained = CreateCompletedSignal();
 
     public void Track(Task task)
     {
         ArgumentNullException.ThrowIfNull(task);
 
-        var taskId = Interlocked.Increment(ref _nextId);
-        _tasks[taskId] = task;
+        lock (_sync)
+        {
+            if (_activeCount++ == 0)
+                _drained = CreatePendingSignal();
+        }
 
         _ = task.ContinueWith(
-            _ =>
-            {
-                _tasks.TryRemove(taskId, out Task? _);
-            },
+            static (_, state) => ((TrackedTaskCollection)state!).OnTaskCompleted(),
+            this,
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
@@ -28,20 +28,46 @@ internal sealed class TrackedTaskCollection
     {
         while (true)
         {
-            var tasks = _tasks.Values.ToArray();
-            if (tasks.Length == 0)
-                return;
+            Task waitTask;
+            lock (_sync)
+            {
+                if (_activeCount == 0)
+                    return;
+
+                waitTask = _drained.Task;
+            }
 
             try
             {
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                await waitTask.ConfigureAwait(false);
             }
             catch
             {
             }
-
-            if (_tasks.IsEmpty)
-                return;
         }
+    }
+
+    private void OnTaskCompleted()
+    {
+        TaskCompletionSource<object?>? drainedToComplete = null;
+        lock (_sync)
+        {
+            if (--_activeCount == 0)
+                drainedToComplete = _drained;
+        }
+
+        drainedToComplete?.TrySetResult(null);
+    }
+
+    private static TaskCompletionSource<object?> CreatePendingSignal()
+    {
+        return new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
+
+    private static TaskCompletionSource<object?> CreateCompletedSignal()
+    {
+        var completed = CreatePendingSignal();
+        completed.TrySetResult(null);
+        return completed;
     }
 }
