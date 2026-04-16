@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.11.5 / 0.11.3 / 0.11.1 / 0.2.22
+
+- Release packages:
+	- `ULinkRPC.Server` `0.11.5`
+	- `ULinkRPC.Transport.Kcp` `0.11.3`
+	- `ULinkRPC.Transport.WebSocket` `0.11.1`
+	- `ULinkRPC.Core` `0.11.1`
+	- `ULinkRPC.Starter` `0.2.22`
+- Security:
+	- Fixed a pre-session connection admission bug that let `WebSocket` and `KCP` acceptors buffer unbounded pending connections before `RpcServerHost` could apply `MaxPendingAcceptedConnections`.
+	- An attacker could exploit this to exhaust server memory, sockets, and per-connection runtime state with unauthenticated connection floods, especially against `KCP`, where each spoofable handshake could materialize a server transport immediately.
+- Runtime changes:
+	- Added `RpcConnectionAdmissionDefaults.MaxPendingAcceptedConnections` and moved the default pending-connection budget to a shared runtime constant used by the server and transport acceptors.
+	- Hardened `WsConnectionAcceptor` so it rejects overflow before queuing another accepted connection and cleans up queued transports during shutdown.
+	- Hardened `KcpListener` / `KcpConnectionAcceptor` so new sessions are only created when a pending-admission slot is available, and all failure paths release that slot correctly.
+	- Added explicit `maxPendingAcceptedConnections` overloads to `WsConnectionAcceptor.CreateAsync(...)`, `KcpConnectionAcceptor`, and `KcpListener`, then updated the starter templates and checked-in server samples to wire them to `builder.Limits.MaxPendingAcceptedConnections`.
+- Tests:
+	- Added regression coverage proving `KcpListener` can no longer exceed the default pending-connection limit under a burst of handshake requests.
+	- Added a regression guard preventing `WsConnectionAcceptor` from regressing back to an unbounded pending connection queue implementation.
+- Compatibility:
+	- The fix is validated against Unity 2022 compatible `netstandard2.1` builds and the server-side `net10.0` test solution.
+
 ## 0.11.4 / 0.11.2
 
 - Release packages:

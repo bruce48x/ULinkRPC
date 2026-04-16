@@ -193,7 +193,15 @@ namespace ULinkRPC.Transport.Kcp
             while (true)
             {
 #if NET8_0_OR_GREATER
-                var received = await socket.ReceiveFromAsync(buffer, SocketFlags.None, any, ct).ConfigureAwait(false);
+                SocketReceiveFromResult received;
+                try
+                {
+                    received = await socket.ReceiveFromAsync(buffer, SocketFlags.None, any, ct).ConfigureAwait(false);
+                }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.MessageSize)
+                {
+                    continue;
+                }
 #else
                 SocketReceiveFromResult received;
                 try
@@ -207,6 +215,10 @@ namespace ULinkRPC.Transport.Kcp
                 catch (SocketException) when (ct.IsCancellationRequested)
                 {
                     throw new OperationCanceledException(ct);
+                }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.MessageSize)
+                {
+                    continue;
                 }
 #endif
                 if (!EndPointEquals(received.RemoteEndPoint, bootstrapEndPoint))

@@ -23,7 +23,8 @@ $patterns = @(
     "ULinkRPC.Transport.Loopback*.nupkg",
     "ULinkRPC.Serializer.MemoryPack*.nupkg",
     "ULinkRPC.Serializer.Json*.nupkg",
-    "ULinkRPC.CodeGen*.nupkg"
+    "ULinkRPC.CodeGen*.nupkg",
+    "ULinkRPC.Starter*.nupkg"
 )
 
 $packages = @()

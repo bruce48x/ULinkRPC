@@ -19,8 +19,13 @@ dotnet add package ULinkRPC.Transport.WebSocket
 ```csharp
 var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
-    .UseSerializer(new JsonRpcSerializer())
-    .UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(20000, "/ws", ct));
+    .UseSerializer(new JsonRpcSerializer());
+
+builder.UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(
+    20000,
+    "/ws",
+    builder.Limits.MaxPendingAcceptedConnections,
+    ct));
 
 await builder.RunAsync();
 ```

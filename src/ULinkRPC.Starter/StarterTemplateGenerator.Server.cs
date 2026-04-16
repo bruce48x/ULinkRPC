@@ -77,8 +77,8 @@ namespace Server.Services
     private static string GetServerTransportConstruction(TransportKind transport) => transport switch
     {
         TransportKind.Tcp => "builder.UseAcceptor(new TcpConnectionAcceptor(builder.ResolvePort(20000)));",
-        TransportKind.WebSocket => "builder.UseAcceptor(async ct => await WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", ct));",
-        TransportKind.Kcp => "builder.UseAcceptor(new KcpConnectionAcceptor(builder.ResolvePort(20000)));",
+        TransportKind.WebSocket => "builder.UseAcceptor(async ct => await WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", builder.Limits.MaxPendingAcceptedConnections, ct));",
+        TransportKind.Kcp => "builder.UseAcceptor(new KcpConnectionAcceptor(builder.ResolvePort(20000), builder.Limits.MaxPendingAcceptedConnections));",
         _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
     };
 

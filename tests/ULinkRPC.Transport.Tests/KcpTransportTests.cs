@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Sockets.Kcp;
@@ -64,6 +65,62 @@ public class KcpTransportTests
         await serverTransport.SendFrameAsync(reply, cts.Token);
         var clientReceived = await WithTimeout(client.ReceiveFrameAsync(cts.Token), cts.Token);
         Assert.Equal(reply, clientReceived.ToArray());
+    }
+
+    [Fact]
+    public async Task KcpListener_DoesNotBufferBeyondDefaultPendingLimit()
+    {
+        const int expectedMaxPendingConnections = 128;
+        const int burstConnectionCount = expectedMaxPendingConnections + 12;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await using var listener = new KcpListener(new IPEndPoint(IPAddress.Loopback, 0));
+        var serverEndPoint = (IPEndPoint)listener.LocalEndPoint!;
+        var clients = new List<Socket>();
+        var acceptedConnections = new List<KcpAcceptResult>();
+
+        try
+        {
+            for (var i = 0; i < burstConnectionCount; i++)
+            {
+                var client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                client.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+                clients.Add(client);
+
+                var conv = unchecked((uint)(i + 1));
+                var handshake = CreateHandshakeRequest(conv);
+                client.SendTo(handshake, serverEndPoint);
+            }
+
+            await Task.Delay(250, cts.Token);
+
+            while (true)
+            {
+                using var acceptCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, acceptCts.Token);
+
+                try
+                {
+                    acceptedConnections.Add(await listener.AcceptAsync(linkedCts.Token));
+                }
+                catch (OperationCanceledException) when (acceptCts.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+
+            Assert.True(
+                acceptedConnections.Count <= expectedMaxPendingConnections,
+                $"Accepted {acceptedConnections.Count} pending KCP connections before draining, expected at most {expectedMaxPendingConnections}.");
+        }
+        finally
+        {
+            foreach (var accepted in acceptedConnections)
+                await accepted.Transport.DisposeAsync();
+
+            foreach (var client in clients)
+                client.Dispose();
+        }
     }
 
     [Fact]
@@ -165,6 +222,14 @@ public class KcpTransportTests
     private static async ValueTask<T> WithTimeout<T>(ValueTask<T> task, CancellationToken ct)
     {
         return await WithTimeout(task.AsTask(), ct);
+    }
+
+    private static byte[] CreateHandshakeRequest(uint conv)
+    {
+        var buffer = new byte[8];
+        "UKCP"u8.CopyTo(buffer);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(4, 4), conv);
+        return buffer;
     }
 
     private static IReadOnlyList<MethodBase> GetCalledMethods(MethodInfo method)

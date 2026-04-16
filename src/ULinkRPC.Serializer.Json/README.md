@@ -20,8 +20,13 @@ Use it with `ULinkRPC.Server` by passing the serializer instance explicitly:
 
 ```csharp
 var builder = RpcServerHostBuilder.Create()
-    .UseSerializer(new JsonRpcSerializer())
-    .UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(20000, "/ws", ct));
+    .UseSerializer(new JsonRpcSerializer());
+
+builder.UseAcceptor(ct => WsConnectionAcceptor.CreateAsync(
+    20000,
+    "/ws",
+    builder.Limits.MaxPendingAcceptedConnections,
+    ct));
 
 await builder.RunAsync();
 ```

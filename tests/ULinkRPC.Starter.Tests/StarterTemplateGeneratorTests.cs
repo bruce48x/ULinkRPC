@@ -62,16 +62,16 @@ public sealed class StarterTemplateGeneratorTests
         var jsonVersions = NuGetVersionResolver.ResolveVersions(TransportKind.WebSocket, SerializerKind.Json);
         var memoryPackVersions = NuGetVersionResolver.ResolveVersions(TransportKind.Kcp, SerializerKind.MemoryPack);
 
-        Assert.Equal("0.11.0", jsonVersions.Core);
-        Assert.Equal("0.11.3", jsonVersions.Server);
+        Assert.Equal("0.11.1", jsonVersions.Core);
+        Assert.Equal("0.11.5", jsonVersions.Server);
         Assert.Equal("0.11.0", jsonVersions.Client);
-        Assert.Equal("0.11.0", jsonVersions.Transport);
+        Assert.Equal("0.11.1", jsonVersions.Transport);
         Assert.Equal("0.11.0", jsonVersions.Serializer);
         Assert.Equal("0.16.0", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
-        Assert.Equal("0.11.0", memoryPackVersions.Transport);
+        Assert.Equal("0.11.3", memoryPackVersions.Transport);
         Assert.Equal("0.11.0", memoryPackVersions.Serializer);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntime);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntimeCore);
@@ -213,7 +213,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("var builder = RpcServerHostBuilder.Create()", serverProgram);
             Assert.Contains(".UseCommandLine(commandLineArgs)", serverProgram);
             Assert.Contains(".UseSerializer(new JsonRpcSerializer())", serverProgram);
-            Assert.Contains("builder.UseAcceptor(async ct => await WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", ct));", serverProgram);
+            Assert.Contains("builder.UseAcceptor(async ct => await WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", builder.Limits.MaxPendingAcceptedConnections, ct));", serverProgram);
             Assert.Contains("await builder.RunAsync();", serverProgram);
             Assert.True(File.Exists(pingServicePath));
             Assert.False(File.Exists(Path.Combine(root, "Server", "Server", "PingService.cs")));

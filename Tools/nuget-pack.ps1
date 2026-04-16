@@ -14,7 +14,8 @@ $projects = @(
     (Join-Path $root "src\ULinkRPC.Transport.Loopback\ULinkRPC.Transport.Loopback.csproj"),
     (Join-Path $root "src\ULinkRPC.Serializer.MemoryPack\ULinkRPC.Serializer.MemoryPack.csproj"),
     (Join-Path $root "src\ULinkRPC.Serializer.Json\ULinkRPC.Serializer.Json.csproj"),
-    (Join-Path $root "src\ULinkRPC.CodeGen\ULinkRPC.CodeGen.csproj")
+    (Join-Path $root "src\ULinkRPC.CodeGen\ULinkRPC.CodeGen.csproj"),
+    (Join-Path $root "src\ULinkRPC.Starter\ULinkRPC.Starter.csproj")
 )
 
 if (!(Test-Path $artifacts)) {

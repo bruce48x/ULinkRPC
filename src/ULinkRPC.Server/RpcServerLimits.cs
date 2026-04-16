@@ -1,3 +1,5 @@
+using ULinkRPC.Core;
+
 namespace ULinkRPC.Server;
 
 public sealed class RpcServerLimits
@@ -6,7 +8,7 @@ public sealed class RpcServerLimits
 
     public int MaxQueuedRequestsPerSession { get; set; } = 256;
 
-    public int MaxPendingAcceptedConnections { get; set; } = 128;
+    public int MaxPendingAcceptedConnections { get; set; } = RpcConnectionAdmissionDefaults.MaxPendingAcceptedConnections;
 
     internal RpcServerLimits Clone()
     {

@@ -9,8 +9,13 @@ public sealed class KcpConnectionAcceptor : IRpcConnectionAcceptor
     private readonly KcpListener _listener;
 
     public KcpConnectionAcceptor(int port)
+        : this(port, RpcConnectionAdmissionDefaults.MaxPendingAcceptedConnections)
     {
-        _listener = new KcpListener(port);
+    }
+
+    public KcpConnectionAcceptor(int port, int maxPendingAcceptedConnections)
+    {
+        _listener = new KcpListener(port, maxPendingAcceptedConnections);
     }
 
     public string ListenAddress

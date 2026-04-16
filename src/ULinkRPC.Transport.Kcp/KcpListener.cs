@@ -2,31 +2,51 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
+using ULinkRPC.Core;
 
 namespace ULinkRPC.Transport.Kcp
 {
     public sealed class KcpListener : IAsyncDisposable
     {
-        private readonly Channel<KcpAcceptResult> _accepted = Channel.CreateUnbounded<KcpAcceptResult>(new UnboundedChannelOptions
-        {
-            SingleReader = false,
-            SingleWriter = true
-        });
+        private readonly Channel<KcpAcceptResult> _accepted;
         private readonly CancellationTokenSource _cts = new();
         private readonly ConcurrentDictionary<RemoteSessionKey, SessionRecord> _sessions = new();
         private readonly Socket _socket;
         private readonly Task _receiveLoop;
+        private readonly int _maxPendingAcceptedConnections;
+        private int _pendingAcceptedConnections;
 
         public KcpListener(int port)
-            : this(new IPEndPoint(IPAddress.Any, port))
+            : this(new IPEndPoint(IPAddress.Any, port), RpcConnectionAdmissionDefaults.MaxPendingAcceptedConnections)
         {
         }
 
         public KcpListener(IPEndPoint endPoint)
+            : this(endPoint, RpcConnectionAdmissionDefaults.MaxPendingAcceptedConnections)
+        {
+        }
+
+        public KcpListener(int port, int maxPendingAcceptedConnections)
+            : this(new IPEndPoint(IPAddress.Any, port), maxPendingAcceptedConnections)
+        {
+        }
+
+        public KcpListener(IPEndPoint endPoint, int maxPendingAcceptedConnections)
         {
             if (endPoint is null)
                 throw new ArgumentNullException(nameof(endPoint));
+            if (maxPendingAcceptedConnections <= 0)
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxPendingAcceptedConnections),
+                    "Pending accepted connection limit must be positive.");
 
+            _maxPendingAcceptedConnections = maxPendingAcceptedConnections;
+            _accepted = Channel.CreateBounded<KcpAcceptResult>(new BoundedChannelOptions(maxPendingAcceptedConnections)
+            {
+                SingleReader = false,
+                SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait
+            });
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             _socket.Bind(endPoint);
             _receiveLoop = Task.Run(ReceiveLoopAsync);
@@ -36,7 +56,9 @@ namespace ULinkRPC.Transport.Kcp
 
         public async ValueTask<KcpAcceptResult> AcceptAsync(CancellationToken ct = default)
         {
-            return await _accepted.Reader.ReadAsync(ct).ConfigureAwait(false);
+            var accepted = await _accepted.Reader.ReadAsync(ct).ConfigureAwait(false);
+            ReleasePendingSlot();
+            return accepted;
         }
 
         public async ValueTask DisposeAsync()
@@ -55,6 +77,9 @@ namespace ULinkRPC.Transport.Kcp
             catch (ObjectDisposedException)
             {
             }
+
+            while (_accepted.Reader.TryRead(out _))
+                ReleasePendingSlot();
 
             var sessions = _sessions.Values.Select(record => record.Transport).Distinct().ToArray();
             _sessions.Clear();
@@ -113,24 +138,62 @@ namespace ULinkRPC.Transport.Kcp
                     continue;
                 }
 
-                var transport = new KcpServerTransport(
-                    _socket,
-                    remoteEndPoint,
-                    conv,
-                    onDispose: () => _sessions.TryRemove(key, out _));
-                await transport.ConnectAsync(_cts.Token).ConfigureAwait(false);
-                var sessionAck = KcpHandshake.CreateAck(conv, localPort);
+                if (!TryAcquirePendingSlot())
+                    continue;
+
+                KcpServerTransport? transport = null;
+                try
+                {
+                    transport = new KcpServerTransport(
+                        _socket,
+                        remoteEndPoint,
+                        conv,
+                        onDispose: () => _sessions.TryRemove(key, out _));
+                    await transport.ConnectAsync(_cts.Token).ConfigureAwait(false);
+                    var sessionAck = KcpHandshake.CreateAck(conv, localPort);
 #if NET8_0_OR_GREATER
-                await _socket.SendToAsync(sessionAck, SocketFlags.None, remoteEndPoint, _cts.Token).ConfigureAwait(false);
+                    await _socket.SendToAsync(sessionAck, SocketFlags.None, remoteEndPoint, _cts.Token).ConfigureAwait(false);
 #else
-                await _socket.SendToAsync(new ArraySegment<byte>(sessionAck), SocketFlags.None, remoteEndPoint).ConfigureAwait(false);
+                    await _socket.SendToAsync(new ArraySegment<byte>(sessionAck), SocketFlags.None, remoteEndPoint).ConfigureAwait(false);
 #endif
 
-                var record = new SessionRecord(conv, transport);
-                _sessions[key] = record;
-                _accepted.Writer.TryWrite(new KcpAcceptResult(transport, remoteEndPoint, conv, localPort));
+                    var record = new SessionRecord(conv, transport);
+                    _sessions[key] = record;
+                    if (!_accepted.Writer.TryWrite(new KcpAcceptResult(transport, remoteEndPoint, conv, localPort)))
+                    {
+                        ReleasePendingSlot();
+                        _sessions.TryRemove(key, out _);
+                        await transport.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                    ReleasePendingSlot();
+                    if (transport is not null)
+                        await transport.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
+
                 continue;
             }
+        }
+
+        private bool TryAcquirePendingSlot()
+        {
+            while (true)
+            {
+                var current = Volatile.Read(ref _pendingAcceptedConnections);
+                if (current >= _maxPendingAcceptedConnections)
+                    return false;
+
+                if (Interlocked.CompareExchange(ref _pendingAcceptedConnections, current + 1, current) == current)
+                    return true;
+            }
+        }
+
+        private void ReleasePendingSlot()
+        {
+            Interlocked.Decrement(ref _pendingAcceptedConnections);
         }
 
         private sealed class SessionRecord

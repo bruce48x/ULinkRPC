@@ -21,8 +21,11 @@ dotnet add package ULinkRPC.Transport.Kcp
 ```csharp
 var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(args)
-    .UseSerializer(new MemoryPackRpcSerializer())
-    .UseAcceptor(new KcpConnectionAcceptor(20000));
+    .UseSerializer(new MemoryPackRpcSerializer());
+
+builder.UseAcceptor(new KcpConnectionAcceptor(
+    20000,
+    builder.Limits.MaxPendingAcceptedConnections));
 
 await builder.RunAsync();
 ```

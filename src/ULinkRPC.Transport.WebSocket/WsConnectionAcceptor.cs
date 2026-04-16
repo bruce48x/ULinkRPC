@@ -11,27 +11,53 @@ namespace ULinkRPC.Transport.WebSocket;
 public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
 {
     private readonly WebApplication _app;
-    private readonly Channel<RpcAcceptedConnection> _connections = Channel.CreateUnbounded<RpcAcceptedConnection>();
+    private readonly Channel<RpcAcceptedConnection> _connections;
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly string _listenAddress;
+    private readonly int _maxPendingAcceptedConnections;
+    private int _pendingAcceptedConnections;
     private int _disposed;
 
-    private WsConnectionAcceptor(WebApplication app, string listenAddress)
+    private WsConnectionAcceptor(WebApplication app, string listenAddress, int maxPendingAcceptedConnections)
     {
         _app = app;
         _listenAddress = listenAddress;
+        _maxPendingAcceptedConnections = maxPendingAcceptedConnections;
+        _connections = Channel.CreateBounded<RpcAcceptedConnection>(new BoundedChannelOptions(maxPendingAcceptedConnections)
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.Wait
+        });
     }
 
     public string ListenAddress => _listenAddress;
 
     public static async ValueTask<WsConnectionAcceptor> CreateAsync(int port, string path, CancellationToken ct = default)
     {
+        return await CreateAsync(
+            port,
+            path,
+            RpcConnectionAdmissionDefaults.MaxPendingAcceptedConnections,
+            ct).ConfigureAwait(false);
+    }
+
+    public static async ValueTask<WsConnectionAcceptor> CreateAsync(
+        int port,
+        string path,
+        int maxPendingAcceptedConnections,
+        CancellationToken ct = default)
+    {
+        ValidatePendingAcceptedConnectionLimit(maxPendingAcceptedConnections);
         var normalizedPath = NormalizePath(path);
         var builder = WebApplication.CreateBuilder(Array.Empty<string>());
         builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
         var app = builder.Build();
-        var acceptor = new WsConnectionAcceptor(app, $"ws://0.0.0.0:{port}{normalizedPath}");
+        var acceptor = new WsConnectionAcceptor(
+            app,
+            $"ws://0.0.0.0:{port}{normalizedPath}",
+            maxPendingAcceptedConnections);
 
         app.UseWebSockets();
         app.Map(normalizedPath, acceptor.HandleAsync);
@@ -42,7 +68,9 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
 
     public async ValueTask<RpcAcceptedConnection> AcceptAsync(CancellationToken ct = default)
     {
-        return await _connections.Reader.ReadAsync(ct).ConfigureAwait(false);
+        var accepted = await _connections.Reader.ReadAsync(ct).ConfigureAwait(false);
+        ReleasePendingSlot();
+        return accepted;
     }
 
     public async ValueTask DisposeAsync()
@@ -59,6 +87,12 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
         }
         finally
         {
+            while (_connections.Reader.TryRead(out var buffered))
+            {
+                ReleasePendingSlot();
+                await buffered.Transport.DisposeAsync().ConfigureAwait(false);
+            }
+
             await _app.DisposeAsync().ConfigureAwait(false);
             _disposeCts.Dispose();
         }
@@ -73,21 +107,33 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
             return;
         }
 
+        if (!TryAcquirePendingSlot())
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await context.Response.WriteAsync("RPC server is busy.", _disposeCts.Token).ConfigureAwait(false);
+            return;
+        }
+
         var remoteEndPoint = context.Connection.RemoteIpAddress is null
             ? null
             : new IPEndPoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort);
 
+        WsServerTransport? transport = null;
         var completion = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var transport = new WsServerTransport(
-            await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false),
-            remoteEndPoint,
-            () => completion.TrySetResult(null));
 
         try
         {
-            await _connections.Writer.WriteAsync(
-                new RpcAcceptedConnection(transport, remoteEndPoint?.ToString() ?? "?", remoteEndPoint),
-                _disposeCts.Token).ConfigureAwait(false);
+            transport = new WsServerTransport(
+                await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false),
+                remoteEndPoint,
+                () => completion.TrySetResult(null));
+
+            if (!_connections.Writer.TryWrite(new RpcAcceptedConnection(transport, remoteEndPoint?.ToString() ?? "?", remoteEndPoint)))
+            {
+                ReleasePendingSlot();
+                await transport.DisposeAsync().ConfigureAwait(false);
+                return;
+            }
 
             using var registration = _disposeCts.Token.Register(static state =>
             {
@@ -98,12 +144,41 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
         }
         catch (ChannelClosedException)
         {
-            await transport.DisposeAsync().ConfigureAwait(false);
+            ReleasePendingSlot();
+            if (transport is not null)
+                await transport.DisposeAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            await transport.DisposeAsync().ConfigureAwait(false);
+            ReleasePendingSlot();
+            if (transport is not null)
+                await transport.DisposeAsync().ConfigureAwait(false);
         }
+        catch
+        {
+            ReleasePendingSlot();
+            if (transport is not null)
+                await transport.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private bool TryAcquirePendingSlot()
+    {
+        while (true)
+        {
+            var current = Volatile.Read(ref _pendingAcceptedConnections);
+            if (current >= _maxPendingAcceptedConnections)
+                return false;
+
+            if (Interlocked.CompareExchange(ref _pendingAcceptedConnections, current + 1, current) == current)
+                return true;
+        }
+    }
+
+    private void ReleasePendingSlot()
+    {
+        Interlocked.Decrement(ref _pendingAcceptedConnections);
     }
 
     private static string NormalizePath(string path)
@@ -112,6 +187,14 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
             return "/ws";
 
         return path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path;
+    }
+
+    private static void ValidatePendingAcceptedConnectionLimit(int maxPendingAcceptedConnections)
+    {
+        if (maxPendingAcceptedConnections <= 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(maxPendingAcceptedConnections),
+                "Pending accepted connection limit must be positive.");
     }
 }
 #endif
