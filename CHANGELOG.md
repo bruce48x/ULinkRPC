@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.11.4 / 0.11.2 / 0.11.1
+
+- Release packages:
+	- `ULinkRPC.Transport.Kcp` `0.11.4`
+	- `ULinkRPC.Transport.WebSocket` `0.11.2`
+	- `ULinkRPC.Core` `0.11.2`
+	- `ULinkRPC.Transport.Tcp` `0.11.1`
+- Fixed outbound frame-size validation so transports now reject oversized frames before putting them on the wire.
+- Before this fix, `LengthPrefix.Pack(...)` and the TCP framing sender accepted payloads larger than the runtime's 64 MB frame limit, which meant the local sender appeared to succeed and the failure only surfaced later on the receiving side.
+- That delayed failure path could turn a local API misuse into cross-peer runtime errors, including remote disconnects and avoidable transport churn under KCP, WebSocket, and TCP.
+- Added shared frame-length validation in `ULinkRPC.Core.LengthPrefix` and enforced it in `TcpPipeFraming.SendFrameAsync(...)`, so Unity 2022 `netstandard2.1` and server-side `net10.0` builds now fail fast on the sending side with the same limit.
+- Tests:
+	- Added regression coverage proving `LengthPrefix.Pack(...)` now rejects oversized payloads locally.
+	- Added regression coverage proving the TCP sender rejects oversized frames before writing them to the stream.
+- Compatibility:
+	- The wire format is unchanged.
+	- The behavioral change is intentional: oversized frames are now rejected locally instead of being allowed onto the network and failing remotely.
+
 ## 0.11.6
 
 - Release packages:

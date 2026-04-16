@@ -23,6 +23,7 @@ namespace ULinkRPC.Transport.Tcp
 
         public async ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct)
         {
+            LengthPrefix.ValidateFrameLength(frame.Length, _maxFrameSize);
             var header = _writer.GetSpan(4);
             var length = (uint)frame.Length;
             header[0] = (byte)(length >> 24);

@@ -29,6 +29,15 @@ public class LengthPrefixTests
     }
 
     [Fact]
+    public void Pack_PayloadTooLarge_Throws()
+    {
+        var payload = GC.AllocateUninitializedArray<byte>(LengthPrefix.DefaultMaxFrameSize + 1);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => LengthPrefix.Pack(payload));
+        Assert.Contains("Frame too large", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void TryUnpack_CompleteFrame_Succeeds()
     {
         var payload = new byte[] { 1, 2, 3 };

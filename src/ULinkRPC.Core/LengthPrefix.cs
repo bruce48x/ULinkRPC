@@ -13,6 +13,7 @@ namespace ULinkRPC.Core
 
         public static TransportFrame Pack(ReadOnlySpan<byte> payload)
         {
+            ValidateFrameLength(payload.Length, DefaultMaxFrameSize);
             var frame = TransportFrame.Allocate(4 + payload.Length);
             var buf = frame.GetWritableSpan();
             var len = (uint)payload.Length;
@@ -47,6 +48,18 @@ namespace ULinkRPC.Core
             payload = seq.Slice(4, len);
             seq = seq.Slice(4 + len);
             return true;
+        }
+
+        public static void ValidateFrameLength(int payloadLength, int maxFrameSize)
+        {
+            if (payloadLength < 0)
+                throw new ArgumentOutOfRangeException(nameof(payloadLength));
+
+            if (maxFrameSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxFrameSize));
+
+            if (payloadLength > maxFrameSize)
+                throw new InvalidOperationException($"Frame too large: {payloadLength} bytes");
         }
     }
 }

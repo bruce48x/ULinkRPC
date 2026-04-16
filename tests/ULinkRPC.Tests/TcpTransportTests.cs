@@ -1,6 +1,8 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
+using ULinkRPC.Core;
 using ULinkRPC.Transport.Tcp;
 
 namespace ULinkRPC.Tests;
@@ -62,6 +64,39 @@ public sealed class TcpTransportTests
         await Assert.ThrowsAsync<IOException>(() => pair.Server.ReceiveFrameAsync().AsTask());
     }
 
+    [Fact]
+    public async Task SendFrameAsync_WhenFrameExceedsMaxSize_Throws()
+    {
+        var oversizedPayload = GC.AllocateUninitializedArray<byte>(LengthPrefix.DefaultMaxFrameSize + 1);
+        var framingType = typeof(TcpTransport).Assembly.GetType("ULinkRPC.Transport.Tcp.TcpPipeFraming");
+        Assert.NotNull(framingType);
+
+        await using var stream = new RecordingStream();
+        var framing = Activator.CreateInstance(
+            framingType!,
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+            binder: null,
+            args: new object[] { stream, LengthPrefix.DefaultMaxFrameSize },
+            culture: null);
+        Assert.NotNull(framing);
+
+        var sendMethod = framingType!.GetMethod(nameof(TcpTransport.SendFrameAsync), new[]
+        {
+            typeof(ReadOnlyMemory<byte>),
+            typeof(CancellationToken)
+        });
+        Assert.NotNull(sendMethod);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            var sendTask = (ValueTask)sendMethod!.Invoke(framing, new object[] { new ReadOnlyMemory<byte>(oversizedPayload), CancellationToken.None })!;
+            await sendTask.AsTask();
+        });
+        Assert.Contains("Frame too large", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        await ((IAsyncDisposable)framing!).DisposeAsync();
+    }
+
     private sealed class ConnectedPair : IAsyncDisposable
     {
         private ConnectedPair(TcpListener listener, TcpTransport client, TcpServerTransport server)
@@ -99,6 +134,26 @@ public sealed class TcpTransportTests
             await Client.DisposeAsync();
             await Server.DisposeAsync();
             _listener.Stop();
+        }
+    }
+
+    private sealed class RecordingStream : MemoryStream
+    {
+        public override bool CanRead => false;
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }
