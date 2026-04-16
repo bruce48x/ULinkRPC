@@ -557,6 +557,57 @@ public class RpcSessionTests
     }
 
     [Fact]
+    public async Task RemoteClose_CancelsInflightRequestAndCompletesSession()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handlerCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var server = new RpcSession(serverTransport, serializer);
+
+        server.Register(1, 1, async (req, ct) =>
+        {
+            requestStarted.TrySetResult();
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                handlerCancelled.TrySetResult();
+                throw;
+            }
+
+            return new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = Array.Empty<byte>()
+            };
+        });
+
+        await server.StartAsync();
+        await clientTransport.ConnectAsync();
+
+        await clientTransport.SendFrameAsync(RpcEnvelopeCodec.EncodeRequest(new RpcRequestEnvelope
+        {
+            RequestId = 1,
+            ServiceId = 1,
+            MethodId = 1,
+            Payload = Array.Empty<byte>()
+        }));
+
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await clientTransport.DisposeAsync();
+
+        await handlerCancelled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await server.WaitForCompletionAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+
+        await server.DisposeAsync();
+    }
+
+    [Fact]
     public async Task DisposeAsync_WhenOwningTransport_DisposesTransportOnce()
     {
         var transport = new ConcurrentSendDetectTransport();

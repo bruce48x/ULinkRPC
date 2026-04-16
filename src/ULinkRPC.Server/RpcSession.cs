@@ -234,6 +234,7 @@ namespace ULinkRPC.Server
 
             var ct = serverCts.Token;
             Exception? disconnectError = null;
+            var cancelInflightRequests = false;
 
             try
             {
@@ -250,36 +251,41 @@ namespace ULinkRPC.Server
                     }
                     catch (ObjectDisposedException)
                     {
+                        cancelInflightRequests = true;
                         break;
                     }
                     catch (InvalidOperationException) when (!_transport.IsConnected)
                     {
+                        cancelInflightRequests = true;
                         break;
                     }
 
                     using (frame)
                     {
-                    if (frame.Length == 0)
-                        break;
-
-                    _keepAliveState.MarkReceived();
-                    var frameType = RpcEnvelopeCodec.PeekFrameType(frame.Span);
-                    if (frameType == RpcFrameType.KeepAlivePing)
-                    {
-                        var ping = RpcEnvelopeCodec.DecodeKeepAlivePing(frame.Span);
-                        using var pongBytes = RpcEnvelopeCodec.EncodeKeepAlivePong(new RpcKeepAlivePongEnvelope
+                        if (frame.Length == 0)
                         {
-                            TimestampTicksUtc = ping.TimestampTicksUtc
-                        });
-                        await SendFrameAsyncSerialized(pongBytes.Memory, ct).ConfigureAwait(false);
-                        continue;
-                    }
+                            cancelInflightRequests = true;
+                            break;
+                        }
 
-                    if (frameType != RpcFrameType.Request)
-                        continue;
+                        _keepAliveState.MarkReceived();
+                        var frameType = RpcEnvelopeCodec.PeekFrameType(frame.Span);
+                        if (frameType == RpcFrameType.KeepAlivePing)
+                        {
+                            var ping = RpcEnvelopeCodec.DecodeKeepAlivePing(frame.Span);
+                            using var pongBytes = RpcEnvelopeCodec.EncodeKeepAlivePong(new RpcKeepAlivePongEnvelope
+                            {
+                                TimestampTicksUtc = ping.TimestampTicksUtc
+                            });
+                            await SendFrameAsyncSerialized(pongBytes.Memory, ct).ConfigureAwait(false);
+                            continue;
+                        }
 
-                    var req = RpcEnvelopeCodec.DecodeRequest(frame);
-                    EnqueueRequestProcessing(req, ct);
+                        if (frameType != RpcFrameType.Request)
+                            continue;
+
+                        var req = RpcEnvelopeCodec.DecodeRequest(frame);
+                        EnqueueRequestProcessing(req, ct);
                     }
                 }
             }
@@ -289,10 +295,16 @@ namespace ULinkRPC.Server
             catch (Exception ex)
             {
                 if (!ct.IsCancellationRequested)
+                {
+                    cancelInflightRequests = true;
                     disconnectError = ex;
+                }
             }
             finally
             {
+                if (cancelInflightRequests)
+                    CancelSessionLoop(serverCts);
+
                 if (disconnectError is null)
                     disconnectError = _disconnectReason;
                 await _inflightRequests.WaitAsync().ConfigureAwait(false);
@@ -663,6 +675,20 @@ namespace ULinkRPC.Server
         {
             if (Interlocked.CompareExchange(ref _disconnectReasonSet, 1, 0) == 0)
                 _disconnectReason = ex;
+        }
+
+        private static void CancelSessionLoop(CancellationTokenSource serverCts)
+        {
+            if (serverCts.IsCancellationRequested)
+                return;
+
+            try
+            {
+                serverCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
     }
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.6
+
+- Release packages:
+	- `ULinkRPC.Server` `0.11.6`
+- Fixed a session-lifecycle bug where `RpcSession` kept waiting for in-flight handlers after the client connection had already closed.
+- Before this fix, a client could disconnect in the middle of a slow or blocking RPC and leave that session stuck in shutdown, keeping request-budget slots occupied until the handler completed on its own.
+- `RpcSession` now cancels its internal session token as soon as the transport closes or the receive loop faults, so in-flight handlers and keepalive work are asked to stop immediately before session teardown waits for them.
+- Tests:
+	- Added a regression test proving that a remote disconnect cancels an in-flight request and allows the server session to complete promptly.
+- Compatibility:
+	- The change is server-only and keeps the Unity 2022 `netstandard2.1` client/runtime surface unchanged while remaining compatible with the server-side `net10.0` target.
+
 ## 0.11.5 / 0.11.3 / 0.11.1 / 0.2.22
 
 - Release packages:

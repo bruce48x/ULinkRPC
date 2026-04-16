@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Server</PackageId>
-    <Version>0.11.5</Version>
+    <Version>0.11.6</Version>
     <Authors>ULinkRPC</Authors>
     <Description>ULinkRPC server runtime core.</Description>
     <PackageTags>rpc;unity;server</PackageTags>
