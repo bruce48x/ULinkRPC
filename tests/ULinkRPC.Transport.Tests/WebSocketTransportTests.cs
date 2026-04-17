@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -76,6 +77,56 @@ public class WebSocketTransportTests
             "Channel.CreateUnbounded<RpcAcceptedConnection>()",
             source,
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WsConnectionAcceptor_AcceptAsync_SkipsDisconnectedQueuedConnection()
+    {
+        var port = GetFreePort();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var acceptor = await WsConnectionAcceptor.CreateAsync(port, "/ws", 2, cts.Token);
+
+        using var staleClient = new ClientWebSocket();
+        await staleClient.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), cts.Token);
+        await Task.Delay(150, cts.Token);
+        staleClient.Abort();
+        staleClient.Dispose();
+
+        using var liveClient = new ClientWebSocket();
+        await liveClient.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), cts.Token);
+
+        var accepted = await WithTimeout(acceptor.AcceptAsync(cts.Token), cts.Token);
+        try
+        {
+            using var packed = ULinkRPC.Core.LengthPrefix.Pack(Encoding.UTF8.GetBytes("live"));
+            await WithTimeout(
+                liveClient.SendAsync(packed.Memory, WebSocketMessageType.Binary, true, cts.Token),
+                cts.Token);
+
+            var payload = await WithTimeout(accepted.Transport.ReceiveFrameAsync(cts.Token), cts.Token);
+            Assert.Equal("live", Encoding.UTF8.GetString(payload.Span));
+        }
+        finally
+        {
+            await accepted.Transport.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task WsServerTransport_DisposeAsync_DoesNotHangAfterRemoteAbort()
+    {
+        var port = GetFreePort();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var acceptor = await WsConnectionAcceptor.CreateAsync(port, "/ws", 1, cts.Token);
+
+        using var client = new ClientWebSocket();
+        await client.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), cts.Token);
+
+        var accepted = await WithTimeout(acceptor.AcceptAsync(cts.Token), cts.Token);
+        client.Abort();
+        client.Dispose();
+
+        await WithTimeout(accepted.Transport.DisposeAsync(), cts.Token);
     }
 
     private static int GetFreePort()

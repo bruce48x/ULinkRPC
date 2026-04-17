@@ -8,6 +8,7 @@ namespace ULinkRPC.Transport.WebSocket;
 internal static class WsTransportFraming
 {
     private const int MaxBufferedBytes = 64 * 1024 * 1024;
+    private static readonly TimeSpan CloseHandshakeTimeout = TimeSpan.FromSeconds(1);
 
     public static async ValueTask SendFrameAsync(NetWebSocket webSocket, ReadOnlyMemory<byte> frame, CancellationToken ct)
     {
@@ -52,11 +53,28 @@ internal static class WsTransportFraming
         try
         {
             if (webSocket.State == WebSocketState.Open || webSocket.State == WebSocketState.CloseReceived)
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None)
-                    .ConfigureAwait(false);
+            {
+                using var closeCts = new CancellationTokenSource(CloseHandshakeTimeout);
+                try
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", closeCts.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    webSocket.Abort();
+                }
+            }
         }
         catch
         {
+            try
+            {
+                webSocket.Abort();
+            }
+            catch
+            {
+            }
         }
 
         webSocket.Dispose();

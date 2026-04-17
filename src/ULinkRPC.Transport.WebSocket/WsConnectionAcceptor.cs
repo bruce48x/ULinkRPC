@@ -68,9 +68,15 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
 
     public async ValueTask<RpcAcceptedConnection> AcceptAsync(CancellationToken ct = default)
     {
-        var accepted = await _connections.Reader.ReadAsync(ct).ConfigureAwait(false);
-        ReleasePendingSlot();
-        return accepted;
+        while (true)
+        {
+            var accepted = await _connections.Reader.ReadAsync(ct).ConfigureAwait(false);
+            ReleasePendingSlot();
+            if (accepted.Transport.IsConnected)
+                return accepted;
+
+            await accepted.Transport.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -126,7 +132,8 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
             transport = new WsServerTransport(
                 await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false),
                 remoteEndPoint,
-                () => completion.TrySetResult(null));
+                () => completion.TrySetResult(null),
+                context.RequestAborted);
 
             if (!_connections.Writer.TryWrite(new RpcAcceptedConnection(transport, remoteEndPoint?.ToString() ?? "?", remoteEndPoint)))
             {

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.11.3
+
+- Release packages:
+	- `ULinkRPC.Transport.WebSocket` `0.11.3`
+- Fixed WebSocket accept queue hygiene so `AcceptAsync()` no longer returns queued transports that already disconnected before the server drained the queue.
+- Hardened WebSocket transport disposal so server-side teardown does not hang forever when the remote peer disappears without completing the close handshake.
+- Before this fix, a client could complete the WebSocket upgrade, get queued for acceptance, disconnect, and still be handed to the runtime on the next `AcceptAsync()` call. That surfaced as immediate receive failures against what should have been a fresh accepted connection.
+- Before this fix, `WsTransportFraming.DisposeAsync(...)` also used an unbounded `CloseAsync(...)` wait, so disposing a half-dead WebSocket could stall shutdown and prevent the acceptor from draining stale queued connections.
+- `WsConnectionAcceptor.AcceptAsync()` now skips stale queued WebSocket transports, disposes them, and keeps reading until it finds a live connection or the caller cancels.
+- `WsTransportFraming.DisposeAsync(...)` now bounds the close-handshake wait and aborts the socket if the peer is no longer cooperating.
+- Tests:
+	- Added a regression test proving a disconnected queued WebSocket transport is skipped instead of being returned from `AcceptAsync()`.
+	- Added a regression test proving disposing a server-side WebSocket transport still completes promptly after the remote peer aborts.
+- Compatibility:
+	- The public API and wire protocol are unchanged.
+	- The change only tightens server-side WebSocket acceptance semantics.
+
 ## 0.11.7
 
 - Release packages:
