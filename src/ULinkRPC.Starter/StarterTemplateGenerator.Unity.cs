@@ -8,7 +8,6 @@ internal static class StarterUnityTemplate
         var artifacts = BuildArtifacts(context);
 
         var clientPath = context.Paths.ClientPath;
-        var generatedAssemblyDefinitionPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Generated", "ULinkRPC.Generated.asmdef");
         var testerScriptPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs");
         var scenePath = Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName()}.unity");
         var autoOpenEditorScriptPath = Path.Combine(clientPath, "Assets", "Editor", "AutoOpenConnectionScene.cs");
@@ -16,7 +15,6 @@ internal static class StarterUnityTemplate
         StarterFileWriter.Write(Path.Combine(clientPath, "Packages", "manifest.json"), artifacts.Manifest);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "packages.config"), artifacts.PackagesConfig);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "NuGet.config"), artifacts.NuGetConfig);
-        StarterFileWriter.Write(generatedAssemblyDefinitionPath, artifacts.GeneratedAssemblyDefinition);
         StarterFileWriter.Write(testerScriptPath, artifacts.TesterScript);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs.meta"), artifacts.TesterScriptMeta);
         StarterFileWriter.Write(scenePath, artifacts.SceneContent);
@@ -45,32 +43,11 @@ internal static class StarterUnityTemplate
         BuildReadme(context),
         BuildProjectVersion(),
         GetEditorBuildSettingsAsset(),
-        GetGeneratedAssemblyDefinition(),
         GetUnityTesterScript(context.Transport, context.Serializer),
         GetUnityTesterScriptMeta(),
         GetUnitySceneContent(context.Transport),
         GetUnitySceneMeta(),
         GetAutoOpenSceneEditorScript());
-
-    private static string GetGeneratedAssemblyDefinition() => """
-{
-  "name": "ULinkRPC.Generated",
-  "references": [
-    "Game.Rpc.Contracts",
-    "ULinkRPC.Core",
-    "ULinkRPC.Client"
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
-}
-""";
 
     private static string BuildManifest(StarterTemplateContext context) => $$"""
 {
@@ -212,7 +189,7 @@ Selected serializer: {{context.Serializer}}
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Client.Generated;
+using Rpc.Generated;
 using Shared.Interfaces;
 using ULinkRPC.Client;
 {{values.TransportUsing}}

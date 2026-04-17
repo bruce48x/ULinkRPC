@@ -55,7 +55,6 @@ internal sealed record UnityClientArtifacts(
     string Readme,
     string ProjectVersion,
     string EditorBuildSettings,
-    string GeneratedAssemblyDefinition,
     string TesterScript,
     string TesterScriptMeta,
     string SceneContent,

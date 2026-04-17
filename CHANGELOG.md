@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.26
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.26`
+- Changed the Unity generated client namespace used by `ULinkRPC.Starter` from `Client.Generated` to `Rpc.Generated`.
+- This keeps the scaffolded tester script, the explicit `--namespace` passed to `ULinkRPC.CodeGen`, and the generated output path `Assets/Scripts/Rpc/Generated` on the same naming convention.
+
+## 0.2.25
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.25`
+- Changed the Unity client codegen output path used by `ULinkRPC.Starter` from `Assets/Scripts/Rpc/RpcGenerated` to `Assets/Scripts/Rpc/Generated`.
+- This aligns the scaffolded folder layout with `ULinkRPC.CodeGen`'s own default Unity output path and avoids carrying two naming conventions for the same generated client code.
+
+## 0.2.24
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.24`
+- Fixed Unity starter generation so it no longer writes a duplicate `ULinkRPC.Generated.asmdef` alongside the asmdef already emitted by `ULinkRPC.CodeGen`.
+- Before this fix, newly scaffolded Unity projects could fail on first open with `Assembly with name 'ULinkRPC.Generated' already exists` because both `Assets/Scripts/Rpc/Generated` and `Assets/Scripts/Rpc/RpcGenerated` contained the same assembly name.
+
 ## 0.11.7 / 0.11.3 / 0.11.2 / 0.11.1 / 0.16.1 / 0.2.23
 
 - Release packages:

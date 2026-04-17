@@ -23,7 +23,7 @@ Generated client stubs now depend on `ULinkRPC.Core.IRpcClient`.
 Generated client calls use typed descriptors (`RpcMethod<TArg, TResult>` / `RpcPushMethod<TArg>`) instead of passing raw service/method ids.
 Generated Unity client output also includes `IRpcClient` extension factories (for example `client.CreatePlayerService()`) so business code does not instantiate generated client types directly.
 Generated Unity client output also emits a complete `ULinkRPC.Client.RpcClient` wrapper that owns `RpcClientRuntime`, binds callbacks, and exposes the grouped `Api` facade.
-Unity generated code namespace is derived from Unity output directory (for example `Assets/Scripts/Rpc/RpcGenerated` -> `Rpc.Generated`).
+Unity generated code namespace is derived from Unity output directory (for example `Assets/Scripts/Rpc/Generated` -> `Rpc.Generated`).
 Generated files now inherit `using` directives declared by contract sources so referenced types resolve correctly.
 Contract parsing is implemented via Roslyn syntax trees for better correctness across C# language forms.
 Generated binders reference `ULinkRPC.Core` + `ULinkRPC.Server` and include both `Bind(RpcServiceRegistry, IYourService)` and delegate-based `Bind(...)` overloads. Generated `AllServicesBinder` includes a convenience overload `BindAll(RpcServiceRegistry registry)` that reflects over the current assembly to locate concrete service implementations automatically; callback services prefer a single-parameter constructor accepting the callback interface, and fall back to a public parameterless constructor. Per-connection service creation now uses `RpcSession`.
@@ -63,7 +63,7 @@ var player = client.Api.Game.Player;
 
 ## Default Behavior
 
-- Unity mode defaults output to `Assets/Scripts/Rpc/RpcGenerated` under detected Unity project root.
+- Unity mode defaults output to `Assets/Scripts/Rpc/Generated` under detected Unity project root.
 - If Unity project root cannot be detected, pass `--output` explicitly.
 - Unity namespace defaults to value derived from output path unless `--namespace` is provided.
 - Server mode defaults output to `Generated` under the detected server project root. If no server project root can be detected, it falls back to `./Generated`.

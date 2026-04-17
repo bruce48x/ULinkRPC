@@ -156,12 +156,12 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("new tool-manifest", commands);
             Assert.Contains("tool install ULinkRPC.CodeGen --version 6.7.8", commands);
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
-            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}RpcGenerated\" --namespace \"Client.Generated\"", commands);
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
             Assert.Contains("<Project Path=\"../Shared/Shared.csproj\" />", slnx);
             Assert.Contains("<Project Path=\"Server/Server.csproj\" />", slnx);
             Assert.True(File.Exists(Path.Combine(root, "Server", "Server", "Server.csproj")));
             Assert.True(File.Exists(Path.Combine(root, "Server", "Server", "Generated", "AllServicesBinder.cs")));
-            Assert.True(File.Exists(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "RpcGenerated", "RpcApi.cs")));
+            Assert.True(File.Exists(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs")));
             Assert.Contains("init", gitCommands);
             Assert.True(Directory.Exists(Path.Combine(root, ".git")));
         }
@@ -201,6 +201,7 @@ public sealed class StarterTemplateGeneratorTests
             var scene = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scenes", "ConnectionTest.unity"));
             var autoOpenSceneScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Editor", "AutoOpenConnectionScene.cs"));
             var editorBuildSettings = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "EditorBuildSettings.asset"));
+            var starterGeneratedAsmdefPath = Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "ULinkRPC.Generated.asmdef");
 
             Assert.Equal("file:../../Shared", sharedDependency);
             Assert.DoesNotContain("Bad Project Name", serverProgram, StringComparison.Ordinal);
@@ -238,7 +239,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("m_EditorVersion: 2022.3.62f3c1", projectVersion);
             Assert.Contains("m_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)", projectVersion);
             Assert.Contains("Unity will auto-open `Assets/Scenes/ConnectionTest.unity`", clientReadme);
-            Assert.Contains("using Client.Generated;", testerScript);
+            Assert.Contains("using Rpc.Generated;", testerScript);
             Assert.Contains("using Shared.Interfaces;", testerScript);
             Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
@@ -258,6 +259,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("SessionState.GetBool(SessionStateKey, false)", autoOpenSceneScript);
             Assert.Contains("Assets/Scenes/ConnectionTest.unity", editorBuildSettings);
             Assert.Contains("guid: d4d2d5faafe942e58a33f4a41e3b7cf2", editorBuildSettings);
+            Assert.False(File.Exists(starterGeneratedAsmdefPath));
         }
         finally
         {
@@ -422,7 +424,7 @@ public sealed class StarterTemplateGeneratorTests
 
                 if (arguments.Contains("--mode unity", StringComparison.Ordinal))
                 {
-                    var outputDir = Path.Combine(workingDirectory, "Assets", "Scripts", "Rpc", "RpcGenerated");
+                    var outputDir = Path.Combine(workingDirectory, "Assets", "Scripts", "Rpc", "Generated");
                     Directory.CreateDirectory(outputDir);
                     File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
                     return;

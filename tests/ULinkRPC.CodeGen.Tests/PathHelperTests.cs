@@ -9,7 +9,7 @@ public class PathHelperTests
 
     [Theory]
     [InlineData("Rpc", "Rpc")]
-    [InlineData("RpcGenerated", "RpcGenerated")]
+    [InlineData("Generated", "Generated")]
     [InlineData("my-module", "mymodule")]
     [InlineData("3d_models", "_3d_models")]
     [InlineData("", "")]
@@ -160,7 +160,7 @@ public class PathHelperTests
     [Fact]
     public void DeriveNamespaceFromOutputPath_AssetsScripts_SkipsPrefix()
     {
-        var path = Path.Combine("C:", "MyUnity", "Assets", "Scripts", "Rpc", "RpcGenerated");
+        var path = Path.Combine("C:", "MyUnity", "Assets", "Scripts", "Rpc", "Generated");
         var result = PathHelper.DeriveNamespaceFromOutputPath(path);
         Assert.Equal("Rpc.Generated", result);
     }
