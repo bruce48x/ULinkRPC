@@ -100,6 +100,35 @@ public class KcpTransportTests
     }
 
     [Fact]
+    public async Task KcpListener_DoesNotReturnDisposedQueuedConnection()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        await using var listener = new KcpListener(new IPEndPoint(IPAddress.Loopback, 0));
+        var serverEndPoint = (IPEndPoint)listener.LocalEndPoint!;
+
+        await using var firstClient = new KcpTransport(IPAddress.Loopback.ToString(), serverEndPoint.Port);
+        await firstClient.ConnectAsync(cts.Token);
+
+        var firstTransport = await GetOnlySessionTransportAsync(listener, cts.Token);
+        ForceFrameAccumulatorOverflowOnNextAppend(firstTransport);
+        await firstClient.SendFrameAsync(new byte[] { 0x01 }, cts.Token);
+
+        await Task.Delay(150, cts.Token);
+
+        using var acceptCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, acceptCts.Token);
+        var acceptTask = listener.AcceptAsync(linkedCts.Token).AsTask();
+
+        await using var secondClient = new KcpTransport(IPAddress.Loopback.ToString(), serverEndPoint.Port);
+        await secondClient.ConnectAsync(linkedCts.Token);
+
+        var accepted = await acceptTask;
+        Assert.True(accepted.Transport.IsConnected);
+        await accepted.Transport.DisposeAsync();
+    }
+
+    [Fact]
     public async Task KcpListener_DoesNotBufferBeyondDefaultPendingLimit()
     {
         const int expectedMaxPendingConnections = 128;
@@ -309,6 +338,35 @@ public class KcpTransportTests
         var countField = accumulator!.GetType().GetField("_count", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(countField);
         countField!.SetValue(accumulator, LengthPrefix.DefaultMaxFrameSize);
+    }
+
+    private static async Task<KcpServerTransport> GetOnlySessionTransportAsync(KcpListener listener, CancellationToken ct)
+    {
+        var sessionsField = typeof(KcpListener).GetField("_sessions", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(sessionsField);
+
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var sessions = sessionsField!.GetValue(listener);
+            Assert.NotNull(sessions);
+
+            var valuesProperty = sessions!.GetType().GetProperty("Values");
+            Assert.NotNull(valuesProperty);
+            var values = (System.Collections.IEnumerable?)valuesProperty!.GetValue(sessions);
+            Assert.NotNull(values);
+
+            foreach (var record in values!)
+            {
+                var transportProperty = record!.GetType().GetProperty("Transport");
+                Assert.NotNull(transportProperty);
+                var transport = (KcpServerTransport?)transportProperty!.GetValue(record);
+                if (transport is not null)
+                    return transport;
+            }
+
+            await Task.Delay(10, ct);
+        }
     }
 
     private static IReadOnlyList<MethodBase> GetCalledMethods(MethodInfo method)

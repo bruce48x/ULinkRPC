@@ -56,9 +56,15 @@ namespace ULinkRPC.Transport.Kcp
 
         public async ValueTask<KcpAcceptResult> AcceptAsync(CancellationToken ct = default)
         {
-            var accepted = await _accepted.Reader.ReadAsync(ct).ConfigureAwait(false);
-            ReleasePendingSlot();
-            return accepted;
+            while (true)
+            {
+                var accepted = await _accepted.Reader.ReadAsync(ct).ConfigureAwait(false);
+                ReleasePendingSlot();
+                if (accepted.Transport.IsConnected)
+                    return accepted;
+
+                await accepted.Transport.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         public async ValueTask DisposeAsync()

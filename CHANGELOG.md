@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.7
+
+- Release packages:
+	- `ULinkRPC.Transport.Kcp` `0.11.7`
+- Fixed KCP accept queue hygiene so `AcceptAsync()` no longer returns connections that already died while they were still waiting in the pending-accept queue.
+- Before this fix, a connection could finish the KCP handshake, get queued for acceptance, then fail before the server drained the queue. The next `AcceptAsync()` call could receive that already-disposed transport and hand a dead connection to the server runtime.
+- `KcpListener.AcceptAsync()` now skips stale queued transports and keeps reading until it finds a live connection or the caller cancels.
+- Tests:
+	- Added a regression test proving that disposed queued KCP connections are not returned from `AcceptAsync()`.
+- Compatibility:
+	- The wire protocol and public API are unchanged.
+	- The change only tightens runtime correctness for queued KCP accepts.
+
 ## 0.11.6
 
 - Release packages:
