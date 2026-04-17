@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.7 / 0.11.3 / 0.11.2 / 0.11.1 / 0.16.1 / 0.2.23
+
+- Release packages:
+	- `ULinkRPC.Server` `0.11.7`
+	- `ULinkRPC.Transport.Kcp` `0.11.7`
+	- `ULinkRPC.Transport.WebSocket` `0.11.3`
+	- `ULinkRPC.Transport.Tcp` `0.11.1`
+	- `ULinkRPC.Core` `0.11.2`
+	- `ULinkRPC.CodeGen` `0.16.1`
+	- `ULinkRPC.Starter` `0.2.23`
+- Updated `ULinkRPC.Starter`'s bundled release manifest so newly scaffolded projects pin the current in-repo package versions instead of older package revisions.
+
 ## 0.11.3
 
 - Release packages:
