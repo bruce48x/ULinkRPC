@@ -41,9 +41,16 @@ internal sealed class BoundedConnectionAcceptor : IRpcConnectionAcceptor
 
     public string ListenAddress => _inner.ListenAddress;
 
-    public ValueTask<RpcAcceptedConnection> AcceptAsync(CancellationToken ct = default)
+    public async ValueTask<RpcAcceptedConnection> AcceptAsync(CancellationToken ct = default)
     {
-        return _pendingConnections.Reader.ReadAsync(ct);
+        while (true)
+        {
+            var connection = await _pendingConnections.Reader.ReadAsync(ct).ConfigureAwait(false);
+            if (connection.Transport.IsConnected)
+                return connection;
+
+            await DisposeRejectedConnectionAsync(connection).ConfigureAwait(false);
+        }
     }
 
     public async ValueTask DisposeAsync()

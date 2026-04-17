@@ -532,6 +532,26 @@ public class RpcSessionTests
     }
 
     [Fact]
+    public async Task BoundedConnectionAcceptor_DoesNotReturnDisconnectedQueuedConnection()
+    {
+        var staleTransport = new ToggleableConnectionTransport(initiallyConnected: false);
+        var liveTransport = new ToggleableConnectionTransport(initiallyConnected: true);
+        var acceptor = new StaticConnectionAcceptor(
+            new RpcAcceptedConnection(staleTransport, "stale"),
+            new RpcAcceptedConnection(liveTransport, "live"));
+        var logger = new TestLogger();
+        await using var bounded = new BoundedConnectionAcceptor(acceptor, 2, logger);
+
+        await Task.Delay(100);
+
+        var accepted = await bounded.AcceptAsync(new CancellationTokenSource(TimeSpan.FromSeconds(2)).Token);
+
+        Assert.Same(liveTransport, accepted.Transport);
+        Assert.Equal(1, staleTransport.DisposeCount);
+        Assert.True(liveTransport.IsConnected);
+    }
+
+    [Fact]
     public async Task RemoteClose_ResetsServerStateAndRaisesDisconnected()
     {
         var transport = new ReconnectableEmptyFrameTransport();
@@ -1055,6 +1075,68 @@ public class RpcSessionTests
                 Interlocked.Increment(ref _owner._disposedTransportCount);
                 return ValueTask.CompletedTask;
             }
+        }
+    }
+
+    private sealed class StaticConnectionAcceptor : IRpcConnectionAcceptor
+    {
+        private readonly Queue<RpcAcceptedConnection> _connections;
+
+        public StaticConnectionAcceptor(params RpcAcceptedConnection[] connections)
+        {
+            _connections = new Queue<RpcAcceptedConnection>(connections);
+        }
+
+        public string ListenAddress => "test://static";
+
+        public ValueTask<RpcAcceptedConnection> AcceptAsync(CancellationToken ct = default)
+        {
+            if (_connections.Count == 0)
+                return ValueTask.FromCanceled<RpcAcceptedConnection>(ct.IsCancellationRequested ? ct : new CancellationToken(true));
+
+            return ValueTask.FromResult(_connections.Dequeue());
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class ToggleableConnectionTransport : ITransport
+    {
+        private int _disposeCount;
+
+        public ToggleableConnectionTransport(bool initiallyConnected)
+        {
+            IsConnected = initiallyConnected;
+        }
+
+        public int DisposeCount => Volatile.Read(ref _disposeCount);
+
+        public bool IsConnected { get; private set; }
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            IsConnected = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
+        {
+            return ValueTask.FromResult(TransportFrame.Empty);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsConnected = false;
+            Interlocked.Increment(ref _disposeCount);
+            return ValueTask.CompletedTask;
         }
     }
 

@@ -3,6 +3,19 @@
 ## 0.11.7
 
 - Release packages:
+	- `ULinkRPC.Server` `0.11.7`
+- Fixed bounded accept queue hygiene so the server no longer hands disconnected queued connections to the runtime.
+- Before this fix, `BoundedConnectionAcceptor` could return a connection that had already died while waiting in the server's pending-accept queue. That let the host spin up session state for a transport that was already disconnected.
+- `BoundedConnectionAcceptor.AcceptAsync()` now skips stale queued connections and disposes them before continuing to the next live connection.
+- Tests:
+	- Added a regression test proving a disconnected queued connection is skipped instead of being returned from `AcceptAsync()`.
+- Compatibility:
+	- The public API and wire protocol are unchanged.
+	- The change only tightens server-side acceptance semantics.
+
+## 0.11.7
+
+- Release packages:
 	- `ULinkRPC.Transport.Kcp` `0.11.7`
 - Fixed KCP accept queue hygiene so `AcceptAsync()` no longer returns connections that already died while they were still waiting in the pending-accept queue.
 - Before this fix, a connection could finish the KCP handshake, get queued for acceptance, then fail before the server drained the queue. The next `AcceptAsync()` call could receive that already-disposed transport and hand a dead connection to the server runtime.
