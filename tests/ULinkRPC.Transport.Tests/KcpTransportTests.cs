@@ -69,38 +69,34 @@ public class KcpTransportTests
     }
 
     [Fact]
-    public async Task KcpListener_MalformedSessionDatagram_DoesNotStopAcceptingNewConnections()
+    public async Task KcpListener_SessionProcessingFailure_DoesNotStopAcceptingNewConnections()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         await using var listener = new KcpListener(new IPEndPoint(IPAddress.Loopback, 0));
         var serverEndPoint = (IPEndPoint)listener.LocalEndPoint!;
-        using var firstClient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        firstClient.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        var acceptFirstTask = listener.AcceptAsync(cts.Token).AsTask();
 
-        const uint firstConversationId = 1;
-        firstClient.SendTo(CreateHandshakeRequest(firstConversationId), serverEndPoint);
+        await using var firstClient = new KcpTransport(IPAddress.Loopback.ToString(), serverEndPoint.Port);
+        await firstClient.ConnectAsync(cts.Token);
 
-        var acceptedFirst = await WithTimeout(listener.AcceptAsync(cts.Token), cts.Token);
+        var acceptedFirst = await WithTimeout(acceptFirstTask, cts.Token);
         await using var firstTransport = acceptedFirst.Transport;
 
-        firstClient.SendTo(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03 }, serverEndPoint);
+        ForceFrameAccumulatorOverflowOnNextAppend(firstTransport);
+        await firstClient.SendFrameAsync(new byte[] { 0x01 }, cts.Token);
 
         await Task.Delay(150, cts.Token);
 
-        using var secondClient = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        secondClient.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-
-        const uint secondConversationId = 2;
-        secondClient.SendTo(CreateHandshakeRequest(secondConversationId), serverEndPoint);
-
         using var acceptCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, acceptCts.Token);
+        var acceptSecondTask = listener.AcceptAsync(linkedCts.Token).AsTask();
 
-        var acceptedSecond = await listener.AcceptAsync(linkedCts.Token);
+        await using var secondClient = new KcpTransport(IPAddress.Loopback.ToString(), serverEndPoint.Port);
+        await secondClient.ConnectAsync(linkedCts.Token);
+
+        var acceptedSecond = await acceptSecondTask;
         await acceptedSecond.Transport.DisposeAsync();
-
-        Assert.Equal(secondConversationId, acceptedSecond.ConversationId);
     }
 
     [Fact]
@@ -254,6 +250,21 @@ public class KcpTransportTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task KcpServerTransport_DisposeAsync_CanBeCalledMultipleTimes()
+    {
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+
+        await using var transport = new KcpServerTransport(
+            socket,
+            new IPEndPoint(IPAddress.Loopback, ((IPEndPoint)socket.LocalEndPoint!).Port),
+            conv: 1);
+
+        await transport.DisposeAsync();
+        await transport.DisposeAsync();
+    }
+
     private static async Task WithTimeout(Task task, CancellationToken ct)
     {
         var delay = Task.Delay(Timeout.InfiniteTimeSpan, ct);
@@ -285,6 +296,19 @@ public class KcpTransportTests
         "UKCP"u8.CopyTo(buffer);
         BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(4, 4), conv);
         return buffer;
+    }
+
+    private static void ForceFrameAccumulatorOverflowOnNextAppend(KcpServerTransport transport)
+    {
+        var accumulatorField = typeof(KcpServerTransport).GetField("_accumulator", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(accumulatorField);
+
+        var accumulator = accumulatorField!.GetValue(transport);
+        Assert.NotNull(accumulator);
+
+        var countField = accumulator!.GetType().GetField("_count", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(countField);
+        countField!.SetValue(accumulator, LengthPrefix.DefaultMaxFrameSize);
     }
 
     private static IReadOnlyList<MethodBase> GetCalledMethods(MethodInfo method)

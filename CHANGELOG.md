@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.6
+
+- Release packages:
+	- `ULinkRPC.Transport.Kcp` `0.11.6`
+- Fixed KCP listener fault isolation so a single broken session no longer takes down the entire listener loop.
+- Before this fix, if `KcpServerTransport.ProcessDatagram(...)` failed for one accepted connection, the exception escaped from `KcpListener.ReceiveLoopAsync()`. That stopped all future accepts and even caused `KcpListener.DisposeAsync()` to rethrow the background failure during shutdown.
+- `KcpListener` now isolates per-session datagram processing failures, disposes only the offending session, and keeps listening for new connections.
+- Hardened `KcpServerTransport.DisposeAsync()` to be idempotent so listener-driven session disposal and upper-layer connection teardown can safely converge on the same transport instance.
+- Tests:
+	- Added a regression test proving one session-processing failure does not prevent later KCP connections from being accepted.
+	- Added regression coverage that `KcpServerTransport.DisposeAsync()` is safe to call multiple times.
+- Compatibility:
+	- The wire protocol is unchanged.
+	- The fix applies to the KCP package runtime without altering the public API surface.
+
 ## 0.11.5
 
 - Release packages:

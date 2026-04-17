@@ -122,7 +122,16 @@ namespace ULinkRPC.Transport.Kcp
                 if (!KcpHandshake.TryParseRequest(packet.Span, out var conv))
                 {
                     if (_sessions.TryGetValue(key, out var existingSession))
-                        existingSession.Transport.ProcessDatagram(packet.Span);
+                    {
+                        try
+                        {
+                            existingSession.Transport.ProcessDatagram(packet.Span);
+                        }
+                        catch when (!_cts.IsCancellationRequested)
+                        {
+                            await DisposeSessionAsync(key).ConfigureAwait(false);
+                        }
+                    }
 
                     continue;
                 }
@@ -171,7 +180,9 @@ namespace ULinkRPC.Transport.Kcp
                     ReleasePendingSlot();
                     if (transport is not null)
                         await transport.DisposeAsync().ConfigureAwait(false);
-                    throw;
+
+                    if (_cts.IsCancellationRequested)
+                        break;
                 }
 
                 continue;
@@ -194,6 +205,12 @@ namespace ULinkRPC.Transport.Kcp
         private void ReleasePendingSlot()
         {
             Interlocked.Decrement(ref _pendingAcceptedConnections);
+        }
+
+        private async ValueTask DisposeSessionAsync(RemoteSessionKey key)
+        {
+            if (_sessions.TryRemove(key, out var record))
+                await record.Transport.DisposeAsync().ConfigureAwait(false);
         }
 
         private sealed class SessionRecord

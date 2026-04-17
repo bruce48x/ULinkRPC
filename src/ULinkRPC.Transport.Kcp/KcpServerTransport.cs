@@ -25,6 +25,7 @@ namespace ULinkRPC.Transport.Kcp
         private readonly LengthPrefixedFrameAccumulator _accumulator = new();
         private readonly CancellationTokenSource _cts = new();
         private IDisposable? _updateRegistration;
+        private int _disposed;
 
         public KcpServerTransport(Socket socket, EndPoint remote, uint conv, Action? onDispose = null)
         {
@@ -118,13 +119,36 @@ namespace ULinkRPC.Transport.Kcp
 
         public async ValueTask DisposeAsync()
         {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
             IsConnected = false;
-            _cts.Cancel();
+            try
+            {
+                _cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
             _updateRegistration?.Dispose();
             _updateRegistration = null;
             _kcp.Dispose();
-            _frameSignal.Release();
-            _cts.Dispose();
+            try
+            {
+                _frameSignal.Release();
+            }
+            catch (SemaphoreFullException)
+            {
+            }
+
+            try
+            {
+                _cts.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
 
             _onDispose?.Invoke();
             while (_frames.TryDequeue(out var frame))
