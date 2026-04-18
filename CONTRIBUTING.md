@@ -134,7 +134,7 @@ dotnet run --project src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj --
 Or use `gen.sh` / `gen.ps1`.
 These live under `scripts/`.
 
-- Generated client stubs and test binders go to `samples/RpcCall/RpcCall.Unity/Assets/Scripts/Rpc/RpcGenerated/` and must be committed.
+- Generated client stubs and test binders go to `samples/RpcCall/RpcCall.Unity/Assets/Scripts/Rpc/Generated/` and must be committed.
 - Do **not** edit generated files; they will be overwritten.
 - Generated code must be deterministic, IL2CPP-friendly, and avoid heavy reflection.
 

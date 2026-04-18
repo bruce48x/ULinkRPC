@@ -259,7 +259,8 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("SessionState.GetBool(SessionStateKey, false)", autoOpenSceneScript);
             Assert.Contains("Assets/Scenes/ConnectionTest.unity", editorBuildSettings);
             Assert.Contains("guid: d4d2d5faafe942e58a33f4a41e3b7cf2", editorBuildSettings);
-            Assert.False(File.Exists(starterGeneratedAsmdefPath));
+            Assert.True(File.Exists(starterGeneratedAsmdefPath));
+            Assert.Contains("\"name\": \"ULinkRPC.Generated\"", File.ReadAllText(starterGeneratedAsmdefPath));
         }
         finally
         {
@@ -427,6 +428,13 @@ public sealed class StarterTemplateGeneratorTests
                     var outputDir = Path.Combine(workingDirectory, "Assets", "Scripts", "Rpc", "Generated");
                     Directory.CreateDirectory(outputDir);
                     File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
+                    File.WriteAllText(
+                        Path.Combine(outputDir, "ULinkRPC.Generated.asmdef"),
+                        """
+{
+  "name": "ULinkRPC.Generated"
+}
+""");
                     return;
                 }
             }

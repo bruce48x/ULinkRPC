@@ -198,7 +198,7 @@ MyGame/Server/Server
 以及：
 
 ```bash
-dotnet tool run ulinkrpc-codegen -- --contracts "./Shared" --mode unity --output "Assets/Scripts/Rpc/RpcGenerated" --namespace "Client.Generated"
+dotnet tool run ulinkrpc-codegen -- --contracts "./Shared" --mode unity --output "Assets/Scripts/Rpc/Generated" --namespace "Rpc.Generated"
 ```
 
 工作目录是：
@@ -217,7 +217,7 @@ dotnet tool restore
 cd Server/Server
 dotnet tool run ulinkrpc-codegen -- --contracts "../../Shared" --mode server --server-output "Generated" --server-namespace "Server.Generated"
 cd ../../Client
-dotnet tool run ulinkrpc-codegen -- --contracts "../Shared" --mode unity --output "Assets/Scripts/Rpc/RpcGenerated" --namespace "Client.Generated"
+dotnet tool run ulinkrpc-codegen -- --contracts "../Shared" --mode unity --output "Assets/Scripts/Rpc/Generated" --namespace "Rpc.Generated"
 ```
 
 ### codegen 会产出什么
@@ -230,7 +230,7 @@ server 模式会更新：
 
 unity 模式会更新：
 
-- `Client/Assets/Scripts/Rpc/RpcGenerated/RpcApi.cs`
+- `Client/Assets/Scripts/Rpc/Generated/RpcApi.cs`
 - 各服务对应的 client stub
 - callback binder
 
@@ -241,7 +241,7 @@ unity 模式会更新：
 如果你只是想确认自己有没有漏跑，可以直接检查这两个目录是否已更新：
 
 - `Server/Server/Generated/`
-- `Client/Assets/Scripts/Rpc/RpcGenerated/`
+- `Client/Assets/Scripts/Rpc/Generated/`
 
 ## 服务端怎么启动
 
