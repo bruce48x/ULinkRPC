@@ -72,6 +72,37 @@ public class PathHelperTests
         }
     }
 
+    [Fact]
+    public void IsGodotProject_TrueWhenProjectFileExists()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"godot_test_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "project.godot"), "[application]");
+            Assert.True(PathHelper.IsGodotProject(dir));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void IsGodotProject_FalseWhenProjectFileMissing()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"godot_test_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            Assert.False(PathHelper.IsGodotProject(dir));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     #endregion
 
     #region FindUnityProjectRoot
@@ -104,6 +135,41 @@ public class PathHelperTests
         {
             Directory.CreateDirectory(dir);
             Assert.Null(PathHelper.FindUnityProjectRoot(dir));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void FindGodotProjectRoot_FindsRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"godot_root_{Guid.NewGuid():N}");
+        var nested = Path.Combine(root, "Scripts", "Rpc");
+        try
+        {
+            Directory.CreateDirectory(nested);
+            File.WriteAllText(Path.Combine(root, "project.godot"), "[application]");
+
+            var found = PathHelper.FindGodotProjectRoot(nested);
+            Assert.NotNull(found);
+            Assert.Equal(Path.GetFullPath(root), Path.GetFullPath(found));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void FindGodotProjectRoot_ReturnsNullWhenNotFound()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"no_godot_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            Assert.Null(PathHelper.FindGodotProjectRoot(dir));
         }
         finally
         {
@@ -153,7 +219,7 @@ public class PathHelperTests
     [Fact]
     public void DeriveNamespaceFromOutputPath_Empty_ReturnsFallback()
     {
-        Assert.Equal(PathHelper.DefaultUnityRuntimeNamespace,
+        Assert.Equal(PathHelper.DefaultClientRuntimeNamespace,
             PathHelper.DeriveNamespaceFromOutputPath(""));
     }
 
@@ -170,7 +236,7 @@ public class PathHelperTests
     {
         var path = Path.Combine("C:", "MyUnity", "Assets", "Scripts");
         var result = PathHelper.DeriveNamespaceFromOutputPath(path);
-        Assert.Equal(PathHelper.DefaultUnityRuntimeNamespace, result);
+        Assert.Equal(PathHelper.DefaultClientRuntimeNamespace, result);
     }
 
     [Fact]
@@ -187,6 +253,14 @@ public class PathHelperTests
         var path = Path.Combine("C:", "SomeDir", "MyModule");
         var result = PathHelper.DeriveNamespaceFromOutputPath(path);
         Assert.Contains("MyModule", result);
+    }
+
+    [Fact]
+    public void DeriveNamespaceFromOutputPath_GodotScripts_SkipsPrefix()
+    {
+        var path = Path.Combine("C:", "MyGodot", "Scripts", "Rpc", "Generated");
+        var result = PathHelper.DeriveNamespaceFromOutputPath(path);
+        Assert.Equal("Rpc.Generated", result);
     }
 
     #endregion

@@ -2,15 +2,15 @@ namespace ULinkRPC.Starter;
 
 internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet, Action<string, string> runGit)
 {
-    public void GenerateTemplate(string rootPath, string projectName, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
+    public void GenerateTemplate(string rootPath, string projectName, ClientEngineKind clientEngine, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
     {
-        var context = CreateContext(rootPath, projectName, transport, serializer, versions);
+        var context = CreateContext(rootPath, projectName, clientEngine, transport, serializer, versions);
 
         GenerateGitIgnore(context.Paths.RootPath);
         StarterSharedTemplate.Generate(context);
         StarterServerTemplate.Generate(context);
         GenerateSolution(context.Paths.ServerRootPath);
-        StarterUnityTemplate.Generate(context);
+        GenerateClientTemplate(context);
         GenerateCodeGenToolManifest(context);
         RunCodeGen(context);
         InitializeGit(context.Paths.RootPath);
@@ -19,6 +19,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     private static StarterTemplateContext CreateContext(
         string rootPath,
         string projectName,
+        ClientEngineKind clientEngine,
         TransportKind transport,
         SerializerKind serializer,
         ResolvedVersions versions)
@@ -38,10 +39,26 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         return new StarterTemplateContext(
             projectName,
             MakeCompanyId(projectName),
+            clientEngine,
             transport,
             serializer,
             versions,
             paths);
+    }
+
+    private static void GenerateClientTemplate(StarterTemplateContext context)
+    {
+        switch (context.ClientEngine)
+        {
+            case ClientEngineKind.Unity:
+                StarterUnityTemplate.Generate(context);
+                return;
+            case ClientEngineKind.Godot:
+                StarterGodotTemplate.Generate(context);
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(context.ClientEngine), context.ClientEngine, null);
+        }
     }
 
     private void InitializeGit(string rootPath)
@@ -77,7 +94,9 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
 
         runDotNet(
             context.Paths.ClientPath,
-            $"tool run ulinkrpc-codegen -- --contracts \"{context.Paths.SharedPath}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"");
+            context.ClientEngine == ClientEngineKind.Unity
+                ? $"tool run ulinkrpc-codegen -- --contracts \"{context.Paths.SharedPath}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\""
+                : $"tool run ulinkrpc-codegen -- --contracts \"{context.Paths.SharedPath}\" --mode godot --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"");
     }
 
     private static void GenerateGitIgnore(string rootPath)
@@ -97,6 +116,7 @@ Thumbs.db
 **/bin/
 **/obj/
 /_artifacts/
+/Client/.godot/
 
 # Unity generated folders
 /Client/[Ll]ibrary/
@@ -124,6 +144,12 @@ Thumbs.db
 
 # NuGetForUnity restored packages
 /Client/Assets/Packages/
+
+# Godot generated files
+/Client/.mono/
+/Client/export_presets.cfg
+/Client/*.csproj
+/Client/*.sln
 
 # Logs
 *.log

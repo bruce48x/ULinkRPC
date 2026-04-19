@@ -16,7 +16,19 @@ public class CliParserTests
         Assert.Equal("/c", opt.ContractsPath);
         Assert.Equal(OutputMode.Unity, opt.Mode);
         Assert.Equal("/o", opt.OutputPath);
-        Assert.Equal("My.Ns", opt.UnityNamespace);
+        Assert.Equal("My.Ns", opt.ClientNamespace);
+    }
+
+    [Fact]
+    public void Parse_GodotMode_AllOptions()
+    {
+        var args = new[] { "--contracts", "/c", "--mode", "godot", "--output", "/o", "--namespace", "My.Ns" };
+
+        Assert.True(CliParser.TryParseCliArguments(args, out var opt, out _));
+        Assert.Equal("/c", opt.ContractsPath);
+        Assert.Equal(OutputMode.Godot, opt.Mode);
+        Assert.Equal("/o", opt.OutputPath);
+        Assert.Equal("My.Ns", opt.ClientNamespace);
     }
 
     [Fact]
@@ -64,6 +76,9 @@ public class CliParserTests
     [InlineData("unity", "Unity")]
     [InlineData("Unity", "Unity")]
     [InlineData("UNITY", "Unity")]
+    [InlineData("godot", "Godot")]
+    [InlineData("Godot", "Godot")]
+    [InlineData("GODOT", "Godot")]
     [InlineData("server", "Server")]
     [InlineData("Server", "Server")]
     [InlineData("SERVER", "Server")]
@@ -80,7 +95,16 @@ public class CliParserTests
         var args = new[] { "--contracts", "/c", "--mode", "unity" };
         Assert.True(CliParser.TryParseCliArguments(args, out var opt, out _));
         Assert.Equal(string.Empty, opt.OutputPath);
-        Assert.Equal(string.Empty, opt.UnityNamespace);
+        Assert.Equal(string.Empty, opt.ClientNamespace);
+    }
+
+    [Fact]
+    public void Parse_MinimalGodotArgs()
+    {
+        var args = new[] { "--contracts", "/c", "--mode", "godot" };
+        Assert.True(CliParser.TryParseCliArguments(args, out var opt, out _));
+        Assert.Equal(string.Empty, opt.OutputPath);
+        Assert.Equal(string.Empty, opt.ClientNamespace);
     }
 
     [Fact]
@@ -206,7 +230,7 @@ public class CliParserTests
             var raw = new RawOptions(tempDir, "/out", "Custom.Ns", "", "", OutputMode.Unity);
             Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _));
             Assert.Equal(Path.GetFullPath("/out"), opt.OutputPath);
-            Assert.Equal("Custom.Ns", opt.UnityNamespace);
+            Assert.Equal("Custom.Ns", opt.ClientNamespace);
         }
         finally
         {
@@ -229,6 +253,47 @@ public class CliParserTests
             Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _, currentDirectory: cwd));
             Assert.Equal(OutputMode.Unity, opt.Mode);
             Assert.Equal(Path.Combine(root, PathHelper.DefaultUnityOutputRelativePath), opt.OutputPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_GodotMode_ExplicitOutputAndNamespace()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"test_contracts_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var raw = new RawOptions(tempDir, "/out", "Custom.Ns", "", "", OutputMode.Godot);
+            Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _));
+            Assert.Equal(Path.GetFullPath("/out"), opt.OutputPath);
+            Assert.Equal("Custom.Ns", opt.ClientNamespace);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_AutoDetectsGodotMode_FromCurrentDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"godot_codegen_{Guid.NewGuid():N}");
+        var cwd = Path.Combine(root, "Scripts", "Gameplay");
+        var contracts = Path.Combine(root, "Contracts");
+        try
+        {
+            Directory.CreateDirectory(cwd);
+            Directory.CreateDirectory(contracts);
+            File.WriteAllText(Path.Combine(root, "project.godot"), "[application]\nconfig/name=\"Demo\"");
+
+            var raw = new RawOptions(contracts, "", "", "", "", OutputMode.Unknown);
+            Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _, currentDirectory: cwd));
+            Assert.Equal(OutputMode.Godot, opt.Mode);
+            Assert.Equal(Path.Combine(root, PathHelper.DefaultGodotOutputRelativePath), opt.OutputPath);
         }
         finally
         {

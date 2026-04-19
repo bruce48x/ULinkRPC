@@ -5,11 +5,15 @@ namespace ULinkRPC.CodeGen;
 internal static class PathHelper
 {
     public const string DefaultUnityOutputRelativePath = "Assets/Scripts/Rpc/Generated";
-    public const string DefaultUnityRuntimeNamespace = "Rpc.Generated";
+    public const string DefaultGodotOutputRelativePath = "Scripts/Rpc/Generated";
+    public const string DefaultClientRuntimeNamespace = "Rpc.Generated";
 
     public static bool IsUnityProject(string path) =>
         Directory.Exists(Path.Combine(path, "Assets")) &&
         Directory.Exists(Path.Combine(path, "Packages"));
+
+    public static bool IsGodotProject(string path) =>
+        File.Exists(Path.Combine(path, "project.godot"));
 
     public static bool IsServerProjectDirectory(string path) =>
         !IsUnityProject(path) &&
@@ -27,6 +31,33 @@ internal static class PathHelper
         }
         return null;
     }
+
+    public static string? FindGodotProjectRoot(string startPath)
+    {
+        var dir = new DirectoryInfo(startPath);
+        while (dir != null)
+        {
+            if (IsGodotProject(dir.FullName))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+
+        return null;
+    }
+
+    public static string? FindClientProjectRoot(string startPath, OutputMode mode) => mode switch
+    {
+        OutputMode.Unity => FindUnityProjectRoot(startPath),
+        OutputMode.Godot => FindGodotProjectRoot(startPath),
+        _ => null
+    };
+
+    public static string GetDefaultClientOutputRelativePath(OutputMode mode) => mode switch
+    {
+        OutputMode.Unity => DefaultUnityOutputRelativePath,
+        OutputMode.Godot => DefaultGodotOutputRelativePath,
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unsupported client mode.")
+    };
 
     public static string? TryFindNearestAssemblyDefinitionName(string startPath)
     {
@@ -71,7 +102,7 @@ internal static class PathHelper
     public static string DeriveNamespaceFromOutputPath(string outputPath)
     {
         if (string.IsNullOrWhiteSpace(outputPath))
-            return DefaultUnityRuntimeNamespace;
+            return DefaultClientRuntimeNamespace;
 
         var fullPath = Path.GetFullPath(outputPath);
         var segments = fullPath
@@ -80,7 +111,7 @@ internal static class PathHelper
             .ToList();
 
         if (segments.Count == 0)
-            return DefaultUnityRuntimeNamespace;
+            return DefaultClientRuntimeNamespace;
 
         var startIndex = 0;
         for (var i = 0; i < segments.Count - 1; i++)
@@ -91,11 +122,17 @@ internal static class PathHelper
                 startIndex = i + 2;
                 break;
             }
+
+            if (segments[i].Equals("Scripts", StringComparison.OrdinalIgnoreCase))
+            {
+                startIndex = i + 1;
+                break;
+            }
         }
 
         var relevantSegments = segments.Skip(startIndex).ToList();
         if (relevantSegments.Count == 0)
-            return DefaultUnityRuntimeNamespace;
+            return DefaultClientRuntimeNamespace;
 
         var normalizedSegments = new List<string>();
         for (var i = 0; i < relevantSegments.Count; i++)
@@ -118,7 +155,7 @@ internal static class PathHelper
         }
 
         return normalizedSegments.Count == 0
-            ? DefaultUnityRuntimeNamespace
+            ? DefaultClientRuntimeNamespace
             : string.Join('.', normalizedSegments);
     }
 

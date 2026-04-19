@@ -13,6 +13,7 @@ internal static class Program
 
         var transport = options.Transport ?? StarterCli.PromptTransport();
         var serializer = options.Serializer ?? StarterCli.PromptSerializer();
+        var clientEngine = options.ClientEngine ?? StarterCli.PromptClientEngine();
 
         var rootPath = Path.GetFullPath(Path.Combine(options.OutputDir, options.ProjectName));
         var versions = NuGetVersionResolver.ResolveVersions(transport, serializer);
@@ -22,7 +23,7 @@ internal static class Program
         {
             StarterOutputManager.GenerateIntoTargetDirectory(
                 rootPath,
-                stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, transport, serializer, versions));
+                stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, clientEngine, transport, serializer, versions));
         }
         catch (InvalidOperationException ex)
         {
@@ -34,7 +35,9 @@ internal static class Program
         Console.WriteLine("Next steps:");
         Console.WriteLine($"  1) cd \"{rootPath}\"");
         Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
-        Console.WriteLine("  3) Open \"Client\" with Unity 2022 LTS.");
+        Console.WriteLine(clientEngine == ClientEngineKind.Unity
+            ? "  3) Open \"Client\" with Unity 2022 LTS."
+            : "  3) Open \"Client\" with Godot 4.x and build the C# solution.");
 
         return 0;
     }

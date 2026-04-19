@@ -118,7 +118,7 @@ internal sealed class FacadeMemberInfo(RpcServiceInfo service, string propertyNa
 internal sealed record RawOptions(
     string ContractsPath,
     string OutputPath,
-    string UnityNamespace,
+    string ClientNamespace,
     string ServerOutputPath,
     string ServerNamespace,
     OutputMode Mode)
@@ -131,7 +131,7 @@ internal sealed record RawOptions(
 internal sealed record ResolvedOptions(
     string ContractsPath,
     string OutputPath,
-    string UnityNamespace,
+    string ClientNamespace,
     string ServerOutputPath,
     string ServerNamespace,
     OutputMode Mode)
@@ -145,5 +145,6 @@ internal enum OutputMode
 {
     Unknown,
     Unity,
+    Godot,
     Server
 }

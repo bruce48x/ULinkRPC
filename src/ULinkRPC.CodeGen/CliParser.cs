@@ -10,14 +10,15 @@ internal static class CliParser
         Console.WriteLine("Options:");
         Console.WriteLine("  --contracts <path>      Path to contract sources");
         Console.WriteLine("  --output <path>         Output directory for generated files");
-        Console.WriteLine("  --namespace <ns>        Namespace for generated Unity code");
+        Console.WriteLine("  --namespace <ns>        Namespace for generated client code");
         Console.WriteLine("  --server-output <path>  Output directory for server binders");
         Console.WriteLine("  --server-namespace <ns> Namespace for server binders");
-        Console.WriteLine("  --mode <unity|server>   Generation mode (optional if current directory can be auto-detected)");
+        Console.WriteLine("  --mode <unity|godot|server> Generation mode (optional if current directory can be auto-detected)");
         Console.WriteLine();
         Console.WriteLine("Defaults:");
         Console.WriteLine("  unity: output defaults to Assets/Scripts/Rpc/Generated under Unity project root.");
-        Console.WriteLine("  unity: namespace defaults to value derived from output path.");
+        Console.WriteLine("  godot: output defaults to Scripts/Rpc/Generated under Godot project root.");
+        Console.WriteLine("  client modes: namespace defaults to value derived from output path.");
         Console.WriteLine("  server: output defaults to ./Generated");
     }
 
@@ -26,7 +27,7 @@ internal static class CliParser
         options = RawOptions.Empty;
         var contractsPath = string.Empty;
         var outputPath = string.Empty;
-        var unityNamespace = string.Empty;
+        var clientNamespace = string.Empty;
         var serverOutputPath = string.Empty;
         var serverNamespace = string.Empty;
         var mode = OutputMode.Unknown;
@@ -40,7 +41,7 @@ internal static class CliParser
             else if (arg == "--output" && i + 1 < args.Length)
                 outputPath = args[++i];
             else if (arg == "--namespace" && i + 1 < args.Length)
-                unityNamespace = args[++i];
+                clientNamespace = args[++i];
             else if (arg == "--server-output" && i + 1 < args.Length)
                 serverOutputPath = args[++i];
             else if (arg == "--server-namespace" && i + 1 < args.Length)
@@ -62,7 +63,7 @@ internal static class CliParser
             }
         }
 
-        options = new RawOptions(contractsPath, outputPath, unityNamespace, serverOutputPath, serverNamespace, mode);
+        options = new RawOptions(contractsPath, outputPath, clientNamespace, serverOutputPath, serverNamespace, mode);
         return true;
     }
 
@@ -90,41 +91,43 @@ internal static class CliParser
             mode = DetectModeFromCurrentDirectory(cwd);
             if (mode == OutputMode.Unknown)
             {
-                error = "Missing option: --mode <unity|server>. Auto-detection only works inside a Unity project or a server project directory.";
+                error = "Missing option: --mode <unity|godot|server>. Auto-detection only works inside a Unity project, a Godot project, or a server project directory.";
                 return false;
             }
         }
 
         var contractsPath = Path.GetFullPath(raw.ContractsPath);
         var outputPath = string.Empty;
-        var unityNamespace = string.Empty;
+        var clientNamespace = string.Empty;
         var serverOutputPath = string.Empty;
         var serverNamespace = string.Empty;
 
-        if (mode == OutputMode.Unity)
+        if (mode is OutputMode.Unity or OutputMode.Godot)
         {
             if (string.IsNullOrWhiteSpace(raw.OutputPath))
             {
-                var unityRoot = PathHelper.FindUnityProjectRoot(cwd);
-                if (unityRoot == null)
+                var clientRoot = PathHelper.FindClientProjectRoot(cwd, mode);
+                if (clientRoot == null)
                 {
-                    error = "Unity mode requires --output when current directory is not inside a Unity project.";
+                    error = mode == OutputMode.Unity
+                        ? "Unity mode requires --output when current directory is not inside a Unity project."
+                        : "Godot mode requires --output when current directory is not inside a Godot project.";
                     return false;
                 }
-                outputPath = Path.Combine(unityRoot, PathHelper.DefaultUnityOutputRelativePath);
+                outputPath = Path.Combine(clientRoot, PathHelper.GetDefaultClientOutputRelativePath(mode));
             }
             else
             {
                 outputPath = Path.GetFullPath(raw.OutputPath);
             }
 
-            unityNamespace = string.IsNullOrWhiteSpace(raw.UnityNamespace)
+            clientNamespace = string.IsNullOrWhiteSpace(raw.ClientNamespace)
                 ? PathHelper.DeriveNamespaceFromOutputPath(outputPath)
-                : raw.UnityNamespace;
+                : raw.ClientNamespace;
 
-            if (!IsValidNamespace(unityNamespace))
+            if (!IsValidNamespace(clientNamespace))
             {
-                error = $"Invalid namespace '{unityNamespace}'. A namespace must be a valid C# identifier (e.g., 'MyApp.Generated').";
+                error = $"Invalid namespace '{clientNamespace}'. A namespace must be a valid C# identifier (e.g., 'MyApp.Generated').";
                 return false;
             }
         }
@@ -150,7 +153,7 @@ internal static class CliParser
             return false;
         }
 
-        options = new ResolvedOptions(contractsPath, outputPath, unityNamespace, serverOutputPath, serverNamespace, mode);
+        options = new ResolvedOptions(contractsPath, outputPath, clientNamespace, serverOutputPath, serverNamespace, mode);
         return true;
     }
 
@@ -158,6 +161,9 @@ internal static class CliParser
     {
         if (PathHelper.FindUnityProjectRoot(currentDirectory) is not null)
             return OutputMode.Unity;
+
+        if (PathHelper.FindGodotProjectRoot(currentDirectory) is not null)
+            return OutputMode.Godot;
 
         if (PathHelper.FindServerProjectRoot(currentDirectory) is not null)
             return OutputMode.Server;
@@ -190,6 +196,9 @@ internal static class CliParser
         {
             case "unity":
                 mode = OutputMode.Unity;
+                return true;
+            case "godot":
+                mode = OutputMode.Godot;
                 return true;
             case "server":
                 mode = OutputMode.Server;

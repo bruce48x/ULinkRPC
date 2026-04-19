@@ -71,7 +71,7 @@ internal static class Program
 
     private static int GenerateFiles(List<RpcServiceInfo> services, ResolvedOptions options)
     {
-        if (options.Mode == OutputMode.Unity)
+        if (options.Mode is OutputMode.Unity or OutputMode.Godot)
             Directory.CreateDirectory(options.OutputPath);
 
         if (options.Mode == OutputMode.Server)
@@ -80,16 +80,16 @@ internal static class Program
         var generated = 0;
         foreach (var svc in services)
         {
-            if (options.Mode == OutputMode.Unity)
+            if (options.Mode is OutputMode.Unity or OutputMode.Godot)
             {
-                var client = ClientEmitter.GenerateClient(svc, options.UnityNamespace, CoreRuntimeUsing);
+                var client = ClientEmitter.GenerateClient(svc, options.ClientNamespace, CoreRuntimeUsing);
                 var clientTypeName = NamingHelper.GetClientTypeName(svc.InterfaceName);
                 File.WriteAllText(Path.Combine(options.OutputPath, $"{clientTypeName}.cs"), client, Encoding.UTF8);
                 generated++;
 
                 if (svc.HasCallback)
                 {
-                    var cbBinder = ClientEmitter.GenerateCallbackBinder(svc, options.UnityNamespace, CoreRuntimeUsing);
+                    var cbBinder = ClientEmitter.GenerateCallbackBinder(svc, options.ClientNamespace, CoreRuntimeUsing);
                     var cbBinderTypeName = NamingHelper.GetCallbackBinderTypeName(svc.CallbackInterfaceName!);
                     File.WriteAllText(Path.Combine(options.OutputPath, $"{cbBinderTypeName}.cs"), cbBinder, Encoding.UTF8);
                     generated++;
@@ -113,11 +113,11 @@ internal static class Program
             }
         }
 
-        if (options.Mode == OutputMode.Unity)
+        if (options.Mode is OutputMode.Unity or OutputMode.Godot)
         {
             var facade = FacadeEmitter.GenerateClientFacade(
                 services,
-                options.UnityNamespace,
+                options.ClientNamespace,
                 CoreRuntimeUsing,
                 ClientRuntimeUsing);
             File.WriteAllText(Path.Combine(options.OutputPath, "RpcApi.cs"), facade, Encoding.UTF8);

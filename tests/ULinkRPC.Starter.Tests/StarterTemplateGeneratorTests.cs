@@ -85,7 +85,7 @@ public sealed class StarterTemplateGeneratorTests
         {
             var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
 
-            generator.GenerateTemplate(root, "My Game!@#$", TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
+            generator.GenerateTemplate(root, "My Game!@#$", ClientEngineKind.Unity, TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
 
             var sharedProps = File.ReadAllText(Path.Combine(root, "Shared", "Directory.Build.props"));
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
@@ -145,7 +145,7 @@ public sealed class StarterTemplateGeneratorTests
             var gitCommands = new List<string>();
             var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner(gitCommands));
 
-            generator.GenerateTemplate(root, "Starter-App", TransportKind.Tcp, SerializerKind.Json, Versions);
+            generator.GenerateTemplate(root, "Starter-App", ClientEngineKind.Unity, TransportKind.Tcp, SerializerKind.Json, Versions);
 
             var slnxPath = Path.Combine(root, "Server", "Server.slnx");
             var slnx = File.ReadAllText(slnxPath);
@@ -179,7 +179,7 @@ public sealed class StarterTemplateGeneratorTests
         {
             var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
 
-            generator.GenerateTemplate(root, "Bad Project Name %$#", TransportKind.WebSocket, SerializerKind.Json, Versions);
+            generator.GenerateTemplate(root, "Bad Project Name %$#", ClientEngineKind.Unity, TransportKind.WebSocket, SerializerKind.Json, Versions);
 
             var manifestJson = File.ReadAllText(Path.Combine(root, "Client", "Packages", "manifest.json"));
             using var manifest = JsonDocument.Parse(manifestJson);
@@ -276,7 +276,7 @@ public sealed class StarterTemplateGeneratorTests
         {
             var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
 
-            generator.GenerateTemplate(root, "Builder-Test", TransportKind.Tcp, SerializerKind.MemoryPack, Versions);
+            generator.GenerateTemplate(root, "Builder-Test", ClientEngineKind.Unity, TransportKind.Tcp, SerializerKind.MemoryPack, Versions);
 
             var serverProgram = File.ReadAllText(Path.Combine(root, "Server", "Server", "Program.cs"));
 
@@ -304,7 +304,7 @@ public sealed class StarterTemplateGeneratorTests
         {
             var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
 
-            generator.GenerateTemplate(root, "MemoryPack-Test", TransportKind.Tcp, SerializerKind.MemoryPack, Versions);
+            generator.GenerateTemplate(root, "MemoryPack-Test", ClientEngineKind.Unity, TransportKind.Tcp, SerializerKind.MemoryPack, Versions);
 
             var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
 
@@ -333,7 +333,7 @@ public sealed class StarterTemplateGeneratorTests
         {
             var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
 
-            generator.GenerateTemplate(root, "Kcp-Test", TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
+            generator.GenerateTemplate(root, "Kcp-Test", ClientEngineKind.Unity, TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
 
             var packagesConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "packages.config"));
             var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
@@ -355,6 +355,51 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("public sealed partial class PingRequest", sharedDtos);
             Assert.Contains("public sealed partial class PingReply", sharedDtos);
             Assert.Contains("Path: ", scene);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GenerateTemplate_CreatesGodotClientFiles_AndRunsGodotCodeGen()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var commands = new List<string>();
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Godot-Test", ClientEngineKind.Godot, TransportKind.WebSocket, SerializerKind.Json, Versions);
+
+            var projectFile = File.ReadAllText(Path.Combine(root, "Client", "project.godot"));
+            var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.csproj"));
+            var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
+            var scene = File.ReadAllText(Path.Combine(root, "Client", "Main.tscn"));
+            var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
+            var generatedClientApi = Path.Combine(root, "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
+
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode godot --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+            Assert.Contains("config/name=\"Godot-Test\"", projectFile);
+            Assert.Contains("run/main_scene=\"res://Main.tscn\"", projectFile);
+            Assert.Contains("<Project Sdk=\"Godot.NET.Sdk/4.4.1\">", clientCsproj);
+            Assert.Contains("<TargetFramework>net8.0</TargetFramework>", clientCsproj);
+            Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
+            Assert.Contains("Godot 4.x", clientReadme);
+            Assert.Contains("[node name=\"Main\" type=\"Node\"]", scene);
+            Assert.Contains("path=\"res://Scripts/Rpc/Testing/RpcConnectionTester.cs\"", scene);
+            Assert.Contains("using Godot;", testerScript);
+            Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
+            Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
+            Assert.Contains("new WsTransport($\"ws://{_host}:{_port}{NormalizePath(_path)}\")", testerScript);
+            Assert.Contains("new JsonRpcSerializer()", testerScript);
+            Assert.Contains("GD.Print($\"Ping ok:", testerScript);
+            Assert.Contains("[Export] private string _path = \"/ws\";", testerScript);
+            Assert.True(File.Exists(generatedClientApi));
+            Assert.False(File.Exists(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs")));
         }
         finally
         {
@@ -435,6 +480,14 @@ public sealed class StarterTemplateGeneratorTests
   "name": "ULinkRPC.Generated"
 }
 """);
+                    return;
+                }
+
+                if (arguments.Contains("--mode godot", StringComparison.Ordinal))
+                {
+                    var outputDir = Path.Combine(workingDirectory, "Scripts", "Rpc", "Generated");
+                    Directory.CreateDirectory(outputDir);
+                    File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
                     return;
                 }
             }

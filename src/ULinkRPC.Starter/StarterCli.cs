@@ -4,13 +4,14 @@ internal static class StarterCli
 {
     public static void PrintUsage()
     {
-        Console.WriteLine("Usage: ulinkrpc-starter [--name MyGame] [--output ./out] [--transport tcp|websocket|kcp] [--serializer json|memorypack]");
+        Console.WriteLine("Usage: ulinkrpc-starter [--name MyGame] [--output ./out] [--client-engine unity|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack]");
     }
 
     public static bool TryParseArgs(string[] args, out StarterCliOptions options, out string error)
     {
         var projectName = "ULinkApp";
         var outputDir = Directory.GetCurrentDirectory();
+        ClientEngineKind? clientEngine = null;
         TransportKind? transport = null;
         SerializerKind? serializer = null;
         error = string.Empty;
@@ -27,6 +28,19 @@ internal static class StarterCli
             if (arg is "--output" && i + 1 < args.Length)
             {
                 outputDir = args[++i];
+                continue;
+            }
+
+            if (arg is "--client-engine" && i + 1 < args.Length)
+            {
+                if (!TryParseClientEngine(args[++i], out var parsed))
+                {
+                    options = default!;
+                    error = "Invalid --client-engine value.";
+                    return false;
+                }
+
+                clientEngine = parsed;
                 continue;
             }
 
@@ -68,8 +82,27 @@ internal static class StarterCli
             return false;
         }
 
-        options = new StarterCliOptions(projectName, outputDir, transport, serializer);
+        options = new StarterCliOptions(projectName, outputDir, clientEngine, transport, serializer);
         return true;
+    }
+
+    public static ClientEngineKind PromptClientEngine()
+    {
+        Console.WriteLine("Select client engine:");
+        Console.WriteLine("  1) Unity");
+        Console.WriteLine("  2) Godot");
+        while (true)
+        {
+            Console.Write("> ");
+            var line = Console.ReadLine()?.Trim();
+            switch (line)
+            {
+                case "1": return ClientEngineKind.Unity;
+                case "2": return ClientEngineKind.Godot;
+            }
+
+            Console.WriteLine("Please enter 1-2.");
+        }
     }
 
     public static TransportKind PromptTransport()
@@ -133,6 +166,17 @@ internal static class StarterCli
             case "json": serializer = SerializerKind.Json; return true;
             case "memorypack": serializer = SerializerKind.MemoryPack; return true;
             default: serializer = default; return false;
+        }
+    }
+
+    private static bool TryParseClientEngine(string raw, out ClientEngineKind clientEngine)
+    {
+        var normalized = raw.Trim().ToLowerInvariant();
+        switch (normalized)
+        {
+            case "unity": clientEngine = ClientEngineKind.Unity; return true;
+            case "godot": clientEngine = ClientEngineKind.Godot; return true;
+            default: clientEngine = default; return false;
         }
     }
 }

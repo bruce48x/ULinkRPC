@@ -13,6 +13,12 @@ internal enum SerializerKind
     MemoryPack
 }
 
+internal enum ClientEngineKind
+{
+    Unity,
+    Godot
+}
+
 internal sealed record ResolvedVersions(
     string Core,
     string Server,
@@ -26,6 +32,7 @@ internal sealed record ResolvedVersions(
 internal sealed record StarterCliOptions(
     string ProjectName,
     string OutputDir,
+    ClientEngineKind? ClientEngine,
     TransportKind? Transport,
     SerializerKind? Serializer);
 
@@ -39,6 +46,7 @@ internal sealed record StarterPaths(
 internal sealed record StarterTemplateContext(
     string ProjectName,
     string CompanyId,
+    ClientEngineKind ClientEngine,
     TransportKind Transport,
     SerializerKind Serializer,
     ResolvedVersions Versions,

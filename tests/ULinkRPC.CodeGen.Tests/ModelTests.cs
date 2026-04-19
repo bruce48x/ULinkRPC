@@ -140,7 +140,7 @@ public class ModelTests
     [Fact]
     public void ResolvedOptions_WithExpression_CreatesModifiedCopy()
     {
-        var original = new ResolvedOptions("/c", "/o", "Ns", "/so", "SNs", OutputMode.Unity);
+        var original = new ResolvedOptions("/c", "/o", "Ns", "/so", "SNs", OutputMode.Godot);
         var modified = original with { ServerNamespace = "Changed" };
 
         Assert.Equal("SNs", original.ServerNamespace);

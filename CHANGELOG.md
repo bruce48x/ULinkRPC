@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.16.2 / 0.2.27
+
+- Release packages:
+	- `ULinkRPC.CodeGen` `0.16.2`
+	- `ULinkRPC.Starter` `0.2.27`
+- Added Godot 4.x client support to `ULinkRPC.CodeGen`.
+- `ULinkRPC.CodeGen` now supports `--mode godot`, detects Godot projects via `project.godot`, defaults generated output to `Scripts/Rpc/Generated`, and keeps Unity-only `.asmdef` emission scoped to Unity projects.
+- Added Godot 4.x client scaffolding to `ULinkRPC.Starter`.
+- `ULinkRPC.Starter` now supports `--client-engine unity|godot`, prompts for the client engine interactively when omitted, and generates either the existing Unity skeleton or a Godot 4.x C# client skeleton.
+- Updated `ULinkRPC.Starter`'s bundled `ULinkRPC.CodeGen` version so new starter projects install the Godot-capable generator by default.
+
 ## 0.2.26
 
 - Release packages:
