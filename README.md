@@ -2,11 +2,11 @@
 
 [中文说明](./README.zh-CN.md)
 
-ULinkRPC is a strongly-typed bidirectional RPC framework for Unity and .NET.
+ULinkRPC is a strongly-typed bidirectional RPC framework for Unity, Godot, and .NET.
 
 It is designed for projects that need:
 
-- shared contracts between Unity clients and .NET servers
+- shared contracts between Unity or Godot clients and .NET servers
 - typed request/response calls instead of hand-written message ids
 - server-to-client push callbacks
 - transport switching behind one abstraction
@@ -18,7 +18,7 @@ With ULinkRPC, you define interfaces and DTOs once, generate the glue code, then
 
 Typical stack:
 
-- Unity client
+- Unity or Godot client
 - .NET server
 - TCP, WebSocket, or KCP transport
 - MemoryPack or JSON serializer
@@ -100,8 +100,8 @@ If you are starting a new project, read this first:
 
 It covers:
 
-- generating a runnable Unity + .NET project
-- running the default server and Unity client
+- generating a runnable Unity/Godot + .NET project
+- running the default server and generated client
 - when to rerun `ULinkRPC.CodeGen`
 - how `Shared`, `Server`, and `Client` fit together
 
@@ -164,7 +164,7 @@ Code generation:
 ## Repository Layout
 
 - `src/ULinkRPC.*`: runtime, transports, serializers, and code generator
-- `samples/`: runnable Unity + .NET samples
+- `samples/`: runnable client + .NET samples
 - `docs/`: Hugo documentation site for GitHub Pages
 
 ## For Contributors

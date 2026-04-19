@@ -2,11 +2,11 @@
 
 [English](./README.md)
 
-ULinkRPC 是一个面向 Unity 和 .NET 的强类型双向 RPC 框架。
+ULinkRPC 是一个面向 Unity、Godot 和 .NET 的强类型双向 RPC 框架。
 
 它特别适合这类项目：
 
-- Unity 客户端和 .NET 服务端需要共享同一套契约
+- Unity 或 Godot 客户端和 .NET 服务端需要共享同一套契约
 - 希望直接写类型安全的请求/响应调用，而不是手搓消息 ID
 - 需要服务端主动向客户端推送回调
 - 想在统一抽象下灵活切换传输层
@@ -18,7 +18,7 @@ ULinkRPC 是一个面向 Unity 和 .NET 的强类型双向 RPC 框架。
 
 一个常见的组合是：
 
-- Unity 客户端
+- Unity 或 Godot 客户端
 - .NET 服务端
 - TCP、WebSocket 或 KCP 传输层
 - MemoryPack 或 JSON 序列化
@@ -100,8 +100,8 @@ var reply = await player.LoginAsync(new LoginRequest
 
 这篇会覆盖：
 
-- 如何生成一份可运行的 Unity + .NET 项目
-- 如何启动默认服务端和 Unity 客户端
+- 如何生成一份可运行的 Unity/Godot + .NET 项目
+- 如何启动默认服务端和生成好的客户端
 - 什么情况下需要重新运行 `ULinkRPC.CodeGen`
 - `Shared`、`Server`、`Client` 三层分别负责什么
 
@@ -164,7 +164,7 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 ## 仓库结构
 
 - `src/ULinkRPC.*`：运行时、传输层、序列化器和代码生成器
-- `samples/`：可直接运行的 Unity + .NET 示例
+- `samples/`：可直接运行的客户端 + .NET 示例
 - `docs/`：用于 GitHub Pages 的 Hugo 文档站点
 
 ## 给贡献者
