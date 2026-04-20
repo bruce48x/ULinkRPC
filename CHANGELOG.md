@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.35
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.35`
+- Fixed Unity starter `memorypack` package restore again so generated `Assets/packages.config` now references the correct Roslyn package set for `MemoryPack.Generator`.
+- The generated Unity package list now uses `Microsoft.CodeAnalysis.Common` instead of the wrong umbrella `Microsoft.CodeAnalysis` package, and also includes the missing `System.Reflection.Metadata` plus related runtime dependencies required for Unity's first import.
+- This removes the first-import Unity errors where `MemoryPack.Generator.dll` and `Microsoft.CodeAnalysis.CSharp.dll` still failed to load even after the previous `0.2.34` fix.
+
 ## 0.2.34
 
 - Release packages:

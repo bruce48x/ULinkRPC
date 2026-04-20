@@ -172,9 +172,13 @@ Selected serializer: {{context.Serializer}}
             $"  <package id=\"MemoryPack\" version=\"{versions.SerializerRuntime}\" />",
             $"  <package id=\"MemoryPack.Core\" version=\"{versions.SerializerRuntimeCore}\" />",
             $"  <package id=\"MemoryPack.Generator\" version=\"{versions.SerializerRuntime}\" />",
-            $"  <package id=\"Microsoft.CodeAnalysis\" version=\"{UnityPackageVersions.MicrosoftCodeAnalysis}\" />",
+            $"  <package id=\"Microsoft.CodeAnalysis.Common\" version=\"{UnityPackageVersions.MicrosoftCodeAnalysisCommon}\" />",
             $"  <package id=\"Microsoft.CodeAnalysis.CSharp\" version=\"{UnityPackageVersions.MicrosoftCodeAnalysisCSharp}\" />",
             $"  <package id=\"System.Collections.Immutable\" version=\"{UnityPackageVersions.SystemCollectionsImmutable}\" />",
+            $"  <package id=\"System.Reflection.Metadata\" version=\"{UnityPackageVersions.SystemReflectionMetadata}\" />",
+            $"  <package id=\"System.Text.Encoding.CodePages\" version=\"{UnityPackageVersions.SystemTextEncodingCodePages}\" />",
+            $"  <package id=\"System.Threading.Tasks.Extensions\" version=\"{UnityPackageVersions.SystemThreadingTasksExtensionsForRoslyn}\" />",
+            $"  <package id=\"System.Memory\" version=\"{UnityPackageVersions.SystemMemoryForRoslyn}\" />",
             $"  <package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"{UnityPackageVersions.SystemRuntimeCompilerServicesUnsafe}\" />",
             $"  <package id=\"System.IO.Pipelines\" version=\"{UnityPackageVersions.SystemIoPipelines}\" />");
     }

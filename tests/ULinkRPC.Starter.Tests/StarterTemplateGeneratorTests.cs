@@ -317,9 +317,13 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"MemoryPack\" version=\"6.7.8\" />", packagesConfig);
             Assert.Contains("<package id=\"MemoryPack.Core\" version=\"8.9.10\" />", packagesConfig);
             Assert.Contains("<package id=\"MemoryPack.Generator\" version=\"6.7.8\" />", packagesConfig);
-            Assert.Contains("<package id=\"Microsoft.CodeAnalysis\" version=\"4.3.0\" />", packagesConfig);
+            Assert.Contains("<package id=\"Microsoft.CodeAnalysis.Common\" version=\"4.3.0\" />", packagesConfig);
             Assert.Contains("<package id=\"Microsoft.CodeAnalysis.CSharp\" version=\"4.3.0\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Collections.Immutable\" version=\"6.0.0\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Reflection.Metadata\" version=\"5.0.0\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Text.Encoding.CodePages\" version=\"6.0.0\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Threading.Tasks.Extensions\" version=\"4.5.4\" />", packagesConfig);
+            Assert.Contains("<package id=\"System.Memory\" version=\"4.5.4\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"6.1.2\" />", packagesConfig);
             Assert.Contains("<package id=\"System.IO.Pipelines\" version=\"10.0.3\" />", packagesConfig);
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
