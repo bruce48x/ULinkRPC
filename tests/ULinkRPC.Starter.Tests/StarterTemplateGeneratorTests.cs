@@ -67,7 +67,7 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal("0.11.0", jsonVersions.Client);
         Assert.Equal("0.11.3", jsonVersions.Transport);
         Assert.Equal("0.11.0", jsonVersions.Serializer);
-        Assert.Equal("0.16.1", jsonVersions.CodeGen);
+        Assert.Equal("0.16.2", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
@@ -383,6 +383,9 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode godot --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
             Assert.Contains("config/name=\"Godot-Test\"", projectFile);
             Assert.Contains("run/main_scene=\"res://Main.tscn\"", projectFile);
+            Assert.Contains("config/features=PackedStringArray(\"4.4\", \"C#\")", projectFile);
+            Assert.DoesNotContain("websocket", projectFile, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("json", projectFile, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("<Project Sdk=\"Godot.NET.Sdk/4.4.1\">", clientCsproj);
             Assert.Contains("<TargetFramework>net8.0</TargetFramework>", clientCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
@@ -400,6 +403,43 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("[Export] private string _path = \"/ws\";", testerScript);
             Assert.True(File.Exists(generatedClientApi));
             Assert.False(File.Exists(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GenerateTemplate_CreatesGodotKcpMemoryPackClient_WithExpectedReferencesAndScript()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Godot-Kcp", ClientEngineKind.Godot, TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
+
+            var projectFile = File.ReadAllText(Path.Combine(root, "Client", "project.godot"));
+            var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.csproj"));
+            var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
+            var generatedClientApi = Path.Combine(root, "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
+
+            Assert.Contains("config/features=PackedStringArray(\"4.4\", \"C#\")", projectFile);
+            Assert.DoesNotContain("kcp", projectFile, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("memorypack", projectFile, StringComparison.OrdinalIgnoreCase);
+
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.Kcp\" Version=\"4.5.6\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\" Version=\"5.6.7\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"MemoryPack\" Version=\"6.7.8\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"MemoryPack.Core\" Version=\"8.9.10\" />", clientCsproj);
+
+            Assert.Contains("using ULinkRPC.Transport.Kcp;", testerScript);
+            Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);
+            Assert.Contains("new KcpTransport(_host, _port)", testerScript);
+            Assert.Contains("new MemoryPackRpcSerializer()", testerScript);
+            Assert.Contains("[Export] private string _path = \"\";", testerScript);
+            Assert.True(File.Exists(generatedClientApi));
         }
         finally
         {

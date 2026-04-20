@@ -27,7 +27,7 @@ config_version=5
 [application]
 config/name="{{context.ProjectName}}"
 run/main_scene="res://Main.tscn"
-config/features=PackedStringArray("4.4", "C#", "{{context.Serializer}}", "{{context.Transport}}")
+config/features=PackedStringArray("4.4", "C#")
 """;
 
     private static string BuildClientProject(StarterTemplateContext context)

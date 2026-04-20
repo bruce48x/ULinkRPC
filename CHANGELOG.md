@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.28
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.28`
+- Fixed Godot starter generation so `project.godot` no longer writes the selected transport and serializer into `config/features`.
+- This removes false unsupported-feature warnings when opening newly scaffolded Godot projects with combinations like `websocket + memorypack` or `kcp + json`.
+
 ## 0.16.2 / 0.2.27
 
 - Release packages:
