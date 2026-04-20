@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.31
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.31`
+- Fixed Godot starter C# project binding so newly generated `project.godot` files now set `[dotnet] project/assembly_name="Client"` to match the generated `Client.csproj` / `Client.dll`.
+- Fixed Godot starter client output so runtime package dependencies are copied into Godot's load directory and local restores are not blocked by NuGet audit checks in restricted environments.
+- This removes the runtime error where Godot reported that the associated C# class could not be found for `res://Scripts/Rpc/Testing/RpcConnectionTester.cs` even though the script file and class existed.
+
+## 0.2.30
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.30`
+- Fixed Godot starter script binding so the generated `RpcConnectionTester.cs` now declares a top-level `RpcConnectionTester` class that Godot can instantiate from `Main.tscn`.
+- This removes the runtime error where Godot reported that the associated C# class could not be found for `res://Scripts/Rpc/Testing/RpcConnectionTester.cs`.
+
 ## 0.2.29
 
 - Release packages:

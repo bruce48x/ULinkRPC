@@ -47,6 +47,7 @@ internal static class StarterSharedTemplate
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>Shared</RootNamespace>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
   <ItemGroup>

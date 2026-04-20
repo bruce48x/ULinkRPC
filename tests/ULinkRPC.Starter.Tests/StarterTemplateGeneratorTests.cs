@@ -370,11 +370,15 @@ public sealed class StarterTemplateGeneratorTests
         {
             var commands = new List<string>();
             var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner());
+            var sdkSource = CreateFakeGodotSdkSource(root, "4.6.1");
 
-            generator.GenerateTemplate(root, "Godot-Test", ClientEngineKind.Godot, TransportKind.WebSocket, SerializerKind.Json, Versions);
+            WithGodotSdkSource(
+                sdkSource,
+                () => generator.GenerateTemplate(root, "Godot-Test", ClientEngineKind.Godot, TransportKind.WebSocket, SerializerKind.Json, Versions));
 
             var projectFile = File.ReadAllText(Path.Combine(root, "Client", "project.godot"));
             var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.csproj"));
+            var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "NuGet.config"));
             var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
             var scene = File.ReadAllText(Path.Combine(root, "Client", "Main.tscn"));
             var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
@@ -384,19 +388,26 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("config/name=\"Godot-Test\"", projectFile);
             Assert.Contains("run/main_scene=\"res://Main.tscn\"", projectFile);
             Assert.Contains("config/features=PackedStringArray(\"4.4\", \"C#\")", projectFile);
+            Assert.Contains("project/assembly_name=\"Client\"", projectFile);
             Assert.DoesNotContain("websocket", projectFile, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("json", projectFile, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("<Project Sdk=\"Godot.NET.Sdk/4.4.1\">", clientCsproj);
+            Assert.Contains("<Project Sdk=\"Godot.NET.Sdk/4.6.1\">", clientCsproj);
             Assert.Contains("<TargetFramework>net8.0</TargetFramework>", clientCsproj);
+            Assert.Contains("<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>", clientCsproj);
+            Assert.Contains("<NuGetAudit>false</NuGetAudit>", clientCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
+            Assert.Contains("<add key=\"godot-local\" value=\"" + sdkSource + "\" />", nugetConfig);
             Assert.Contains("Godot 4.x", clientReadme);
+            Assert.Contains(sdkSource, clientReadme);
             Assert.Contains("[node name=\"Main\" type=\"Node\"]", scene);
             Assert.Contains("path=\"res://Scripts/Rpc/Testing/RpcConnectionTester.cs\"", scene);
             Assert.Contains("using Godot;", testerScript);
             Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
+            Assert.DoesNotContain("namespace Rpc.Testing", testerScript, StringComparison.Ordinal);
+            Assert.Contains("public partial class RpcConnectionTester : Node", testerScript);
             Assert.Contains("new WsTransport($\"ws://{_host}:{_port}{NormalizePath(_path)}\")", testerScript);
             Assert.Contains("new JsonRpcSerializer()", testerScript);
             Assert.Contains("GD.Print($\"Ping ok:", testerScript);
@@ -422,25 +433,36 @@ public sealed class StarterTemplateGeneratorTests
         try
         {
             var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+            var sdkSource = CreateFakeGodotSdkSource(root, "4.6.1");
 
-            generator.GenerateTemplate(root, "Godot-Kcp", ClientEngineKind.Godot, TransportKind.Kcp, SerializerKind.MemoryPack, Versions);
+            WithGodotSdkSource(
+                sdkSource,
+                () => generator.GenerateTemplate(root, "Godot-Kcp", ClientEngineKind.Godot, TransportKind.Kcp, SerializerKind.MemoryPack, Versions));
 
             var projectFile = File.ReadAllText(Path.Combine(root, "Client", "project.godot"));
             var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.csproj"));
+            var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "NuGet.config"));
             var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
             var generatedClientApi = Path.Combine(root, "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
 
             Assert.Contains("config/features=PackedStringArray(\"4.4\", \"C#\")", projectFile);
+            Assert.Contains("project/assembly_name=\"Client\"", projectFile);
             Assert.DoesNotContain("kcp", projectFile, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("memorypack", projectFile, StringComparison.OrdinalIgnoreCase);
 
+            Assert.Contains("<Project Sdk=\"Godot.NET.Sdk/4.6.1\">", clientCsproj);
+            Assert.Contains("<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>", clientCsproj);
+            Assert.Contains("<NuGetAudit>false</NuGetAudit>", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.Kcp\" Version=\"4.5.6\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\" Version=\"5.6.7\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"MemoryPack\" Version=\"6.7.8\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"MemoryPack.Core\" Version=\"8.9.10\" />", clientCsproj);
+            Assert.Contains("<add key=\"godot-local\" value=\"" + sdkSource + "\" />", nugetConfig);
 
             Assert.Contains("using ULinkRPC.Transport.Kcp;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);
+            Assert.DoesNotContain("namespace Rpc.Testing", testerScript, StringComparison.Ordinal);
+            Assert.Contains("public partial class RpcConnectionTester : Node", testerScript);
             Assert.Contains("new KcpTransport(_host, _port)", testerScript);
             Assert.Contains("new MemoryPackRpcSerializer()", testerScript);
             Assert.Contains("[Export] private string _path = \"\";", testerScript);
@@ -459,6 +481,29 @@ public sealed class StarterTemplateGeneratorTests
         var root = Path.Combine(Path.GetTempPath(), $"ulinkrpc_starter_{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
         return root;
+    }
+
+    private static string CreateFakeGodotSdkSource(string root, string version)
+    {
+        var dir = Path.Combine(root, "fake-godot-sdk");
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, $"Godot.NET.Sdk.{version}.nupkg"), string.Empty);
+        return dir;
+    }
+
+    private static void WithGodotSdkSource(string path, Action action)
+    {
+        var previous = Environment.GetEnvironmentVariable("ULINKRPC_GODOT_NUPKGS");
+        Environment.SetEnvironmentVariable("ULINKRPC_GODOT_NUPKGS", path);
+
+        try
+        {
+            action();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ULINKRPC_GODOT_NUPKGS", previous);
+        }
     }
 
     private static Action<string, string> CreateFakeDotNetRunner(List<string>? commands = null)
