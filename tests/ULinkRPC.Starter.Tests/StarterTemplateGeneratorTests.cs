@@ -317,6 +317,8 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"MemoryPack\" version=\"6.7.8\" />", packagesConfig);
             Assert.Contains("<package id=\"MemoryPack.Core\" version=\"8.9.10\" />", packagesConfig);
             Assert.Contains("<package id=\"MemoryPack.Generator\" version=\"6.7.8\" />", packagesConfig);
+            Assert.Contains("<package id=\"Microsoft.CodeAnalysis\" version=\"4.3.0\" />", packagesConfig);
+            Assert.Contains("<package id=\"Microsoft.CodeAnalysis.CSharp\" version=\"4.3.0\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Collections.Immutable\" version=\"6.0.0\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"6.1.2\" />", packagesConfig);
             Assert.Contains("<package id=\"System.IO.Pipelines\" version=\"10.0.3\" />", packagesConfig);
@@ -454,8 +456,8 @@ public sealed class StarterTemplateGeneratorTests
 
             Assert.Contains("config/features=PackedStringArray(\"4.4\", \"C#\")", projectFile);
             Assert.Contains("project/assembly_name=\"Client\"", projectFile);
-            Assert.DoesNotContain("kcp", projectFile, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("memorypack", projectFile, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("config/features=PackedStringArray(\"4.4\", \"C#\", \"kcp\"", projectFile, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("config/features=PackedStringArray(\"4.4\", \"C#\", \"memorypack\"", projectFile, StringComparison.OrdinalIgnoreCase);
 
             Assert.Contains("<Project Sdk=\"Godot.NET.Sdk/4.6.1\">", clientCsproj);
             Assert.Contains("<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>", clientCsproj);

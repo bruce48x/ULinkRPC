@@ -75,6 +75,8 @@ internal static class UnityPackageVersions
     public const string MicrosoftBclAsyncInterfaces = "10.0.2";
     public const string SystemBuffers = "4.6.1";
     public const string SystemCollectionsImmutable = "6.0.0";
+    public const string MicrosoftCodeAnalysis = "4.3.0";
+    public const string MicrosoftCodeAnalysisCSharp = "4.3.0";
     public const string SystemIoPipelinesForJson = "10.0.2";
     public const string SystemMemoryForJson = "4.6.3";
     public const string SystemMemoryForKcp = "4.5.4";

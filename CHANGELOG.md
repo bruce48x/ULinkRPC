@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.34
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.34`
+- Fixed Unity starter `memorypack` package restore so generated `Assets/packages.config` now includes the Roslyn dependencies required by `MemoryPack.Generator`.
+- This removes the first-import Unity error where `MemoryPack.Generator.dll` could not resolve `Microsoft.CodeAnalysis` / `Microsoft.CodeAnalysis.CSharp` and the project entered Safe Mode on initial open.
+
 ## 0.11.2 / 0.2.33
 
 - Release packages:
