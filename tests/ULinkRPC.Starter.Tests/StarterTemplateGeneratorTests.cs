@@ -401,6 +401,11 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("new JsonRpcSerializer()", testerScript);
             Assert.Contains("GD.Print($\"Ping ok:", testerScript);
             Assert.Contains("[Export] private string _path = \"/ws\";", testerScript);
+            Assert.Contains("public override void _Ready()", testerScript);
+            Assert.Contains("CallDeferred(MethodName.BeginAutoConnect);", testerScript);
+            Assert.Contains("private async void BeginAutoConnect()", testerScript);
+            Assert.Contains("public override void _ExitTree()", testerScript);
+            Assert.Contains("_ = ShutdownAsync();", testerScript);
             Assert.True(File.Exists(generatedClientApi));
             Assert.False(File.Exists(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs")));
         }
@@ -439,6 +444,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("new KcpTransport(_host, _port)", testerScript);
             Assert.Contains("new MemoryPackRpcSerializer()", testerScript);
             Assert.Contains("[Export] private string _path = \"\";", testerScript);
+            Assert.Contains("if (_isShuttingDown || _client is not null)", testerScript);
             Assert.True(File.Exists(generatedClientApi));
         }
         finally

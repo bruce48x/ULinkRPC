@@ -141,23 +141,29 @@ public partial class RpcConnectionTester : Node
 
     private readonly CancellationTokenSource _cts = new();
     private RpcClient? _client;
+    private bool _isShuttingDown;
 
-    public override async void _Ready()
+    public override void _Ready()
     {
         if (!_autoConnect)
             return;
 
-        await ConnectAndPingAsync();
+        CallDeferred(MethodName.BeginAutoConnect);
     }
 
-    public override async void _ExitTree()
+    public override void _ExitTree()
     {
-        await ShutdownAsync();
+        _ = ShutdownAsync();
+    }
+
+    private async void BeginAutoConnect()
+    {
+        await ConnectAndPingAsync();
     }
 
     public async Task ConnectAndPingAsync()
     {
-        if (_client is not null)
+        if (_isShuttingDown || _client is not null)
             return;
 
         GD.Print($"Connecting to {DescribeEndpoint()}");
@@ -203,6 +209,10 @@ public partial class RpcConnectionTester : Node
 
     private async Task ShutdownAsync()
     {
+        if (_isShuttingDown)
+            return;
+
+        _isShuttingDown = true;
         _cts.Cancel();
 
         if (_client is not null)

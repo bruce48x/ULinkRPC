@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.29
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.29`
+- Fixed Godot starter runtime behavior so the default connection example now defers auto-connect until the scene is ready, matching the expected Unity starter flow more closely.
+- This restores the generated Godot project's default behavior of creating a client connection and issuing the starter `Ping` request automatically on Play.
+
 ## 0.2.28
 
 - Release packages:
