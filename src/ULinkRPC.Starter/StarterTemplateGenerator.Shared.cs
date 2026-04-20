@@ -30,10 +30,19 @@ internal static class StarterSharedTemplate
 
     private static string BuildSharedProjectFile(StarterTemplateContext context)
     {
+        var targetFrameworks = context.ClientEngine == ClientEngineKind.Godot
+            ? "net8.0;net10.0"
+            : "netstandard2.1;net10.0";
+
         var packageReferences = context.Serializer == SerializerKind.MemoryPack
             ? $$"""
     <PackageReference Include="ULinkRPC.Core" Version="{{context.Versions.Core}}" />
     <PackageReference Include="ULinkRPC.Serializer.MemoryPack" Version="{{context.Versions.Serializer}}" />
+    <PackageReference Include="MemoryPack" Version="{{context.Versions.SerializerRuntime}}" />
+    <PackageReference Include="MemoryPack.Generator" Version="{{context.Versions.SerializerRuntime}}">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
 """
             : $$"""
     <PackageReference Include="ULinkRPC.Core" Version="{{context.Versions.Core}}" />
@@ -42,7 +51,7 @@ internal static class StarterSharedTemplate
         return $$"""
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
+    <TargetFrameworks>{{targetFrameworks}}</TargetFrameworks>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>

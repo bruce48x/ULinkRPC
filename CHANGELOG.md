@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.11.2 / 0.2.33
+
+- Release packages:
+	- `ULinkRPC.Transport.Tcp` `0.11.2`
+	- `ULinkRPC.Starter` `0.2.33`
+- Fixed TCP server-side accepted-connection handling so freshly accepted `TcpServerTransport` instances report a connected state before `RpcSession.StartAsync()` calls `ConnectAsync()`.
+- This fixes a runtime bug where `BoundedConnectionAcceptor` could treat a newly accepted TCP connection as stale and dispose it before the server session started.
+- In practice, this restores starter-generated `tcp + memorypack` and `tcp + json` flows where the client could connect successfully but then hang on the first RPC call.
+- Updated `ULinkRPC.Starter`'s bundled release manifest so newly scaffolded TCP projects reference `ULinkRPC.Transport.Tcp` `0.11.2`.
+
+## 0.2.32
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.32`
+- Fixed Godot starter `memorypack` projects so the generated `Shared.csproj` now targets `net8.0;net10.0` instead of `netstandard2.1;net10.0`.
+- Fixed MemoryPack starter contracts so the generated shared project explicitly references `MemoryPack` and `MemoryPack.Generator`.
+- This removes the Godot runtime failure where generated `MemoryPack` DTOs could throw `System.TypeLoadException: Virtual static method 'Serialize' is not implemented` while loading `Shared.Interfaces.PingReply`.
+
 ## 0.2.31
 
 - Release packages:

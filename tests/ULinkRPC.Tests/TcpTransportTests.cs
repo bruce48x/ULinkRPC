@@ -43,6 +43,26 @@ public sealed class TcpTransportTests
     }
 
     [Fact]
+    public async Task AcceptedServerTransport_IsConnectedBeforeConnectAsync()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+
+        var endpoint = (IPEndPoint)listener.LocalEndpoint;
+        await using var client = new TcpTransport(IPAddress.Loopback.ToString(), endpoint.Port);
+        var acceptTask = listener.AcceptTcpClientAsync();
+
+        await client.ConnectAsync();
+        var acceptedClient = await acceptTask;
+
+        await using var server = new TcpServerTransport(acceptedClient);
+
+        Assert.True(server.IsConnected);
+
+        listener.Stop();
+    }
+
+    [Fact]
     public async Task ReceiveFrameAsync_CanReadBackToBackFrames()
     {
         await using var pair = await ConnectedPair.CreateAsync();

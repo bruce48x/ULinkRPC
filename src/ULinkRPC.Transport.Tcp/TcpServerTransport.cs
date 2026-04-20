@@ -20,6 +20,7 @@ namespace ULinkRPC.Transport.Tcp
         public TcpServerTransport(TcpClient client)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
+            _connected = client.Connected;
         }
 
         public EndPoint? RemoteEndPoint => _client.Client.RemoteEndPoint;

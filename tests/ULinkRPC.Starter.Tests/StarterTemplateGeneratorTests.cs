@@ -95,9 +95,12 @@ public sealed class StarterTemplateGeneratorTests
 
             Assert.Contains("<LangVersion>latest</LangVersion>", sharedCsproj);
             Assert.Contains("<ImplicitUsings>disable</ImplicitUsings>", sharedCsproj);
+            Assert.Contains("<TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>", sharedCsproj);
             Assert.Contains("<RootNamespace>Shared</RootNamespace>", sharedCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Core\" Version=\"1.2.3\" />", sharedCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\" Version=\"5.6.7\" />", sharedCsproj);
+            Assert.Contains("<PackageReference Include=\"MemoryPack\" Version=\"6.7.8\" />", sharedCsproj);
+            Assert.Contains("<PackageReference Include=\"MemoryPack.Generator\" Version=\"6.7.8\">", sharedCsproj);
             Assert.Contains(@"<MSBuildProjectExtensionsPath>..\_artifacts\Shared\obj\</MSBuildProjectExtensionsPath>", sharedProps);
             Assert.Contains(@"<BaseIntermediateOutputPath>..\_artifacts\Shared\obj\</BaseIntermediateOutputPath>", sharedProps);
             Assert.Contains(@"<BaseOutputPath>..\_artifacts\Shared\bin\</BaseOutputPath>", sharedProps);
@@ -317,7 +320,10 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"System.Collections.Immutable\" version=\"6.0.0\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"6.1.2\" />", packagesConfig);
             Assert.Contains("<package id=\"System.IO.Pipelines\" version=\"10.0.3\" />", packagesConfig);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\" Version=\"5.6.7\" />", File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj")));
+            var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\" Version=\"5.6.7\" />", sharedCsproj);
+            Assert.Contains("<PackageReference Include=\"MemoryPack\" Version=\"6.7.8\" />", sharedCsproj);
+            Assert.Contains("<PackageReference Include=\"MemoryPack.Generator\" Version=\"6.7.8\">", sharedCsproj);
         }
         finally
         {
@@ -399,6 +405,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
             Assert.Contains("<add key=\"godot-local\" value=\"" + sdkSource + "\" />", nugetConfig);
+            Assert.Contains("<TargetFrameworks>net8.0;net10.0</TargetFrameworks>", File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj")));
             Assert.Contains("Godot 4.x", clientReadme);
             Assert.Contains(sdkSource, clientReadme);
             Assert.Contains("[node name=\"Main\" type=\"Node\"]", scene);
@@ -458,6 +465,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<PackageReference Include=\"MemoryPack\" Version=\"6.7.8\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"MemoryPack.Core\" Version=\"8.9.10\" />", clientCsproj);
             Assert.Contains("<add key=\"godot-local\" value=\"" + sdkSource + "\" />", nugetConfig);
+            Assert.Contains("<TargetFrameworks>net8.0;net10.0</TargetFrameworks>", File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj")));
 
             Assert.Contains("using ULinkRPC.Transport.Kcp;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);
