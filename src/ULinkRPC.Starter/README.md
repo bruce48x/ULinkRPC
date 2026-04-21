@@ -85,6 +85,21 @@ Generated namespaces do not include the user-provided project name. Shared code 
 In Unity projects, `Client/Assets/packages.config` writes the user-selected transport and serializer packages with `manuallyInstalled="true"`.
 Project generation also runs `git init` at the project root.
 
+## Architecture Notes
+
+Unity intentionally keeps `Shared` as a source-linked local UPM package instead of switching to a prebuilt `Shared.dll` workflow.
+
+This is a deliberate architecture decision:
+
+- Server and Godot stay on the normal `.csproj` path.
+- Unity keeps the source-linked shared workflow even for `memorypack`.
+- We do not currently accept the workflow tradeoff of requiring an explicit rebuild/sync step after every shared change.
+- We also want to avoid adding avoidable friction to future Unity hot-update work such as `HybridCLR`.
+
+The long-form decision record is here:
+
+- [`docs/starter-unity-shared-source-link.md`](./docs/starter-unity-shared-source-link.md)
+
 ## Next Steps
 
 After generation:

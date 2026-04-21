@@ -196,6 +196,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Rpc.Generated;
+{{GetUnityMemoryPackUsing(serializer)}}
 using Shared.Interfaces;
 using ULinkRPC.Client;
 {{values.TransportUsing}}
@@ -248,6 +249,7 @@ namespace Rpc.Testing
 
             try
             {
+                {{GetUnityMemoryPackRegistrationLine(serializer)}}
                 _client = new RpcClient(
                     new RpcClientOptions(
                         {{values.TransportConstruction}},
@@ -308,6 +310,20 @@ namespace Rpc.Testing
 }
 """;
     }
+
+    private static string GetUnityMemoryPackRegistrationLine(SerializerKind serializer) => serializer switch
+    {
+        SerializerKind.Json => string.Empty,
+        SerializerKind.MemoryPack => "                SharedMemoryPackRegistration.RegisterAll();",
+        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
+    };
+
+    private static string GetUnityMemoryPackUsing(SerializerKind serializer) => serializer switch
+    {
+        SerializerKind.Json => string.Empty,
+        SerializerKind.MemoryPack => "using Shared;",
+        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
+    };
 
     private static string GetUnityTesterScriptMeta() => """
 fileFormatVersion: 2

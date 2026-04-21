@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.36
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.36`
+- Fixed Unity starter `memorypack` runtime startup so newly generated clients explicitly register generated `MemoryPack` formatters before constructing the RPC client.
+- The generated shared project now emits a `SharedMemoryPackRegistration` helper, and the generated Unity tester calls it before opening the default connection.
+- This removes the first-run Unity failure where starter-generated `PingRequest` / `PingReply` types could still throw `MemoryPackSerializationException: ... is not registered in this provider` even though package restore and source generation had succeeded.
+
 ## 0.2.35
 
 - Release packages:
