@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.40
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.40`
+- Fixed Godot starter generation so scaffolded projects now include a root `.gitattributes` file with LF normalization for source assets and LFS/binary rules for common Godot project binaries.
+
 ## 0.16.3 / 0.2.39
 
 - Release packages:

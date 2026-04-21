@@ -7,6 +7,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         var context = CreateContext(rootPath, projectName, clientEngine, transport, serializer, versions);
 
         GenerateGitIgnore(context.Paths.RootPath);
+        GenerateGitAttributes(context);
         StarterSharedTemplate.Generate(context);
         StarterServerTemplate.Generate(context);
         GenerateSolution(context.Paths.ServerRootPath);
@@ -156,5 +157,58 @@ Thumbs.db
 """;
 
         StarterFileWriter.Write(Path.Combine(rootPath, ".gitignore"), gitIgnore);
+    }
+
+    private static void GenerateGitAttributes(StarterTemplateContext context)
+    {
+        if (context.ClientEngine != ClientEngineKind.Godot)
+            return;
+
+        var gitAttributes = """
+* text=auto eol=lf
+
+*.cs text eol=lf
+*.csproj text eol=lf
+*.sln text eol=lf
+*.slnx text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+
+*.gd text eol=lf
+*.tscn text eol=lf
+*.tres text eol=lf
+*.shader text eol=lf
+
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+
+# Git LFS: commit-worthy binary assets and distributables
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.gif filter=lfs diff=lfs merge=lfs -text
+*.webp filter=lfs diff=lfs merge=lfs -text
+*.ico filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.ttf filter=lfs diff=lfs merge=lfs -text
+*.otf filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
+*.nupkg filter=lfs diff=lfs merge=lfs -text
+
+# Non-text binaries that should never be line-normalized
+*.dll binary
+*.exe binary
+*.pdb binary
+*.so binary
+*.dylib binary
+*.bin binary
+""";
+
+        StarterFileWriter.Write(Path.Combine(context.Paths.RootPath, ".gitattributes"), gitAttributes);
     }
 }
