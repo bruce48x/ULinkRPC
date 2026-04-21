@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.3 / 0.2.39
+
+- Release packages:
+	- `ULinkRPC.CodeGen` `0.16.3`
+	- `ULinkRPC.Starter` `0.2.39`
+- Added `--version` to `ulinkrpc-codegen` so the tool can print its package version and exit without requiring any other arguments.
+- Added `--version` to `ulinkrpc-starter` so the tool can print its package version and exit before any interactive prompts or template generation.
+
 ## 0.2.38
 
 - Release packages:

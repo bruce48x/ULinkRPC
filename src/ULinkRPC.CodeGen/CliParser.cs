@@ -8,6 +8,7 @@ internal static class CliParser
         Console.WriteLine("  ulinkrpc-codegen [options]");
         Console.WriteLine();
         Console.WriteLine("Options:");
+        Console.WriteLine("  --version               Print tool version and exit");
         Console.WriteLine("  --contracts <path>      Path to contract sources");
         Console.WriteLine("  --output <path>         Output directory for generated files");
         Console.WriteLine("  --namespace <ns>        Namespace for generated client code");

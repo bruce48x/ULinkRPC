@@ -32,6 +32,7 @@ internal sealed record ResolvedVersions(
 internal sealed record StarterCliOptions(
     string ProjectName,
     string OutputDir,
+    bool ShowVersion,
     ClientEngineKind? ClientEngine,
     TransportKind? Transport,
     SerializerKind? Serializer);

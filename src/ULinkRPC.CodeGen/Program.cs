@@ -10,6 +10,12 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "--version")
+        {
+            Console.WriteLine(GetVersion());
+            return 0;
+        }
+
         if (args.Length > 0 && (args[0] == "-h" || args[0] == "--help"))
         {
             CliParser.PrintUsage();
@@ -136,5 +142,33 @@ internal static class Program
 
         Console.WriteLine($"Generated {generated} files for {services.Count} service(s).");
         return 0;
+    }
+
+    private static string GetVersion()
+    {
+        var assembly = typeof(Program).Assembly;
+        var informationalVersion = assembly
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), inherit: false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .FirstOrDefault()?
+            .InformationalVersion;
+
+        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        {
+            var plusIndex = informationalVersion.IndexOf('+');
+            return plusIndex >= 0
+                ? informationalVersion[..plusIndex]
+                : informationalVersion;
+        }
+
+        var assemblyVersion = assembly.GetName().Version;
+        if (assemblyVersion is null)
+        {
+            return "unknown";
+        }
+
+        return assemblyVersion.Revision == 0
+            ? assemblyVersion.ToString(3)
+            : assemblyVersion.ToString();
     }
 }

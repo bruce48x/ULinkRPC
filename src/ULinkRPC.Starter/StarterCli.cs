@@ -4,13 +4,14 @@ internal static class StarterCli
 {
     public static void PrintUsage()
     {
-        Console.WriteLine("Usage: ulinkrpc-starter [--name MyGame] [--output ./out] [--client-engine unity|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack]");
+        Console.WriteLine("Usage: ulinkrpc-starter [--version] [--name MyGame] [--output ./out] [--client-engine unity|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack]");
     }
 
     public static bool TryParseArgs(string[] args, out StarterCliOptions options, out string error)
     {
         var projectName = "ULinkApp";
         var outputDir = Directory.GetCurrentDirectory();
+        var showVersion = false;
         ClientEngineKind? clientEngine = null;
         TransportKind? transport = null;
         SerializerKind? serializer = null;
@@ -28,6 +29,12 @@ internal static class StarterCli
             if (arg is "--output" && i + 1 < args.Length)
             {
                 outputDir = args[++i];
+                continue;
+            }
+
+            if (arg is "--version")
+            {
+                showVersion = true;
                 continue;
             }
 
@@ -82,7 +89,7 @@ internal static class StarterCli
             return false;
         }
 
-        options = new StarterCliOptions(projectName, outputDir, clientEngine, transport, serializer);
+        options = new StarterCliOptions(projectName, outputDir, showVersion, clientEngine, transport, serializer);
         return true;
     }
 
