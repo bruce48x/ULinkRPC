@@ -33,7 +33,7 @@ config_version=5
 [application]
 config/name="{{context.ProjectName}}"
 run/main_scene="res://Main.tscn"
-config/features=PackedStringArray("4.4", "C#")
+config/features=PackedStringArray("4.6", "C#")
 
 [dotnet]
 project/assembly_name="Client"
@@ -50,7 +50,7 @@ project/assembly_name="Client"
 """
             : string.Empty;
 
-        var sdkVersion = sdk?.Version ?? "4.4.1";
+        var sdkVersion = sdk?.Version ?? "4.6.1";
 
         return $$"""
 <Project Sdk="Godot.NET.Sdk/{{sdkVersion}}">
@@ -86,9 +86,9 @@ project/assembly_name="Client"
 """;
 
         return $$"""
-# Godot Client Starter (Godot 4.x)
+# Godot Client Starter (Godot 4.6)
 
-1. Open this folder with Godot 4.x.
+1. Open this folder with Godot 4.6.
 2. Let Godot restore the C# solution, or run `dotnet restore Client.csproj`.
 3. Build the project once so generated assemblies load.
 4. Open `Main.tscn` and press Play to run the default connection example.

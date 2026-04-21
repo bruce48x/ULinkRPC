@@ -4,7 +4,7 @@ Scaffold a runnable ULinkRPC template with fixed project folders:
 
 - `Shared` (netstandard2.1 + net10.0)
 - `Server` (.NET 10)
-- `Client` (Unity 2022 LTS or Godot 4.x C# skeleton)
+- `Client` (Unity 2022 LTS or Godot 4.6 C# skeleton)
 
 The tool asks for transport and serializer before generating files.
 
@@ -65,7 +65,7 @@ samples/
 - `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, `Directory.Build.props` redirects `obj/bin` to `../_artifacts/Shared/`, and the generated `.csproj` uses `LangVersion=latest` so MemoryPack source generation can compile.
 - `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and wires the selected serializer and acceptor explicitly.
-- `Client/`: Unity 2022 LTS skeleton with `NuGetForUnity`, `packages.config`, and a local reference to `Shared`, or a Godot 4.x C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node.
+- `Client/`: Unity 2022 LTS skeleton with `NuGetForUnity`, `packages.config`, and a local reference to `Shared`, or a Godot 4.6 C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node.
 - `.gitignore`: ignore rules for .NET build outputs, editor files, Unity/Godot generated folders, and NuGetForUnity restored packages.
 
 The tool uses a bundled, release-tested package manifest for:
@@ -109,4 +109,4 @@ cd MyGame
 dotnet run --project Server/Server/Server.csproj
 ```
 
-Then open `Client/` with Unity 2022 LTS or Godot 4.x, depending on the selected client engine.
+Then open `Client/` with Unity 2022 LTS or Godot 4.6, depending on the selected client engine.

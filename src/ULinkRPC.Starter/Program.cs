@@ -37,7 +37,7 @@ internal static class Program
         Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
         Console.WriteLine(clientEngine == ClientEngineKind.Unity
             ? "  3) Open \"Client\" with Unity 2022 LTS."
-            : "  3) Open \"Client\" with Godot 4.x and build the C# solution.");
+            : "  3) Open \"Client\" with Godot 4.6 and build the C# solution.");
 
         return 0;
     }

@@ -399,7 +399,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode godot --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
             Assert.Contains("config/name=\"Godot-Test\"", projectFile);
             Assert.Contains("run/main_scene=\"res://Main.tscn\"", projectFile);
-            Assert.Contains("config/features=PackedStringArray(\"4.4\", \"C#\")", projectFile);
+            Assert.Contains("config/features=PackedStringArray(\"4.6\", \"C#\")", projectFile);
             Assert.Contains("project/assembly_name=\"Client\"", projectFile);
             Assert.DoesNotContain("websocket", projectFile, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("json", projectFile, StringComparison.OrdinalIgnoreCase);
@@ -412,7 +412,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
             Assert.Contains("<add key=\"godot-local\" value=\"" + sdkSource + "\" />", nugetConfig);
             Assert.Contains("<TargetFrameworks>net8.0;net10.0</TargetFrameworks>", File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj")));
-            Assert.Contains("Godot 4.x", clientReadme);
+            Assert.Contains("Godot 4.6", clientReadme);
             Assert.Contains(sdkSource, clientReadme);
             Assert.Contains("[node name=\"Main\" type=\"Node\"]", scene);
             Assert.Contains("path=\"res://Scripts/Rpc/Testing/RpcConnectionTester.cs\"", scene);
@@ -458,10 +458,10 @@ public sealed class StarterTemplateGeneratorTests
             var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
             var generatedClientApi = Path.Combine(root, "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
 
-            Assert.Contains("config/features=PackedStringArray(\"4.4\", \"C#\")", projectFile);
+            Assert.Contains("config/features=PackedStringArray(\"4.6\", \"C#\")", projectFile);
             Assert.Contains("project/assembly_name=\"Client\"", projectFile);
-            Assert.DoesNotContain("config/features=PackedStringArray(\"4.4\", \"C#\", \"kcp\"", projectFile, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("config/features=PackedStringArray(\"4.4\", \"C#\", \"memorypack\"", projectFile, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("config/features=PackedStringArray(\"4.6\", \"C#\", \"kcp\"", projectFile, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("config/features=PackedStringArray(\"4.6\", \"C#\", \"memorypack\"", projectFile, StringComparison.OrdinalIgnoreCase);
 
             Assert.Contains("<Project Sdk=\"Godot.NET.Sdk/4.6.1\">", clientCsproj);
             Assert.Contains("<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>", clientCsproj);

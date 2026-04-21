@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.38
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.38`
+- Updated the generated Godot client baseline from Godot `4.4` to Godot `4.6`.
+- The generated `project.godot` now writes `config/features=PackedStringArray("4.6", "C#")`.
+- The generated `Client.csproj` now falls back to `Godot.NET.Sdk/4.6.1` when no local SDK package source is detected.
+- Updated starter help/readme text so Godot scaffolding consistently refers to Godot `4.6`.
+
 ## 0.2.37
 
 - Reverted the unreleased source-side Unity `memorypack` formatter-registration experiment that had been added after `0.2.36`.
