@@ -14,10 +14,6 @@ internal static class StarterSharedTemplate
         StarterFileWriter.Write(Path.Combine(sharedPath, $"{projectName}.csproj"), BuildSharedProjectFile(context));
         StarterFileWriter.Write(Path.Combine(sharedPath, "Interfaces", "SharedDtos.cs"), BuildSharedDtos(context.Serializer));
         StarterFileWriter.Write(Path.Combine(sharedPath, "Interfaces", "IPingService.cs"), BuildSharedServiceContract());
-        if (context.Serializer == SerializerKind.MemoryPack)
-        {
-            StarterFileWriter.Write(Path.Combine(sharedPath, "SharedMemoryPackRegistration.cs"), BuildSharedMemoryPackRegistration());
-        }
         StarterFileWriter.Write(Path.Combine(sharedPath, $"{projectName}.asmdef"), BuildSharedAsmdef(context.Serializer));
         StarterFileWriter.Write(Path.Combine(sharedPath, "package.json"), BuildSharedPackageJson(context, projectName));
     }
@@ -121,75 +117,6 @@ namespace Shared.Interfaces
     {
         [RpcMethod(1)]
         ValueTask<PingReply> PingAsync(PingRequest request);
-    }
-}
-""";
-
-    private static string BuildSharedMemoryPackRegistration() => """
-using System;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using Shared.Interfaces;
-
-namespace Shared
-{
-    public static class SharedMemoryPackRegistration
-    {
-        private static bool _registered;
-
-        public static void RegisterAll()
-        {
-            if (_registered)
-                return;
-
-            RegisterFormatter(typeof(PingRequest));
-            RegisterFormatter(typeof(PingReply));
-            _registered = true;
-        }
-
-        private static void RegisterFormatter(Type type)
-        {
-            RuntimeHelpers.RunClassConstructor(type.TypeHandle);
-
-            var candidateTypes = type
-                .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
-                .Concat(GetFormatterTypes(type))
-                .Prepend(type)
-                .Distinct()
-                .ToArray();
-
-            foreach (var candidateType in candidateTypes)
-            {
-                RuntimeHelpers.RunClassConstructor(candidateType.TypeHandle);
-
-                var registerMethod = candidateType
-                    .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                    .FirstOrDefault(static method =>
-                        method.GetParameters().Length == 0 &&
-                        (
-                            string.Equals(method.Name, "RegisterFormatter", StringComparison.Ordinal) ||
-                            string.Equals(method.Name, "MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter", StringComparison.Ordinal)));
-
-                if (registerMethod is not null)
-                {
-                    registerMethod.Invoke(null, null);
-                    return;
-                }
-            }
-
-            throw new InvalidOperationException($"MemoryPack formatter registration hook was not generated for {type.FullName}.");
-        }
-
-        private static Type[] GetFormatterTypes(Type type)
-        {
-            return type.Assembly
-                .GetTypes()
-                .Where(candidate =>
-                    candidate.Namespace == type.Namespace &&
-                    (candidate.Name == type.Name + "Formatter" || candidate.Name.Contains(type.Name, StringComparison.Ordinal) && candidate.Name.Contains("Formatter", StringComparison.Ordinal)))
-                .ToArray();
-        }
     }
 }
 """;

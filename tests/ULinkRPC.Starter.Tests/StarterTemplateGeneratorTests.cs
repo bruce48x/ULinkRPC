@@ -91,7 +91,6 @@ public sealed class StarterTemplateGeneratorTests
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
             var sharedAsmdef = File.ReadAllText(Path.Combine(root, "Shared", "Shared.asmdef"));
             var sharedDtos = File.ReadAllText(Path.Combine(root, "Shared", "Interfaces", "SharedDtos.cs"));
-            var sharedRegistration = File.ReadAllText(Path.Combine(root, "Shared", "SharedMemoryPackRegistration.cs"));
             var gitIgnore = File.ReadAllText(Path.Combine(root, ".gitignore"));
 
             Assert.Contains("<LangVersion>latest</LangVersion>", sharedCsproj);
@@ -123,17 +122,6 @@ public sealed class StarterTemplateGeneratorTests
             Assert.DoesNotContain("namespace Shared.Interfaces;", sharedDtos, StringComparison.Ordinal);
             Assert.DoesNotContain("DateTimeOffset", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("public string ServerTimeUtc { get; set; } = string.Empty;", sharedDtos);
-            Assert.Contains("using System.Reflection;", sharedRegistration);
-            Assert.Contains("using System.Runtime.CompilerServices;", sharedRegistration);
-            Assert.Contains("namespace Shared", sharedRegistration);
-            Assert.Contains("public static class SharedMemoryPackRegistration", sharedRegistration);
-            Assert.Contains("RegisterFormatter(typeof(PingRequest));", sharedRegistration);
-            Assert.Contains("RegisterFormatter(typeof(PingReply));", sharedRegistration);
-            Assert.Contains("RuntimeHelpers.RunClassConstructor(type.TypeHandle);", sharedRegistration);
-            Assert.Contains(".Concat(GetFormatterTypes(type))", sharedRegistration);
-            Assert.Contains("candidate.Name == type.Name + \"Formatter\"", sharedRegistration);
-            Assert.Contains("string.Equals(method.Name, \"RegisterFormatter\", StringComparison.Ordinal)", sharedRegistration);
-            Assert.Contains("\"MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter\"", sharedRegistration);
             Assert.True(File.Exists(Path.Combine(root, "Shared", "Interfaces", "IPingService.cs")));
             Assert.True(File.Exists(Path.Combine(root, "Shared", "package.json")));
             Assert.False(File.Exists(Path.Combine(root, "Shared", "UnityPackage", "package.json")));

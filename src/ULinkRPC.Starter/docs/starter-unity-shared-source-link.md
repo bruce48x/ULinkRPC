@@ -82,3 +82,21 @@ Revisit this decision only if one of the following becomes true:
 - Unity source-linked compilation becomes fundamentally unworkable across supported versions.
 - A future Unity packaging model requires precompiled shared assemblies anyway.
 - HybridCLR or another hot-update architecture explicitly benefits from a different shared boundary and that benefit outweighs the workflow cost.
+
+## Deferred Unity Issue
+
+As of 2026-04-21, Unity fresh-start behavior for starter-generated `memorypack` projects is still not considered solved.
+
+An explicit formatter-registration experiment was tried in the source after `0.2.36`:
+
+- generating `SharedMemoryPackRegistration.cs` in `Shared`
+- calling `SharedMemoryPackRegistration.RegisterAll()` from the generated Unity tester before creating `RpcClient`
+
+That approach appeared to work in one controlled verification flow, but later failed again in fresh user-created projects and was reverted from source.
+
+Current status:
+
+- the Unity `memorypack` first-start/runtime issue remains open
+- the source-linked Unity architecture decision still stands
+- do not reuse the reverted explicit-registration approach as the default fix without new evidence
+- defer a new design until there is time to investigate a more reliable solution

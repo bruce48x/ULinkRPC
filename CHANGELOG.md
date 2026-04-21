@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.37
+
+- Reverted the unreleased source-side Unity `memorypack` formatter-registration experiment that had been added after `0.2.36`.
+- The explicit `SharedMemoryPackRegistration` approach did not reliably fix fresh Unity starter projects in real user validation, so it is not being kept in source as the current direction.
+- The Unity fresh-start `memorypack` issue is now documented as known-but-deferred and should be revisited later with a different approach.
+
 ## 0.2.36
 
 - Release packages:
