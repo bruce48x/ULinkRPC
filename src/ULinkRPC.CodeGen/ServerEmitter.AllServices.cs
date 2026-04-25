@@ -29,8 +29,6 @@ internal static partial class ServerEmitter
         w.OpenBlock("public static class AllServicesBinder");
 
         EmitAutomaticBindAllOverload(w, services);
-        w.Line();
-        EmitExplicitBindAllOverload(w, services);
 
         if (requiresReflectionHelpers)
         {
@@ -53,30 +51,6 @@ internal static partial class ServerEmitter
                 w.Line($"{binderTypeName}.Bind(registry, CreateCallbackServiceFactory<{service.InterfaceName}, {service.CallbackInterfaceName}>());");
             else
                 w.Line($"{binderTypeName}.BindFactory(registry, CreateServiceFactory<{service.InterfaceName}>());");
-        }
-        w.CloseBlock();
-    }
-
-    private static void EmitExplicitBindAllOverload(CodeWriter w, List<RpcServiceInfo> services)
-    {
-        var paramList = string.Join("",
-            services.Select(service =>
-            {
-                if (!service.HasCallback)
-                    return $", {service.InterfaceName} {NamingHelper.GetServiceParamName(service.InterfaceName)}";
-
-                var factoryParamName = NamingHelper.GetServiceFactoryParamName(service.InterfaceName);
-                return $", Func<{service.CallbackInterfaceName}, {service.InterfaceName}> {factoryParamName}";
-            }));
-
-        w.OpenBlock($"public static void BindAll(RpcServiceRegistry registry{paramList})");
-        foreach (var service in services)
-        {
-            var binderTypeName = NamingHelper.GetBinderTypeName(service.InterfaceName);
-            var paramName = service.HasCallback
-                ? NamingHelper.GetServiceFactoryParamName(service.InterfaceName)
-                : NamingHelper.GetServiceParamName(service.InterfaceName);
-            w.Line($"{binderTypeName}.Bind(registry, {paramName});");
         }
         w.CloseBlock();
     }
@@ -126,7 +100,7 @@ internal static partial class ServerEmitter
         w.Line("throw new InvalidOperationException($\"No service implementation found for '{serviceType.FullName}' in assembly '{typeof(AllServicesBinder).Assembly.GetName().Name}'.\");");
         w.CloseBlock();
         w.Line("var names = string.Join(\", \", implementations.Select(static type => type.FullName));");
-        w.Line("throw new InvalidOperationException($\"Multiple service implementations found for '{serviceType.FullName}': {names}. Use the BindAll overload that accepts explicit service instances or factories instead.\");");
+        w.Line("throw new InvalidOperationException($\"Multiple service implementations found for '{serviceType.FullName}': {names}. Use the individual generated binders when you need explicit service instances or factories instead.\");");
         w.CloseBlock();
     }
 }

@@ -67,7 +67,7 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal("0.11.0", jsonVersions.Client);
         Assert.Equal("0.11.3", jsonVersions.Transport);
         Assert.Equal("0.11.0", jsonVersions.Serializer);
-        Assert.Equal("0.16.2", jsonVersions.CodeGen);
+        Assert.Equal("0.16.4", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
