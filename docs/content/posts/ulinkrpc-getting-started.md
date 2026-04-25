@@ -179,60 +179,82 @@ starter 不只是“建几个空目录”，而是会直接做完这些事情：
 
 ## CodeGen 怎么用
 
-starter 会自动安装并运行 `ULinkRPC.CodeGen`，所以默认情况下你不需要自己手动执行。
+starter 第一次生成项目时，会自动帮你安装并跑好 `ULinkRPC.CodeGen`。
 
-但只要你后面修改了：
+所以 `CodeGen` 真正重要的地方，不是在“第一次建项目”，而是在你后续做新功能的时候。
 
-- `Shared/Interfaces/` 下的接口
-- `Shared/Interfaces/` 下的 DTO
+最常见的真实开发顺序其实是这样的：
 
-就应该重新跑一次 codegen，让 server 和 client 两侧生成代码保持一致。
+1. 先在 `Shared/Interfaces/` 里定义新的接口和 DTO
+2. 重新运行 `CodeGen`
+3. 让 server / client 两侧更新胶水代码
+4. 再去补服务端实现
+5. 最后在客户端里调用新的 generated API
 
-你可以把它理解成一条固定规则：
+你可以把它记成一句话：
 
-**只要 Shared 契约变了，就先重跑 codegen，再继续改服务端实现或 Unity 业务逻辑。**
+**Shared 契约变了，就先跑 codegen；胶水代码更新完，再继续写业务逻辑。**
 
-### starter 生成项目里的默认方式
+### 一个更实际的例子：新增背包查询功能
 
-starter 在项目根目录安装本地 tool manifest，所以你可以直接在项目目录执行：
+假设 starter 默认的 `Ping` 已经跑通了，现在你要开始做第一个真实功能：
 
-```bash
-dotnet tool restore
+- 玩家打开背包界面
+- 客户端向服务端请求物品列表
+- 服务端返回当前背包内容
+
+那你的第一步，不是先去改 `Server/Program.cs`，也不是先去手写 generated 目录。
+
+第一步应该是先改 `Shared/Interfaces/`。
+
+比如你在 `Shared/Interfaces/` 里新增：
+
+```csharp
+namespace Shared.Interfaces
+{
+    public sealed class InventoryItemDto
+    {
+        public int ItemId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int Count { get; set; }
+    }
+
+    public sealed class GetInventoryRequest
+    {
+        public long PlayerId { get; set; }
+    }
+
+    public sealed class GetInventoryReply
+    {
+        public List<InventoryItemDto> Items { get; set; } = new();
+    }
+}
 ```
 
-然后分别运行：
+以及新的 RPC 接口：
 
-```bash
-dotnet tool run ulinkrpc-codegen -- --contracts "./Shared" --mode server --server-output "Generated" --server-namespace "Server.Generated"
+```csharp
+using System.Threading.Tasks;
+using ULinkRPC.Core;
+
+namespace Shared.Interfaces
+{
+    [RpcService(2)]
+    public interface IInventoryService
+    {
+        [RpcMethod(1)]
+        ValueTask<GetInventoryReply> GetInventoryAsync(GetInventoryRequest request);
+    }
+}
 ```
 
-工作目录是：
+写到这里，服务端和客户端都还不能直接用这个新接口，因为两边的胶水代码还没生成。
 
-```text
-MyGame/Server/Server
-```
+### 这时候该做什么
 
-以及：
+这时候就应该立刻重新跑 `CodeGen`。
 
-```bash
-dotnet tool run ulinkrpc-codegen -- --contracts "./Shared" --mode unity --output "Assets/Scripts/Rpc/Generated" --namespace "Rpc.Generated"
-```
-
-工作目录是：
-
-```text
-MyGame/Client
-```
-
-如果客户端是 Godot，则对应命令是：
-
-```bash
-dotnet tool run ulinkrpc-codegen -- --contracts "./Shared" --mode godot --output "Scripts/Rpc/Generated" --namespace "Rpc.Generated"
-```
-
-### 更容易记的实际命令
-
-通常你真正会执行的是：
+在 starter 生成的项目里，通常直接这样做：
 
 ```bash
 cd MyGame
@@ -243,44 +265,141 @@ cd ../../Client
 dotnet tool run ulinkrpc-codegen -- --contracts "../Shared" --mode unity --output "Assets/Scripts/Rpc/Generated" --namespace "Rpc.Generated"
 ```
 
-如果你用的是 Godot，则最后一条改成：
+如果客户端是 Godot，最后一条改成：
 
 ```bash
 dotnet tool run ulinkrpc-codegen -- --contracts "../Shared" --mode godot --output "Scripts/Rpc/Generated" --namespace "Rpc.Generated"
 ```
 
-### codegen 会产出什么
+如果你用的是团结引擎，它走的就是 Unity 这条命令。
 
-server 模式会更新：
+### 跑完之后会发生什么
+
+跑完以后，`CodeGen` 会根据你刚才写的 `IInventoryService` 和 DTO 自动更新两边的胶水代码。
+
+server 侧会更新：
 
 - `Server/Server/Generated/AllServicesBinder.cs`
-- 各服务对应的 binder
-- callback proxy
+- `Server/Server/Generated/InventoryServiceBinder.cs`
+- 以及相关 callback proxy（如果你定义了 callback）
 
-unity 模式会更新：
+unity / 团结侧会更新：
 
 - `Client/Assets/Scripts/Rpc/Generated/RpcApi.cs`
-- 各服务对应的 client stub
-- callback binder
+- `Client/Assets/Scripts/Rpc/Generated/` 下对应的 client stub / binder
 
-godot 模式会更新：
+godot 侧会更新：
 
 - `Client/Scripts/Rpc/Generated/RpcApi.cs`
-- 各服务对应的 client stub
-- callback binder
+- `Client/Scripts/Rpc/Generated/` 下对应的 client stub / binder
 
-所以规则很简单：
+这一步的意义是：
 
-**契约一旦变了，就先重跑 codegen，再继续改服务实现或客户端业务逻辑。**
+- 服务端现在知道如何把网络请求路由到 `IInventoryService`
+- 客户端现在有了类型安全的调用入口
+- 你不需要手写这些重复的 binder / stub / facade
 
-如果你只是想确认自己有没有漏跑，可以直接检查这两个目录是否已更新：
+### 然后再去补服务端实现
+
+胶水代码生成完成后，再去 `Server/Server/Services/` 里写业务实现就顺了。
+
+例如新增一个：
+
+```csharp
+using System.Threading.Tasks;
+using Shared.Interfaces;
+
+namespace Server.Services
+{
+    public sealed class InventoryService : IInventoryService
+    {
+        public ValueTask<GetInventoryReply> GetInventoryAsync(GetInventoryRequest request)
+        {
+            var reply = new GetInventoryReply();
+            reply.Items.Add(new InventoryItemDto
+            {
+                ItemId = 1001,
+                Name = "Health Potion",
+                Count = 5
+            });
+
+            return ValueTask.FromResult(reply);
+        }
+    }
+}
+```
+
+到这里，服务端业务逻辑才算真正接上。
+
+### 客户端怎么用新的生成代码
+
+接着你就可以在客户端逻辑里，直接通过生成出来的 API 发请求，而不是自己拼协议包。
+
+概念上它会是这种调用方式：
+
+```csharp
+var reply = await _client.Api.Shared.Inventory.GetInventoryAsync(
+    new GetInventoryRequest
+    {
+        PlayerId = 10001
+    });
+
+foreach (var item in reply.Items)
+{
+    Debug.Log($"{item.ItemId} {item.Name} x{item.Count}");
+}
+```
+
+这里最重要的不是具体命名细节，而是这个工作流：
+
+- 你改的是 `Shared`
+- `CodeGen` 生成的是“连接 Shared 和运行时”的胶水
+- 服务端实现只关心接口
+- 客户端调用只关心生成后的强类型 API
+
+### 什么时候一定要重跑 CodeGen
+
+只要你改了这些内容，就应该立刻重跑：
+
+- 新增 / 删除 / 修改 RPC 接口
+- 新增 / 删除 / 修改 DTO
+- 修改方法签名、参数、返回值
+- 新增 callback 接口
+
+反过来说，如果你只是改服务内部实现，例如：
+
+- `InventoryService` 里换了一套数据库查询
+- 客户端 UI 从按钮点击改成页面打开自动刷新
+
+这种不涉及 Shared 契约变化的改动，就不需要重新跑 `CodeGen`。
+
+### 一个很实用的判断方法
+
+你可以问自己一个问题：
+
+**这次改动有没有动 `Shared/Interfaces/` 里的契约定义？**
+
+如果答案是“有”，那下一步就不是继续写别的代码，而是先跑 `CodeGen`。
+
+如果答案是“没有”，那通常可以继续改服务实现或客户端逻辑。
+
+### 你真正应该维护的是什么
+
+后续开发里，真正应该被你手工维护的是：
+
+- `Shared/Interfaces/` 里的接口和 DTO
+- `Server/Server/Services/` 里的服务实现
+- 客户端自己的业务脚本
+
+而不是：
 
 - `Server/Server/Generated/`
 - `Client/Assets/Scripts/Rpc/Generated/`
-
-如果你用的是 Godot，则客户端目录是：
-
 - `Client/Scripts/Rpc/Generated/`
+
+这些 generated 目录应该被看成“编译产物式的源码”，核心原则就是：
+
+**契约改了，就重新生成；不要手改 generated。**
 
 ## 服务端怎么启动
 
@@ -304,7 +423,7 @@ dotnet run --project Server/Server/Server.csproj
 
 ## 客户端怎么启动
 
-如果你用的是 Unity，用 Unity 2022 LTS 打开：
+如果你用的是 Unity 或团结引擎，用对应编辑器打开：
 
 ```text
 MyGame/Client
@@ -312,9 +431,9 @@ MyGame/Client
 
 首次打开后：
 
-1. 等待 Unity 导入项目
+1. 等待编辑器导入项目
 2. 等待 `NuGetForUnity` 导入完成
-3. 在 Unity 菜单执行 `NuGet -> Restore Packages`
+3. 在编辑器菜单执行 `NuGet -> Restore Packages`
 4. 打开或确认已自动打开 `Assets/Scenes/ConnectionTest.unity`
 5. 点击 Play
 
@@ -424,15 +543,13 @@ Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 
 ## 接下来该怎么扩展
 
-当 starter 生成的默认 `Ping` 示例已经跑通后，后续开发顺序建议固定成这样：
+当 starter 生成的默认 `Ping` 示例已经跑通后，后续开发就按前面的 `Inventory` 例子那条线往前走：
 
-1. 先改 `Shared/Interfaces/` 里的契约和 DTO
-2. 重新运行 codegen
-3. 在 `Server/Server/Services/` 里补服务实现
-4. 在客户端里接入新的 generated API
-5. 最后再接到真正的游戏逻辑
+1. 先在 `Shared/Interfaces/` 里定义功能契约
+2. 立刻重新运行 `CodeGen`
+3. 再补服务端实现和客户端业务接入
 
-也就是说，日常开发的真实源头始终是：
+日常开发里真正的源头始终是：
 
 **Shared 契约，而不是 generated 目录。**
 
