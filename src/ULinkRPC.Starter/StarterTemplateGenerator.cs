@@ -52,6 +52,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         switch (context.ClientEngine)
         {
             case ClientEngineKind.Unity:
+            case ClientEngineKind.Tuanjie:
                 StarterUnityTemplate.Generate(context);
                 return;
             case ClientEngineKind.Godot:
@@ -95,7 +96,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
 
         runDotNet(
             context.Paths.ClientPath,
-            context.ClientEngine == ClientEngineKind.Unity
+            context.ClientEngine.IsUnityCompatible()
                 ? $"tool run ulinkrpc-codegen -- --contracts \"{context.Paths.SharedPath}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\""
                 : $"tool run ulinkrpc-codegen -- --contracts \"{context.Paths.SharedPath}\" --mode godot --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"");
     }

@@ -241,7 +241,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<add key=\"All\" value=\"(Aggregate source)\" />", nugetConfig);
             Assert.Contains("m_EditorVersion: 2022.3.62f3c1", projectVersion);
             Assert.Contains("m_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)", projectVersion);
-            Assert.Contains("Unity will auto-open `Assets/Scenes/ConnectionTest.unity`", clientReadme);
+            Assert.Contains("the editor will auto-open `Assets/Scenes/ConnectionTest.unity`", clientReadme);
             Assert.Contains("using Rpc.Generated;", testerScript);
             Assert.Contains("using Shared.Interfaces;", testerScript);
             Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
@@ -487,6 +487,51 @@ public sealed class StarterTemplateGeneratorTests
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void GenerateTemplate_CreatesTuanjieClientFiles_UsingUnityCompatibleTemplateAndCodeGen()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var commands = new List<string>();
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Tuanjie-Test", ClientEngineKind.Tuanjie, TransportKind.Tcp, SerializerKind.Json, Versions);
+
+            var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
+            var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
+            var manifestJson = File.ReadAllText(Path.Combine(root, "Client", "Packages", "manifest.json"));
+            var generatedClientApi = Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs");
+
+            Assert.Contains("<TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>", sharedCsproj);
+            Assert.Contains("Tuanjie Client Starter (Tuanjie (Unity-compatible))", clientReadme);
+            Assert.Contains("Open this folder with Tuanjie (Unity-compatible).", clientReadme);
+            Assert.Contains("file:../../Shared", manifestJson);
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+            Assert.True(File.Exists(generatedClientApi));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("tuanjie")]
+    [InlineData("unity-china")]
+    [InlineData("unitycn")]
+    public void TryParseArgs_ParsesTuanjieClientEngineAliases(string rawClientEngine)
+    {
+        var ok = StarterCli.TryParseArgs(
+            ["--client-engine", rawClientEngine],
+            out var options,
+            out var error);
+
+        Assert.True(ok);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(ClientEngineKind.Tuanjie, options.ClientEngine);
     }
 
 

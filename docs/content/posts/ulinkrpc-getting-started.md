@@ -1,9 +1,10 @@
 ---
-title: 用 ULinkRPC.Starter 快速创建一个 Unity / Godot 和 .NET 双向通信项目
+title: 用 ULinkRPC.Starter 快速创建一个 Unity / 团结 / Godot 和 .NET 双向通信项目
 date: 2026-03-15T12:30:00+08:00
 tags:
   - ulinkrpc
   - unity
+  - tuanjie
   - godot
   - dotnet
   - rpc
@@ -20,7 +21,7 @@ categories:
 
 - `Shared` 共享契约项目
 - `Server` 服务端项目和解决方案
-- `Client` Unity 2022 或 Godot 4.x 客户端骨架
+- `Client` Unity 2022、团结引擎或 Godot 4.x 客户端骨架
 - 默认 `Ping` 契约、服务实现，以及客户端测试入口
 - `ULinkRPC.CodeGen` 本地工具清单和两侧生成代码
 
@@ -52,13 +53,16 @@ categories:
 ```bash
 dotnet tool install -g ULinkRPC.Starter
 ulinkrpc-starter --name MyGame --client-engine unity --transport websocket --serializer json
+
+# 或者
+ulinkrpc-starter --name MyGame --client-engine tuanjie --transport websocket --serializer json
 cd MyGame
 dotnet run --project Server/Server/Server.csproj
 ```
 
-如果你选的是 Unity：
+如果你选的是 Unity 或团结引擎：
 
-- 用 Unity 2022 LTS 打开 `MyGame/Client`
+- 用 Unity 2022 LTS 或团结引擎打开 `MyGame/Client`
 - 等待导入完成
 - 执行 `NuGet -> Restore Packages`
 - 打开 `Assets/Scenes/ConnectionTest.unity`
@@ -138,6 +142,7 @@ ulinkrpc-starter --name MyGame
 
 - `client-engine`
   - `unity`
+  - `tuanjie`
   - `godot`
 
 - `transport`

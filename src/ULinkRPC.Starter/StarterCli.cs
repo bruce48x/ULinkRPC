@@ -4,7 +4,7 @@ internal static class StarterCli
 {
     public static void PrintUsage()
     {
-        Console.WriteLine("Usage: ulinkrpc-starter [--version] [--name MyGame] [--output ./out] [--client-engine unity|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack]");
+        Console.WriteLine("Usage: ulinkrpc-starter [--version] [--name MyGame] [--output ./out] [--client-engine unity|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack]");
     }
 
     public static bool TryParseArgs(string[] args, out StarterCliOptions options, out string error)
@@ -97,7 +97,8 @@ internal static class StarterCli
     {
         Console.WriteLine("Select client engine:");
         Console.WriteLine("  1) Unity");
-        Console.WriteLine("  2) Godot");
+        Console.WriteLine("  2) Tuanjie");
+        Console.WriteLine("  3) Godot");
         while (true)
         {
             Console.Write("> ");
@@ -105,10 +106,11 @@ internal static class StarterCli
             switch (line)
             {
                 case "1": return ClientEngineKind.Unity;
-                case "2": return ClientEngineKind.Godot;
+                case "2": return ClientEngineKind.Tuanjie;
+                case "3": return ClientEngineKind.Godot;
             }
 
-            Console.WriteLine("Please enter 1-2.");
+            Console.WriteLine("Please enter 1-3.");
         }
     }
 
@@ -182,6 +184,11 @@ internal static class StarterCli
         switch (normalized)
         {
             case "unity": clientEngine = ClientEngineKind.Unity; return true;
+            case "tuanjie":
+            case "unity-china":
+            case "unitycn":
+                clientEngine = ClientEngineKind.Tuanjie;
+                return true;
             case "godot": clientEngine = ClientEngineKind.Godot; return true;
             default: clientEngine = default; return false;
         }

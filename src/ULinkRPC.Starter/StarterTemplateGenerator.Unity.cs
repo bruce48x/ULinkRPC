@@ -116,14 +116,14 @@ internal static class StarterUnityTemplate
 """;
 
     private static string BuildReadme(StarterTemplateContext context) => $$"""
-# Unity Client Starter (Unity 2022 LTS)
+# {{context.ClientEngine.GetDisplayName()}} Client Starter ({{context.ClientEngine.GetStarterClientLabel()}})
 
-1. Open this folder with Unity 2022 LTS.
+1. Open this folder with {{context.ClientEngine.GetStarterClientLabel()}}.
 2. Wait for `NuGetForUnity` import.
-3. In Unity: `NuGet -> Restore Packages` to install ULinkRPC latest packages.
+3. In the editor: `NuGet -> Restore Packages` to install ULinkRPC latest packages.
 4. Shared code is provided by local UPM package:
    - `com.{{context.CompanyId}}.shared` -> `../../{{context.SharedProjectName}}`
-5. On first launch, Unity will auto-open `Assets/Scenes/{{GetUnitySceneName()}}.unity`.
+5. On first launch, the editor will auto-open `Assets/Scenes/{{GetUnitySceneName()}}.unity`.
 6. Press Play to run the default connection example.
 
 Selected transport: {{context.Transport}}

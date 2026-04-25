@@ -1,9 +1,13 @@
 # Changelog
 
-## 0.2.40
+## 0.2.41
 
 - Release packages:
-	- `ULinkRPC.Starter` `0.2.40`
+	- `ULinkRPC.Starter` `0.2.41`
+- Added Tuanjie client support to `ULinkRPC.Starter`.
+- `ULinkRPC.Starter` now supports `--client-engine tuanjie` plus `unity-china` / `unitycn` aliases, reusing the existing Unity-compatible client template and codegen flow.
+- Updated starter help and readme text so Unity-compatible client scaffolding explicitly covers Tuanjie in addition to Unity.
+
 - Fixed Godot starter generation so scaffolded projects now include a root `.gitattributes` file with LF normalization for source assets and LFS/binary rules for common Godot project binaries.
 
 ## 0.16.3 / 0.2.39

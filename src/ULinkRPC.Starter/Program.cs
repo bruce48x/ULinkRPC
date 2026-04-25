@@ -41,8 +41,8 @@ internal static class Program
         Console.WriteLine("Next steps:");
         Console.WriteLine($"  1) cd \"{rootPath}\"");
         Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
-        Console.WriteLine(clientEngine == ClientEngineKind.Unity
-            ? "  3) Open \"Client\" with Unity 2022 LTS."
+        Console.WriteLine(clientEngine.IsUnityCompatible()
+            ? $"  3) Open \"Client\" with {clientEngine.GetStarterClientLabel()}."
             : "  3) Open \"Client\" with Godot 4.6 and build the C# solution.");
 
         return 0;
