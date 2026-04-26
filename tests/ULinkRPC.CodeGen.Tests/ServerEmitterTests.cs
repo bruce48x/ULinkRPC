@@ -220,8 +220,6 @@ public class ServerEmitterTests
         Assert.Contains("public static class AllServicesBinder", code);
         Assert.Contains("public static void BindAll(RpcServiceRegistry registry)", code);
         Assert.Contains("PlayerServiceBinder.BindFactory(registry, CreateServiceFactory<IPlayerService>());", code);
-        Assert.Contains("public static void BindAll(RpcServiceRegistry registry, IPlayerService playerService)", code);
-        Assert.Contains("PlayerServiceBinder.Bind(registry, playerService);", code);
     }
 
     [Fact]
@@ -232,16 +230,12 @@ public class ServerEmitterTests
             [VoidMethod("Send", 1, Param("SendRequest", "request"))], ["Ns"]);
         var code = ServerEmitter.GenerateAllServicesBinder([svc1, svc2], "S", "ULinkRPC.Server");
 
-        Assert.Contains("IPlayerService playerService", code);
-        Assert.Contains("IChatService chatService", code);
         Assert.Contains("PlayerServiceBinder.BindFactory(registry, CreateServiceFactory<IPlayerService>());", code);
         Assert.Contains("ChatServiceBinder.BindFactory(registry, CreateServiceFactory<IChatService>());", code);
-        Assert.Contains("PlayerServiceBinder.Bind(registry, playerService);", code);
-        Assert.Contains("ChatServiceBinder.Bind(registry, chatService);", code);
     }
 
     [Fact]
-    public void AllServicesBinder_CallbackService_GeneratesAutomaticAndExplicitFactoryBinding()
+    public void AllServicesBinder_CallbackService_GeneratesAutomaticFactoryBinding()
     {
         var svc = MakeServiceWithCallback();
         var code = ServerEmitter.GenerateAllServicesBinder([svc], "S", "ULinkRPC.Server");
@@ -249,8 +243,6 @@ public class ServerEmitterTests
         Assert.Contains("using System;", code);
         Assert.Contains("public static void BindAll(RpcServiceRegistry registry)", code);
         Assert.Contains("GameSvcBinder.Bind(registry, CreateCallbackServiceFactory<IGameSvc, IGameCallback>());", code);
-        Assert.Contains("public static void BindAll(RpcServiceRegistry registry, Func<IGameCallback, IGameSvc> gameSvcFactory)", code);
-        Assert.Contains("GameSvcBinder.Bind(registry, gameSvcFactory);", code);
     }
 
     [Fact]
