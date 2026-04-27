@@ -16,6 +16,21 @@ It is designed for projects that need:
 
 With ULinkRPC, you define interfaces and DTOs once, generate the glue code, then use typed services on both sides.
 
+```mermaid
+flowchart LR
+    Contracts["Shared Contracts<br/>interfaces + DTOs"] --> CodeGen["ULinkRPC.CodeGen"]
+    CodeGen --> ClientApi["Generated Client API<br/>proxy / facade / callback binder"]
+    CodeGen --> ServerBinders["Generated Server Binders<br/>routing / callback proxy"]
+
+    Client["Unity / Godot Client"] --> ClientApi
+    ClientApi --> Runtime["ULinkRPC Runtime"]
+    Server[".NET Server"] --> ServerBinders
+    ServerBinders --> Runtime
+
+    Runtime --> Transport["Transport<br/>TCP / WebSocket / KCP"]
+    Runtime --> Serializer["Serializer<br/>JSON / MemoryPack"]
+```
+
 Typical stack:
 
 - Unity or Godot client
@@ -134,6 +149,19 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 ## Packages
 
 Core packages:
+
+```mermaid
+flowchart TB
+    Core["ULinkRPC.Core"] --> Client["ULinkRPC.Client"]
+    Core --> Server["ULinkRPC.Server"]
+    Core --> CodeGen["ULinkRPC.CodeGen"]
+    Core --> Tcp["ULinkRPC.Transport.Tcp"]
+    Core --> Ws["ULinkRPC.Transport.WebSocket"]
+    Core --> Kcp["ULinkRPC.Transport.Kcp"]
+    Core --> Loopback["ULinkRPC.Transport.Loopback"]
+    Core --> Json["ULinkRPC.Serializer.Json"]
+    Core --> MemoryPack["ULinkRPC.Serializer.MemoryPack"]
+```
 
 - `ULinkRPC.Core`
 - `ULinkRPC.Client`

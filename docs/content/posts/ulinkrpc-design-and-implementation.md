@@ -32,6 +32,17 @@ categories:
 
 如果拆开看，它大致是三层：
 
+```mermaid
+flowchart LR
+    A["Contract Layer<br/>共享接口与 DTO"] --> B["CodeGen Layer<br/>生成 proxy / binder / facade"]
+    B --> C["Runtime Layer<br/>请求、响应、Push、KeepAlive"]
+    C --> D["Transport Layer<br/>TCP / WebSocket / KCP"]
+
+    A1["[RpcService] / [RpcMethod]<br/>[RpcCallback] / [RpcPush]"] -.defines semantics.-> A
+    C1["RpcClientRuntime / RpcSession<br/>RpcEnvelopeCodec / IRpcSerializer"] -.implements.-> C
+    D1["完整帧收发"] -.abstracts.-> D
+```
+
 ### 1. 契约层：只描述“谁可以调用谁”
 
 这一层只关心共享接口和 DTO：
@@ -386,58 +397,37 @@ var reply = await client.Api.Game.Player.LoginAsync(req);
 
 底层大致会经过下面这条链路。
 
-```text
-Unity caller
-    |
-    v
-client.Api.Game.Player.LoginAsync(req)
-    |
-    v
-PlayerServiceClient (generated proxy)
-    |
-    v
-RpcClientRuntime.CallAsync(...)
-    |
-    +--> Serializer.Encode(req)
-    |
-    +--> RpcEnvelopeCodec.EncodeRequest
-    |        Request = [Type|RequestId|ServiceId|MethodId|PayloadLen|Payload]
-    |
-    v
-Transport.SendFrameAsync(frame)
-    |
-    v
-========================= network =========================
-    |
-    v
-RpcSession.ReceiveLoopAsync
-    |
-    +--> RpcEnvelopeCodec.DecodeRequest
-    |
-    +--> RpcServiceRegistry lookup(serviceId, methodId)
-    |
-    +--> PlayerServiceBinder.InvokeAsync(...)
-    |        |
-    |        +--> Serializer.Decode(req payload)
-    |        +--> PlayerService.LoginAsync(req)
-    |        +--> Serializer.Encode(reply)
-    |        +--> RpcEnvelopeCodec.EncodeResponse
-    |
-    v
-Transport.SendFrameAsync(response frame)
-    |
-    v
-========================= network =========================
-    |
-    v
-RpcClientRuntime.ReceiveLoopAsync
-    |
-    +--> RpcEnvelopeCodec.DecodeResponse
-    +--> match pending RequestId
-    +--> complete Task<LoginReply>
-    |
-    v
-await LoginAsync(...) returns
+```mermaid
+sequenceDiagram
+    participant U as Unity Caller
+    participant P as PlayerServiceClient<br/>(generated proxy)
+    participant CR as RpcClientRuntime
+    participant CT as Client Transport
+    participant ST as Server Transport
+    participant S as RpcSession
+    participant B as PlayerServiceBinder<br/>(generated)
+    participant SV as PlayerService
+
+    U->>P: LoginAsync(req)
+    P->>CR: CallAsync(rpcMethod, req, ct)
+    CR->>CR: Serialize req
+    CR->>CR: Encode Request envelope
+    CR->>CT: SendFrameAsync(request frame)
+    CT->>ST: network frame
+    ST->>S: ReceiveFrameAsync()
+    S->>S: Decode Request envelope
+    S->>B: InvokeAsync(serviceId, methodId, payload)
+    B->>B: Deserialize req
+    B->>SV: LoginAsync(req)
+    SV-->>B: LoginReply
+    B->>B: Serialize reply
+    B->>S: Response envelope
+    S->>ST: SendFrameAsync(response frame)
+    ST->>CT: network frame
+    CT->>CR: ReceiveFrameAsync()
+    CR->>CR: Match pending by RequestId
+    CR-->>P: complete ValueTask<LoginReply>
+    P-->>U: return reply
 ```
 
 ### 第 1 步：调用的是生成出来的 client proxy
@@ -564,40 +554,28 @@ ULinkRPC 最实用的地方之一，就是它没有把“服务端主动推送�
 
 对应的数据流大致是这样：
 
-```text
-Server business code
-    |
-    v
-_callback.OnNotify(new PlayerNotify { Message = "hello" })
-    |
-    v
-PlayerCallbackProxy (generated)
-    |
-    +--> Serializer.Encode("hello")
-    +--> RpcEnvelopeCodec.EncodePush
-    |        Push = [Type|ServiceId|MethodId|PayloadLen|Payload]
-    |
-    v
-RpcSession.PushAsync(...)
-    |
-    v
-Transport.SendFrameAsync(push frame)
-    |
-    v
-========================= network =========================
-    |
-    v
-RpcClientRuntime.ReceiveLoopAsync
-    |
-    +--> RpcEnvelopeCodec.DecodePush
-    +--> find callback handler by (serviceId, methodId)
-    +--> PlayerCallbackBinder.Invoke(...)
-    |        |
-    |        +--> Serializer.Decode(push payload)
-    |        +--> PlayerCallbackReceiver.OnNotify(notify)
-    |
-    v
-Unity callback code runs
+```mermaid
+sequenceDiagram
+    participant SB as Server Business Code
+    participant CP as PlayerCallbackProxy<br/>(generated)
+    participant S as RpcSession
+    participant ST as Server Transport
+    participant CT as Client Transport
+    participant CR as RpcClientRuntime
+    participant CB as PlayerCallbackBinder<br/>(generated)
+    participant R as PlayerCallbackReceiver
+
+    SB->>CP: OnNotify(PlayerNotify)
+    CP->>CP: Serialize notify
+    CP->>CP: Encode Push envelope
+    CP->>S: PushAsync(serviceId, methodId, payload)
+    S->>ST: SendFrameAsync(push frame)
+    ST->>CT: network frame
+    CT->>CR: ReceiveFrameAsync()
+    CR->>CR: Decode Push envelope
+    CR->>CB: Dispatch by serviceId/methodId
+    CB->>CB: Deserialize notify
+    CB->>R: OnNotify(notify)
 ```
 
 ### 为什么这点很重要
@@ -689,37 +667,24 @@ _callback.OnNotify(new PlayerNotify { Message = "hello" })
 
 但 ULinkRPC 还是选择了 CodeGen，主要是因为这几件事：
 
-```text
-Without CodeGen
+```mermaid
+flowchart TB
+    A["Contracts"] --> B["ULinkRPC.CodeGen"]
+    B --> C["Generated Client Proxy"]
+    B --> D["Generated RpcApi / RpcClient Facade"]
+    B --> E["Generated Callback Binder"]
+    B --> F["Generated Server Binder"]
+    B --> G["Generated Callback Proxy"]
+    B --> H["Generated AllServicesBinder"]
 
-contracts
-   |
-   +--> hand-written client proxy
-   +--> hand-written request packing
-   +--> hand-written response unpacking
-   +--> hand-written callback dispatch
-   +--> hand-written server routing table
-   +--> hand-written binder / push proxy
-
-
-With CodeGen
-
-contracts
-   |
-   v
-ULinkRPC.CodeGen
-   |
-   +--> generated client proxy
-   +--> generated RpcApi / RpcClient facade
-   +--> generated callback binder
-   +--> generated server binder
-   +--> generated callback proxy
-   +--> generated all-services registration
-
-business code
-   |
-   +--> implement service interface
-   +--> implement callback receiver
+    I["Business Code"] --> J["Implement Service Interface"]
+    I --> K["Implement Callback Receiver"]
+    C --> I
+    D --> I
+    E --> I
+    F --> I
+    G --> I
+    H --> I
 ```
 
 差别不在于少写几行，而在于谁来维护那一大坨重复、脆弱、又很容易和契约漂移的胶水代码。

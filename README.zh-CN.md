@@ -16,6 +16,21 @@ ULinkRPC 是一个面向 Unity、Godot 和 .NET 的强类型双向 RPC 框架。
 
 用 ULinkRPC，你只需要定义一次接口和 DTO，生成胶水代码之后，客户端和服务端两边都可以直接使用强类型服务。
 
+```mermaid
+flowchart LR
+    Contracts["共享契约<br/>接口 + DTO"] --> CodeGen["ULinkRPC.CodeGen"]
+    CodeGen --> ClientApi["客户端生成 API<br/>proxy / facade / callback binder"]
+    CodeGen --> ServerBinders["服务端生成 Binder<br/>路由 / callback proxy"]
+
+    Client["Unity / Godot 客户端"] --> ClientApi
+    ClientApi --> Runtime["ULinkRPC Runtime"]
+    Server[".NET 服务端"] --> ServerBinders
+    ServerBinders --> Runtime
+
+    Runtime --> Transport["传输层<br/>TCP / WebSocket / KCP"]
+    Runtime --> Serializer["序列化层<br/>JSON / MemoryPack"]
+```
+
 一个常见的组合是：
 
 - Unity 或 Godot 客户端
@@ -134,6 +149,19 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 ## 包组成
 
 核心包：
+
+```mermaid
+flowchart TB
+    Core["ULinkRPC.Core"] --> Client["ULinkRPC.Client"]
+    Core --> Server["ULinkRPC.Server"]
+    Core --> CodeGen["ULinkRPC.CodeGen"]
+    Core --> Tcp["ULinkRPC.Transport.Tcp"]
+    Core --> Ws["ULinkRPC.Transport.WebSocket"]
+    Core --> Kcp["ULinkRPC.Transport.Kcp"]
+    Core --> Loopback["ULinkRPC.Transport.Loopback"]
+    Core --> Json["ULinkRPC.Serializer.Json"]
+    Core --> MemoryPack["ULinkRPC.Serializer.MemoryPack"]
+```
 
 - `ULinkRPC.Core`
 - `ULinkRPC.Client`

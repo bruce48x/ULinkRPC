@@ -85,6 +85,19 @@ dotnet run --project Server/Server/Server.csproj
 
 starter 生成出来的项目固定是三层：
 
+```mermaid
+flowchart TB
+    Root["MyGame/"] --> Shared["Shared<br/>共享 DTO / RPC 契约"]
+    Root --> Server["Server<br/>.NET 服务端入口与服务实现"]
+    Root --> Client["Client<br/>Unity / 团结 / Godot 工程"]
+
+    Shared --> CodeGen["ULinkRPC.CodeGen"]
+    CodeGen --> ServerGenerated["Server Generated<br/>binder / AllServicesBinder"]
+    CodeGen --> ClientGenerated["Client Generated<br/>proxy / RpcApi / callback binder"]
+    Server --> ServerGenerated
+    Client --> ClientGenerated
+```
+
 ```text
 MyGame/
   Shared/
@@ -194,6 +207,17 @@ starter 第一次生成项目时，会自动帮你安装并跑好 `ULinkRPC.Code
 你可以把它记成一句话：
 
 **Shared 契约变了，就先跑 codegen；胶水代码更新完，再继续写业务逻辑。**
+
+```mermaid
+flowchart LR
+    A["修改 Shared/Interfaces<br/>接口与 DTO"] --> B["运行 ULinkRPC.CodeGen"]
+    B --> C["更新 Server 生成代码"]
+    B --> D["更新 Client 生成代码"]
+    C --> E["补服务端实现"]
+    D --> F["在客户端调用生成 API"]
+    E --> G["联调运行"]
+    F --> G
+```
 
 ### 一个更实际的例子：新增背包查询功能
 

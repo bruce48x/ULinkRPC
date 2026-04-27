@@ -62,6 +62,21 @@ samples/
 
 ## What Gets Generated
 
+```mermaid
+flowchart LR
+    Input["Starter Inputs<br/>name / engine / transport / serializer"] --> Tool["ULinkRPC.Starter"]
+    Tool --> Shared["Shared<br/>contracts / DTOs / UPM package"]
+    Tool --> Server["Server<br/>solution / host / services"]
+    Tool --> Client["Client<br/>Unity / Tuanjie / Godot skeleton"]
+    Tool --> Tooling["Local Tooling<br/>tool manifest / .gitignore / git init"]
+
+    Shared --> CodeGen["Run ULinkRPC.CodeGen"]
+    CodeGen --> ServerGenerated["Generated Server Binders"]
+    CodeGen --> ClientGenerated["Generated Client API"]
+    Server --> ServerGenerated
+    Client --> ClientGenerated
+```
+
 - `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, `Directory.Build.props` redirects `obj/bin` to `../_artifacts/Shared/`, and the generated `.csproj` uses `LangVersion=latest` so MemoryPack source generation can compile.
 - `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and wires the selected serializer and acceptor explicitly.
