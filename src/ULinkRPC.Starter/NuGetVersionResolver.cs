@@ -56,7 +56,7 @@ internal static class StarterReleaseVersions
     public const string TransportKcp = "0.11.7";
     public const string SerializerJson = "0.11.0";
     public const string SerializerMemoryPack = "0.11.0";
-    public const string CodeGen = "0.16.2";
+    public const string CodeGen = "0.16.4";
     public const string MemoryPackRuntime = "1.21.4";
     public const string MemoryPackRuntimeCore = "1.21.4";
 }
