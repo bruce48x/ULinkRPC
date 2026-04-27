@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.43
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.43`
+- Updated the starter's bundled `ULinkRPC.Transport.Kcp` dependency to `0.11.8`.
+- Refreshed the starter's pinned Unity/NuGet dependency baseline to the latest stable package versions used by the generated `packages.config` files, including current `System.Text.Json`, `System.IO.Pipelines`, Roslyn, and BCL support packages.
+
+## 0.11.8
+
+- Release packages:
+	- `ULinkRPC.Transport.Kcp` `0.11.8`
+- Added an explicit `KcpTransport(string host, int port, uint conversationId)` overload so clients can connect with a server-assigned `conv` instead of always generating one locally.
+- Added optional KCP handshake admission hooks via `KcpHandshakeAdmission` and new `KcpConnectionAcceptor` / `KcpListener` overloads so servers can validate or reserve incoming `conv` values before establishing a session.
+
 ## 0.2.41
 
 - Release packages:

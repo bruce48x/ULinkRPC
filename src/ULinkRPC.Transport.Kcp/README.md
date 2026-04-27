@@ -15,6 +15,7 @@ dotnet add package ULinkRPC.Transport.Kcp
 - `KcpAcceptResult`
 - `KcpServerTransport`
 - `KcpConnectionAcceptor`
+- `KcpHandshakeAdmission`
 
 ## Server Usage
 
@@ -28,4 +29,22 @@ builder.UseAcceptor(new KcpConnectionAcceptor(
     builder.Limits.MaxPendingAcceptedConnections));
 
 await builder.RunAsync();
+```
+
+You can optionally gate new KCP sessions by validating the handshake `conv` before accepting:
+
+```csharp
+builder.UseAcceptor(new KcpConnectionAcceptor(
+    20001,
+    builder.Limits.MaxPendingAcceptedConnections,
+    (conv, remoteEndPoint, ct) => ValueTask.FromResult(conv != 0)));
+```
+
+## Client Usage
+
+`KcpTransport` can now either generate its own conversation id or reuse a server-assigned `conv`:
+
+```csharp
+var generatedConv = new KcpTransport("127.0.0.1", 20001);
+var assignedConv = new KcpTransport("127.0.0.1", 20001, conversationId: 1234);
 ```

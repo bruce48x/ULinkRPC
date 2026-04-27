@@ -17,6 +17,7 @@ namespace ULinkRPC.Transport.Kcp
         private readonly object _kcpGate = new();
         private readonly string _host;
         private readonly int _port;
+        private readonly uint? _conversationId;
         private readonly LengthPrefixedFrameAccumulator _accumulator = new();
         private readonly EndPoint _receiveAny = new IPEndPoint(IPAddress.Any, 0);
         private IDisposable? _updateRegistration;
@@ -29,6 +30,15 @@ namespace ULinkRPC.Transport.Kcp
         {
             _host = host ?? throw new ArgumentNullException(nameof(host));
             _port = port;
+        }
+
+        public KcpTransport(string host, int port, uint conversationId)
+            : this(host, port)
+        {
+            if (conversationId == 0)
+                throw new ArgumentOutOfRangeException(nameof(conversationId), "Conversation id must be non-zero.");
+
+            _conversationId = conversationId;
         }
 
         public bool IsConnected { get; private set; }
@@ -45,7 +55,7 @@ namespace ULinkRPC.Transport.Kcp
             {
                 socket.Bind(new IPEndPoint(IPAddress.Any, 0));
 
-                var conv = CreateConversationId();
+                var conv = _conversationId ?? CreateConversationId();
                 socket.SendTo(CreateHandshakeRequest(conv), bootstrapEndPoint);
 
                 var sessionPort = await ReceiveHandshakeAckAsync(socket, bootstrapEndPoint, conv, ct).ConfigureAwait(false);

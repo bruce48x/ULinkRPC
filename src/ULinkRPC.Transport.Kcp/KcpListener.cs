@@ -14,6 +14,7 @@ namespace ULinkRPC.Transport.Kcp
         private readonly Socket _socket;
         private readonly Task _receiveLoop;
         private readonly int _maxPendingAcceptedConnections;
+        private readonly KcpHandshakeAdmission? _admission;
         private int _pendingAcceptedConnections;
 
         public KcpListener(int port)
@@ -27,11 +28,21 @@ namespace ULinkRPC.Transport.Kcp
         }
 
         public KcpListener(int port, int maxPendingAcceptedConnections)
-            : this(new IPEndPoint(IPAddress.Any, port), maxPendingAcceptedConnections)
+            : this(new IPEndPoint(IPAddress.Any, port), maxPendingAcceptedConnections, admission: null)
+        {
+        }
+
+        public KcpListener(int port, int maxPendingAcceptedConnections, KcpHandshakeAdmission? admission)
+            : this(new IPEndPoint(IPAddress.Any, port), maxPendingAcceptedConnections, admission)
         {
         }
 
         public KcpListener(IPEndPoint endPoint, int maxPendingAcceptedConnections)
+            : this(endPoint, maxPendingAcceptedConnections, admission: null)
+        {
+        }
+
+        public KcpListener(IPEndPoint endPoint, int maxPendingAcceptedConnections, KcpHandshakeAdmission? admission)
         {
             if (endPoint is null)
                 throw new ArgumentNullException(nameof(endPoint));
@@ -41,6 +52,7 @@ namespace ULinkRPC.Transport.Kcp
                     "Pending accepted connection limit must be positive.");
 
             _maxPendingAcceptedConnections = maxPendingAcceptedConnections;
+            _admission = admission;
             _accepted = Channel.CreateBounded<KcpAcceptResult>(new BoundedChannelOptions(maxPendingAcceptedConnections)
             {
                 SingleReader = false,
@@ -152,6 +164,9 @@ namespace ULinkRPC.Transport.Kcp
 #endif
                     continue;
                 }
+
+                if (_admission is not null && !await _admission(conv, remoteEndPoint, _cts.Token).ConfigureAwait(false))
+                    continue;
 
                 if (!TryAcquirePendingSlot())
                     continue;

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("RpcCall.MemoryPack", "RpcCall.Json", "RpcCall.Kcp")]
+    [ValidateSet("RpcCall.MemoryPack", "RpcCall.Json", "RpcCall.Kcp", "Agar.MixedTransport")]
     [string]$Sample = "RpcCall.MemoryPack",
 
     [ValidateSet("Debug", "Release")]
@@ -54,6 +54,14 @@ $sampleConfig = @{
         UnityOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Assets/Scripts/Rpc/Generated"
         ServerOutput = "samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/Generated"
     }
+    "Agar.MixedTransport" = @{
+        Project = "samples/Agar.MixedTransport/Agar.MixedTransport.Server/Agar.MixedTransport.Server/Agar.MixedTransport.Server.csproj"
+        AssemblyName = "Agar.MixedTransport.Server"
+        Contracts = "samples/Agar.MixedTransport/Shared/Interfaces"
+        ClientMode = "godot"
+        ClientOutput = "samples/Agar.MixedTransport/Agar.MixedTransport.Godot/Scripts/Rpc/Generated"
+        ServerOutput = "samples/Agar.MixedTransport/Agar.MixedTransport.Server/Agar.MixedTransport.Server/Generated"
+    }
 }
 
 $config = $sampleConfig[$Sample]
@@ -65,7 +73,9 @@ $projectPath = Join-Path $repoRoot $config.Project
 $projectDir = Split-Path -Parent $projectPath
 $assemblyName = $config.AssemblyName
 $contractsPath = Join-Path $repoRoot $config.Contracts
-$unityOutputPath = Join-Path $repoRoot $config.UnityOutput
+$clientOutputConfig = if ($config.ContainsKey("ClientOutput")) { $config.ClientOutput } else { $config.UnityOutput }
+$clientMode = if ($config.ContainsKey("ClientMode")) { $config.ClientMode } else { "unity" }
+$clientOutputPath = Join-Path $repoRoot $clientOutputConfig
 $serverOutputPath = Join-Path $repoRoot $config.ServerOutput
 $targetDllPath = Join-Path $projectDir ("bin/{0}/net10.0/{1}.dll" -f $Configuration, $assemblyName)
 
@@ -125,19 +135,24 @@ function Stop-SampleProcesses {
         [string[]]$MatchTerms
     )
 
-    $processes = @(Get-CimInstance Win32_Process | Where-Object {
-        if ([string]::IsNullOrWhiteSpace($_.CommandLine)) {
-            return $false
-        }
-
-        foreach ($term in $MatchTerms) {
-            if (-not [string]::IsNullOrWhiteSpace($term) -and $_.CommandLine.IndexOf($term, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
-                return $true
+    try {
+        $processes = @(Get-CimInstance Win32_Process | Where-Object {
+            if ([string]::IsNullOrWhiteSpace($_.CommandLine)) {
+                return $false
             }
-        }
 
-        return $false
-    })
+            foreach ($term in $MatchTerms) {
+                if (-not [string]::IsNullOrWhiteSpace($term) -and $_.CommandLine.IndexOf($term, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                    return $true
+                }
+            }
+
+            return $false
+        })
+    } catch {
+        Write-Warning "Skipping process cleanup: $($_.Exception.Message)"
+        return
+    }
 
     foreach ($process in $processes) {
         if ($process.ProcessId -eq $PID) {
@@ -168,7 +183,7 @@ if (-not $SkipGen) {
 
     if ($CleanGenerated) {
         if ($GenMode -in @("Unity", "All")) {
-            Remove-GeneratedFiles -Path $unityOutputPath
+            Remove-GeneratedFiles -Path $clientOutputPath
         }
         if ($GenMode -in @("Server", "All")) {
             Remove-GeneratedFiles -Path $serverOutputPath
@@ -187,8 +202,8 @@ if (-not $SkipGen) {
     if ($GenMode -in @("Unity", "All")) {
         $unityArgs = @() + $toolRunBaseArgs + @(
             "--contracts", $contractsPath,
-            "--mode", "unity",
-            "--output", $unityOutputPath
+            "--mode", $clientMode,
+            "--output", $clientOutputPath
         )
         Write-Host "==> dotnet $($unityArgs -join ' ')" -ForegroundColor Cyan
         & dotnet @unityArgs
