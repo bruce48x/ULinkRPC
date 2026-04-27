@@ -83,6 +83,10 @@ internal sealed record StarterTemplateContext(
 {
     public string SharedProjectName => Path.GetFileName(Paths.SharedPath);
     public string ServerProjectName => Path.GetFileName(Paths.ServerAppPath);
+    public string ClientCodeGenMode => ClientEngine.IsUnityCompatible() ? "unity" : "godot";
+    public string ClientCodeGenOutput => ClientEngine.IsUnityCompatible()
+        ? $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated"
+        : $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated";
 }
 
 internal sealed record UnityClientArtifacts(

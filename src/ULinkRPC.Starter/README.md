@@ -52,6 +52,8 @@ This generates:
 samples/
   MyGame/
     .gitignore
+    codegen.ps1
+    codegen.sh
     Shared/
     Server/
       Server.sln or Server.slnx
@@ -81,6 +83,7 @@ flowchart LR
 - `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and wires the selected serializer and acceptor explicitly.
 - `Client/`: Unity 2022 LTS / Tuanjie-compatible skeleton with `NuGetForUnity`, `packages.config`, and a local reference to `Shared`, or a Godot 4.6 C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node.
+- `codegen.ps1` / `codegen.sh`: rerun `ULinkRPC.CodeGen` for both `Server` and `Client` after you change DTOs or service contracts under `Shared/`.
 - `.gitignore`: ignore rules for .NET build outputs, editor files, Unity/Godot generated folders, and NuGetForUnity restored packages.
 
 The tool uses a bundled, release-tested package manifest for:
@@ -93,7 +96,7 @@ The tool uses a bundled, release-tested package manifest for:
 - `ULinkRPC.CodeGen`
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
-Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and the selected client engine automatically.
+Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, runs code generation for both server and the selected client engine automatically, and writes root `codegen.ps1` / `codegen.sh` helpers so you can regenerate both sides later with one command.
 When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
@@ -125,3 +128,16 @@ dotnet run --project Server/Server/Server.csproj
 ```
 
 Then open `Client/` with Unity 2022 LTS, Tuanjie, or Godot 4.6, depending on the selected client engine.
+
+After editing DTOs or service contracts under `Shared/`, rerun:
+
+```powershell
+./codegen.ps1
+```
+
+On macOS / Linux:
+
+```bash
+chmod +x ./codegen.sh
+./codegen.sh
+```

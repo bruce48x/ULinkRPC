@@ -152,6 +152,8 @@ public sealed class StarterTemplateGeneratorTests
 
             var slnxPath = Path.Combine(root, "Server", "Server.slnx");
             var slnx = File.ReadAllText(slnxPath);
+            var codegenScript = File.ReadAllText(Path.Combine(root, "codegen.ps1"));
+            var codegenShellScript = File.ReadAllText(Path.Combine(root, "codegen.sh"));
 
             Assert.Contains("new sln -n \"Server\" --format slnx", commands);
             Assert.Contains($"sln \"{slnxPath}\" add \"..{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}Shared.csproj\"", commands);
@@ -160,6 +162,13 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("tool install ULinkRPC.CodeGen --version 6.7.8", commands);
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+            Assert.Contains("dotnet tool restore", codegenScript);
+            Assert.Contains("--mode', 'server'", codegenScript);
+            Assert.Contains("--mode', 'unity'", codegenScript);
+            Assert.Contains("Assets\\Scripts\\Rpc\\Generated", codegenScript);
+            Assert.Contains("#!/usr/bin/env sh", codegenShellScript);
+            Assert.Contains("--mode unity", codegenShellScript);
+            Assert.Contains("--output \"Assets/Scripts/Rpc/Generated\"", codegenShellScript);
             Assert.Contains("<Project Path=\"../Shared/Shared.csproj\" />", slnx);
             Assert.Contains("<Project Path=\"Server/Server.csproj\" />", slnx);
             Assert.True(File.Exists(Path.Combine(root, "Server", "Server", "Server.csproj")));
@@ -395,6 +404,8 @@ public sealed class StarterTemplateGeneratorTests
             var scene = File.ReadAllText(Path.Combine(root, "Client", "Main.tscn"));
             var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
             var generatedClientApi = Path.Combine(root, "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
+            var codegenScript = File.ReadAllText(Path.Combine(root, "codegen.ps1"));
+            var codegenShellScript = File.ReadAllText(Path.Combine(root, "codegen.sh"));
 
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode godot --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
             Assert.Contains("config/name=\"Godot-Test\"", projectFile);
@@ -430,6 +441,10 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("private async void BeginAutoConnect()", testerScript);
             Assert.Contains("public override void _ExitTree()", testerScript);
             Assert.Contains("_ = ShutdownAsync();", testerScript);
+            Assert.Contains("--mode', 'godot'", codegenScript);
+            Assert.Contains("Scripts\\Rpc\\Generated", codegenScript);
+            Assert.Contains("--mode godot", codegenShellScript);
+            Assert.Contains("--output \"Scripts/Rpc/Generated\"", codegenShellScript);
             Assert.True(File.Exists(generatedClientApi));
             Assert.False(File.Exists(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs")));
         }

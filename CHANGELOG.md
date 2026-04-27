@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.44
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.44`
+- Starter-generated projects now include root `codegen.ps1` and `codegen.sh` helpers so DTO or service-contract changes under `Shared/` can regenerate both server and client code in one command.
+- The generated regeneration scripts choose the correct client codegen target automatically for Unity / Tuanjie versus Godot.
+
 ## 0.2.43
 
 - Release packages:
