@@ -1,5 +1,5 @@
 ---
-title: 用 ULinkRPC.Starter 快速创建一个 Unity / 团结 / Godot 和 .NET 双向通信项目
+title: 用 ULinkRPC.Starter 快速创建一个共享C#代码、双端通信的.NET服务端+游戏客户端项目
 date: 2026-03-15T12:30:00+08:00
 tags:
   - ulinkrpc
@@ -15,7 +15,7 @@ categories:
   - Tutorial
 ---
 
-如果你现在想开始一个新的 ULinkRPC 项目，最直接的方式已经不是手工搭目录、手工建 `Shared`、手工跑 codegen，而是直接用 `ULinkRPC.Starter`。
+如果你现在想开始一个新的C#双端项目，用 `ULinkRPC.Starter` 是最佳选择。
 
 它会一次性帮你生成：
 

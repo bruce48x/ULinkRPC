@@ -151,6 +151,15 @@ main.wrap {
   background: rgba(15, 118, 110, 0.08);
 }
 
+.content .mermaid {
+  margin: 24px 0;
+  padding: 16px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
 img {
   max-width: 100%;
 }

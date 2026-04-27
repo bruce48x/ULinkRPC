@@ -12,9 +12,9 @@ categories:
   - Architecture
 ---
 
-前两篇文章更偏“怎么用”：
+前篇文章更偏“怎么用”：
 
-- [《用 ULinkRPC 从零搭一个 Unity 和 .NET 双向通信项目》](/ULinkRPC/posts/ulinkrpc-getting-started/)
+- [《用 ULinkRPC.Starter 快速创建一个共享C#代码、双端通信的.NET服务端+游戏客户端项目》](/ULinkRPC/posts/ulinkrpc-getting-started/)
 
 但如果你准备把 ULinkRPC 真正放进项目里，通常会继续问这几个问题：
 

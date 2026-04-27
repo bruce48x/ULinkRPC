@@ -155,12 +155,14 @@ flowchart TB
     Core["ULinkRPC.Core"] --> Client["ULinkRPC.Client"]
     Core --> Server["ULinkRPC.Server"]
     Core --> CodeGen["ULinkRPC.CodeGen"]
-    Core --> Tcp["ULinkRPC.Transport.Tcp"]
-    Core --> Ws["ULinkRPC.Transport.WebSocket"]
-    Core --> Kcp["ULinkRPC.Transport.Kcp"]
-    Core --> Loopback["ULinkRPC.Transport.Loopback"]
-    Core --> Json["ULinkRPC.Serializer.Json"]
-    Core --> MemoryPack["ULinkRPC.Serializer.MemoryPack"]
+    Core --> Transport
+    Core --> Serializer
+    Transport --> Tcp["ULinkRPC.Transport.Tcp"]
+    Transport --> Ws["ULinkRPC.Transport.WebSocket"]
+    Transport --> Kcp["ULinkRPC.Transport.Kcp"]
+    Transport --> Loopback["ULinkRPC.Transport.Loopback"]
+    Serializer --> Json["ULinkRPC.Serializer.Json"]
+    Serializer --> MemoryPack["ULinkRPC.Serializer.MemoryPack"]
 ```
 
 - `ULinkRPC.Core`
