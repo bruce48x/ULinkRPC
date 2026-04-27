@@ -33,7 +33,7 @@ namespace ULinkRPC.Core
 
     /// <summary>
     ///     Marks an interface method as an RPC method. MethodId must be stable within a service.
-    ///     Methods can declare zero to many parameters; ULinkRPC.CodeGen will generate payload packing/unpacking.
+    ///     ULinkRPC.CodeGen requires exactly one request DTO parameter and generates payload packing/unpacking for it.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
     public sealed class RpcMethodAttribute : Attribute

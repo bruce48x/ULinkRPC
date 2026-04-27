@@ -65,6 +65,10 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
+    public class IncrStepRequest { }
+    public class IncrStepReply { public int Value { get; set; } }
+    public class PlayerNotify { public string Message { get; set; } = ""; }
+
     [RpcService(1, Callback = typeof(IPlayerCallback))]
     public interface IPlayerService
     {
@@ -72,14 +76,14 @@ namespace Game.Rpc.Contracts
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
         [RpcMethod(2)]
-        ValueTask<int> IncrStep();
+        ValueTask<IncrStepReply> IncrStep(IncrStepRequest req);
     }
 
     [RpcCallback(typeof(IPlayerService))]
     public interface IPlayerCallback
     {
         [RpcPush(1)]
-        void OnNotify(string message);
+        void OnNotify(PlayerNotify notify);
     }
 }
 ```

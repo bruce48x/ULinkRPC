@@ -136,7 +136,7 @@ public interface IPlayerService
 
 ## 为什么强制“一个方法只收一个 DTO”
 
-这是 ULinkRPC 最近一个比较明确的设计收敛：**不再鼓励把方法参数列表直接映射到网络 payload，而是要求 `RpcMethod` 和 `RpcPush` 都只带一个 DTO。**
+这是 ULinkRPC 最近一个比较明确的设计收敛：**不再鼓励把方法参数列表直接映射到网络 payload，而是要求 `RpcMethod` 和 `RpcPush` 都只能带一个 DTO 参数。**
 
 也就是说，只能这样写：
 
@@ -160,12 +160,12 @@ void OnNotify(string message);
 
 ### 这次收敛的起因是什么
 
-最早如果允许“零参数 / 单参数直传 / 多参数元组”三种模式同时存在，表面上看很灵活，但长期会暴露几个问题：
+最早如果允许“无参 / 裸单参数 / 多参数”三种模式同时存在，表面上看很灵活，但长期会暴露几个问题：
 
 - 方法签名一改，wire payload 形状也跟着改
 - 多参数方法天然依赖参数顺序
 - callback 如果也支持裸参数，协议风格会越来越散
-- codegen 里要维护 `RpcVoid / 单参数 / ValueTuple` 三套分支
+- codegen 里要维护 `无参 / DTO 参数 / 多参数` 多套分支
 - 文档和 sample 很难形成统一规范
 
 这对短期 demo 没什么，但对多人协作、长期迭代、前后端版本错位这些真实场景并不友好。
