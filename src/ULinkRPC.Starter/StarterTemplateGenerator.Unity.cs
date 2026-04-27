@@ -39,7 +39,7 @@ internal static class StarterUnityTemplate
     private static UnityClientArtifacts BuildArtifacts(StarterTemplateContext context) => new(
         BuildManifest(context),
         BuildPackagesConfig(context),
-        BuildNuGetConfig(),
+        BuildNuGetConfig(context.ClientEngine),
         BuildReadme(context),
         BuildProjectVersion(context.ClientEngine),
         GetEditorBuildSettingsAsset(),
@@ -94,12 +94,18 @@ internal static class StarterUnityTemplate
   <package id="System.Threading.Channels" version="{UnityPackageVersions.SystemThreadingChannels}" />
 """;
 
-    private static string BuildNuGetConfig() => """
+    private static string BuildNuGetConfig(ClientEngineKind clientEngine)
+    {
+        var packageSource = clientEngine == ClientEngineKind.Tuanjie
+            ? "https://nuget.cdn.azure.cn/v3/index.json"
+            : "https://api.nuget.org/v3/index.json";
+
+        return $$"""
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
     <clear />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" enableCredentialProvider="false" />
+    <add key="nuget.org" value="{{packageSource}}" enableCredentialProvider="false" />
   </packageSources>
   <disabledPackageSources />
   <activePackageSource>
@@ -114,6 +120,7 @@ internal static class StarterUnityTemplate
   </config>
 </configuration>
 """;
+    }
 
     private static string BuildReadme(StarterTemplateContext context) => $$"""
 # {{context.ClientEngine.GetDisplayName()}} Client Starter ({{context.ClientEngine.GetStarterClientLabel()}})

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.46
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.46`
+- Tuanjie starter projects now generate `Client/Assets/NuGet.config` with the China NuGet V3 endpoint `https://nuget.cdn.azure.cn/v3/index.json` to reduce package restore failures from mainland China networks.
+
 ## 0.2.45
 
 - Release packages:

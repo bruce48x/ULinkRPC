@@ -519,6 +519,7 @@ public sealed class StarterTemplateGeneratorTests
             var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
             var manifestJson = File.ReadAllText(Path.Combine(root, "Client", "Packages", "manifest.json"));
             var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
+            var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "NuGet.config"));
             var generatedClientApi = Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs");
 
             Assert.Contains("<TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>", sharedCsproj);
@@ -527,6 +528,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("file:../../Shared", manifestJson);
             Assert.Contains("m_EditorVersion: 1.6.10", projectVersion);
             Assert.Contains("m_EditorVersionWithRevision: 1.6.10", projectVersion);
+            Assert.Contains("<add key=\"nuget.org\" value=\"https://nuget.cdn.azure.cn/v3/index.json\" enableCredentialProvider=\"false\" />", nugetConfig);
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
             Assert.True(File.Exists(generatedClientApi));
         }
