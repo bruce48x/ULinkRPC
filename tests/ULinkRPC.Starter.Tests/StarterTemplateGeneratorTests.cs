@@ -518,12 +518,15 @@ public sealed class StarterTemplateGeneratorTests
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
             var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
             var manifestJson = File.ReadAllText(Path.Combine(root, "Client", "Packages", "manifest.json"));
+            var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
             var generatedClientApi = Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs");
 
             Assert.Contains("<TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>", sharedCsproj);
             Assert.Contains("Tuanjie Client Starter (Tuanjie (Unity-compatible))", clientReadme);
             Assert.Contains("Open this folder with Tuanjie (Unity-compatible).", clientReadme);
             Assert.Contains("file:../../Shared", manifestJson);
+            Assert.Contains("m_EditorVersion: 1.6.10", projectVersion);
+            Assert.Contains("m_EditorVersionWithRevision: 1.6.10", projectVersion);
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
             Assert.True(File.Exists(generatedClientApi));
         }

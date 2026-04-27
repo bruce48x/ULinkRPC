@@ -41,7 +41,7 @@ internal static class StarterUnityTemplate
         BuildPackagesConfig(context),
         BuildNuGetConfig(),
         BuildReadme(context),
-        BuildProjectVersion(),
+        BuildProjectVersion(context.ClientEngine),
         GetEditorBuildSettingsAsset(),
         GetUnityTesterScript(context.Transport, context.Serializer),
         GetUnityTesterScriptMeta(),
@@ -130,7 +130,12 @@ Selected transport: {{context.Transport}}
 Selected serializer: {{context.Serializer}}
 """;
 
-    private static string BuildProjectVersion() => "m_EditorVersion: 2022.3.62f3c1\nm_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)\n";
+    private static string BuildProjectVersion(ClientEngineKind clientEngine) => clientEngine switch
+    {
+        ClientEngineKind.Unity => "m_EditorVersion: 2022.3.62f3c1\nm_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)\n",
+        ClientEngineKind.Tuanjie => "m_EditorVersion: 1.6.10\nm_EditorVersionWithRevision: 1.6.10\n",
+        _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
+    };
 
     private static string GetUnityTransportDependencyPackages(TransportKind transport) => transport switch
     {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.45
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.45`
+- Tuanjie starter projects now write `Client/ProjectSettings/ProjectVersion.txt` with Tuanjie version `1.6.10` instead of reusing the Unity 2022 LTS editor version string.
+
 ## 0.2.44
 
 - Release packages:
