@@ -166,6 +166,7 @@ InitTestScene*.unity*
 # Rider / Visual Studio / generated folders anywhere in repo
 **/.vs/
 **/.idea/
+**/.godot/
 **/bin/
 **/obj/
 
