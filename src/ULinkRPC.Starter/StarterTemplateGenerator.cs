@@ -4,7 +4,12 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
 {
     public void GenerateTemplate(string rootPath, string projectName, ClientEngineKind clientEngine, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
     {
-        var context = CreateContext(rootPath, projectName, clientEngine, transport, serializer, versions);
+        GenerateTemplate(rootPath, projectName, clientEngine, transport, serializer, clientEngine.GetDefaultNuGetForUnitySource(), versions);
+    }
+
+    public void GenerateTemplate(string rootPath, string projectName, ClientEngineKind clientEngine, TransportKind transport, SerializerKind serializer, NuGetForUnitySourceKind nuGetForUnitySource, ResolvedVersions versions)
+    {
+        var context = CreateContext(rootPath, projectName, clientEngine, transport, serializer, nuGetForUnitySource, versions);
 
         GenerateGitIgnore(context.Paths.RootPath);
         GenerateGitAttributes(context);
@@ -24,6 +29,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         ClientEngineKind clientEngine,
         TransportKind transport,
         SerializerKind serializer,
+        NuGetForUnitySourceKind nuGetForUnitySource,
         ResolvedVersions versions)
     {
         var paths = new StarterPaths(
@@ -44,6 +50,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
             clientEngine,
             transport,
             serializer,
+            nuGetForUnitySource,
             versions,
             paths);
     }
@@ -53,6 +60,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         switch (context.ClientEngine)
         {
             case ClientEngineKind.Unity:
+            case ClientEngineKind.UnityCn:
             case ClientEngineKind.Tuanjie:
                 StarterUnityTemplate.Generate(context);
                 return;

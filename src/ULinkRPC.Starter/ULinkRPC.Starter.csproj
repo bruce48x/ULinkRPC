@@ -7,7 +7,7 @@
     <RootNamespace>ULinkRPC.Starter</RootNamespace>
     <AssemblyName>ULinkRPC.Starter</AssemblyName>
     <PackageId>ULinkRPC.Starter</PackageId>
-    <Version>0.2.47</Version>
+    <Version>0.2.48</Version>
     <Authors>ULinkRPC</Authors>
     <Description>CLI tool to scaffold ULinkRPC shared/server/Unity or Godot starter projects.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -24,5 +24,9 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="TemplateAssets\NuGetForUnity.4.5.0.zip" LogicalName="ULinkRPC.Starter.TemplateAssets.NuGetForUnity.4.5.0.zip" />
   </ItemGroup>
 </Project>

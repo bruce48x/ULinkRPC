@@ -184,7 +184,7 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void GenerateTemplate_CreatesClientFiles_WithSharedReferenceAndPinnedUnityVersion()
+    public void GenerateTemplate_CreatesUnityClientFiles_WithOpenUpmByDefault()
     {
         var root = CreateTempRoot();
         try
@@ -199,6 +199,7 @@ public sealed class StarterTemplateGeneratorTests
                 .GetProperty("dependencies")
                 .GetProperty("com.ulinkrpc.badprojectname.shared")
                 .GetString();
+            var manifestText = File.ReadAllText(Path.Combine(root, "Client", "Packages", "manifest.json"));
 
             var serverProgram = File.ReadAllText(Path.Combine(root, "Server", "Server", "Program.cs"));
             var serverCsproj = File.ReadAllText(Path.Combine(root, "Server", "Server", "Server.csproj"));
@@ -214,8 +215,11 @@ public sealed class StarterTemplateGeneratorTests
             var autoOpenSceneScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Editor", "AutoOpenConnectionScene.cs"));
             var editorBuildSettings = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "EditorBuildSettings.asset"));
             var starterGeneratedAsmdefPath = Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "ULinkRPC.Generated.asmdef");
+            var embeddedNuGetForUnity = Path.Combine(root, "Client", "Packages", "com.github-glitchenzo.nugetforunity", "package.json");
 
             Assert.Equal("file:../../Shared", sharedDependency);
+            Assert.Contains("package.openupm.com", manifestText);
+            Assert.Contains("\"com.github-glitchenzo.nugetforunity\": \"4.5.0\"", manifestText);
             Assert.DoesNotContain("Bad Project Name", serverProgram, StringComparison.Ordinal);
             Assert.DoesNotContain("DateTimeOffset", serverProgram, StringComparison.Ordinal);
             Assert.Contains("using ULinkRPC.Core;", serverProgram);
@@ -251,6 +255,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("m_EditorVersion: 2022.3.62f3c1", projectVersion);
             Assert.Contains("m_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)", projectVersion);
             Assert.Contains("the editor will auto-open `Assets/Scenes/ConnectionTest.unity`", clientReadme);
+            Assert.Contains("download from OpenUPM", clientReadme);
             Assert.Contains("using Rpc.Generated;", testerScript);
             Assert.Contains("using Shared.Interfaces;", testerScript);
             Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
@@ -272,6 +277,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("Assets/Scenes/ConnectionTest.unity", editorBuildSettings);
             Assert.Contains("guid: d4d2d5faafe942e58a33f4a41e3b7cf2", editorBuildSettings);
             Assert.True(File.Exists(starterGeneratedAsmdefPath));
+            Assert.False(File.Exists(embeddedNuGetForUnity));
             Assert.Contains("\"name\": \"ULinkRPC.Generated\"", File.ReadAllText(starterGeneratedAsmdefPath));
         }
         finally
@@ -521,17 +527,54 @@ public sealed class StarterTemplateGeneratorTests
             var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
             var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "NuGet.config"));
             var generatedClientApi = Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "RpcApi.cs");
+            var embeddedNuGetForUnity = Path.Combine(root, "Client", "Packages", "com.github-glitchenzo.nugetforunity", "package.json");
 
             Assert.Contains("<TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>", sharedCsproj);
             Assert.Contains("Tuanjie Client Starter (Tuanjie (Unity-compatible))", clientReadme);
+            Assert.Contains("bundled embedded `NuGetForUnity` package", clientReadme);
             Assert.Contains("Open this folder with Tuanjie (Unity-compatible).", clientReadme);
             Assert.Contains("file:../../Shared", manifestJson);
+            Assert.DoesNotContain("package.openupm.com", manifestJson, StringComparison.Ordinal);
+            Assert.DoesNotContain("com.github-glitchenzo.nugetforunity", manifestJson, StringComparison.Ordinal);
             Assert.Contains("m_EditorVersion: 2022.3.61t11", projectVersion);
             Assert.Contains("m_EditorVersionWithRevision: 2022.3.61t11 (122146d53e32)", projectVersion);
             Assert.Contains("m_TuanjieEditorVersion: 1.6.10", projectVersion);
             Assert.Contains("<add key=\"nuget.org\" value=\"https://nuget.cdn.azure.cn/v3/index.json\" enableCredentialProvider=\"false\" />", nugetConfig);
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+            Assert.True(File.Exists(embeddedNuGetForUnity));
             Assert.True(File.Exists(generatedClientApi));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GenerateTemplate_CreatesUnityCnClientFiles_WithEmbeddedNuGetForUnityByDefault()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Unity-Cn-Test", ClientEngineKind.UnityCn, TransportKind.Tcp, SerializerKind.Json, Versions);
+
+            var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
+            var manifestJson = File.ReadAllText(Path.Combine(root, "Client", "Packages", "manifest.json"));
+            var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
+            var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "NuGet.config"));
+            var embeddedNuGetForUnity = Path.Combine(root, "Client", "Packages", "com.github-glitchenzo.nugetforunity", "package.json");
+
+            Assert.Contains("Unity CN Client Starter (Unity 2022 LTS (China-friendly defaults))", clientReadme);
+            Assert.Contains("bundled embedded `NuGetForUnity` package", clientReadme);
+            Assert.Contains("file:../../Shared", manifestJson);
+            Assert.DoesNotContain("package.openupm.com", manifestJson, StringComparison.Ordinal);
+            Assert.DoesNotContain("com.github-glitchenzo.nugetforunity", manifestJson, StringComparison.Ordinal);
+            Assert.Contains("m_EditorVersion: 2022.3.62f3c1", projectVersion);
+            Assert.Contains("m_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)", projectVersion);
+            Assert.Contains("<add key=\"nuget.org\" value=\"https://api.nuget.org/v3/index.json\" enableCredentialProvider=\"false\" />", nugetConfig);
+            Assert.True(File.Exists(embeddedNuGetForUnity));
         }
         finally
         {
@@ -541,8 +584,6 @@ public sealed class StarterTemplateGeneratorTests
 
     [Theory]
     [InlineData("tuanjie")]
-    [InlineData("unity-china")]
-    [InlineData("unitycn")]
     public void TryParseArgs_ParsesTuanjieClientEngineAliases(string rawClientEngine)
     {
         var ok = StarterCli.TryParseArgs(
@@ -553,6 +594,43 @@ public sealed class StarterTemplateGeneratorTests
         Assert.True(ok);
         Assert.Equal(string.Empty, error);
         Assert.Equal(ClientEngineKind.Tuanjie, options.ClientEngine);
+    }
+
+    [Theory]
+    [InlineData("unity-cn")]
+    [InlineData("unity-china")]
+    [InlineData("unitycn")]
+    public void TryParseArgs_ParsesUnityCnClientEngineAliases(string rawClientEngine)
+    {
+        var ok = StarterCli.TryParseArgs(
+            ["--client-engine", rawClientEngine],
+            out var options,
+            out var error);
+
+        Assert.True(ok);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(ClientEngineKind.UnityCn, options.ClientEngine);
+    }
+
+    [Fact]
+    public void TryParseArgs_ParsesNuGetForUnitySource()
+    {
+        var ok = StarterCli.TryParseArgs(
+            ["--nugetforunity-source", "openupm"],
+            out var options,
+            out var error);
+
+        Assert.True(ok);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(NuGetForUnitySourceKind.OpenUpm, options.NuGetForUnitySource);
+    }
+
+    [Fact]
+    public void ClientEngine_DefaultNuGetForUnitySource_MatchesExpected()
+    {
+        Assert.Equal(NuGetForUnitySourceKind.OpenUpm, ClientEngineKind.Unity.GetDefaultNuGetForUnitySource());
+        Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.UnityCn.GetDefaultNuGetForUnitySource());
+        Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Tuanjie.GetDefaultNuGetForUnitySource());
     }
 
 

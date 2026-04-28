@@ -2,9 +2,16 @@ namespace ULinkRPC.Starter;
 
 internal static class StarterUnityTemplate
 {
+    private const string NuGetForUnityAssetResourceName = "ULinkRPC.Starter.TemplateAssets.NuGetForUnity.4.5.0.zip";
+
     public static void Generate(StarterTemplateContext context)
     {
         EnsureClientDirectories(context.Paths.ClientPath);
+        if (context.NuGetForUnitySource == NuGetForUnitySourceKind.Embedded)
+        {
+            ExtractEmbeddedNuGetForUnityPackage(context.Paths.ClientPath);
+        }
+
         var artifacts = BuildArtifacts(context);
 
         var clientPath = context.Paths.ClientPath;
@@ -52,13 +59,28 @@ internal static class StarterUnityTemplate
     private static string BuildManifest(StarterTemplateContext context) => $$"""
 {
   "dependencies": {
-    "com.github-glitchenzo.nugetforunity": "4.5.0",
+{{BuildNuGetForUnityDependencyLine(context)}}
     "com.unity.ide.rider": "3.0.39",
     "com.unity.ide.visualstudio": "2.0.23",
     "com.unity.modules.uielements": "1.0.0",
     "com.unity.ugui": "1.0.0",
     "com.{{context.CompanyId}}.shared": "file:../../{{context.SharedProjectName}}"
-  },
+  }{{BuildScopedRegistriesBlock(context)}}
+}
+""";
+
+    private static string BuildNuGetForUnityDependencyLine(StarterTemplateContext context) => context.NuGetForUnitySource switch
+    {
+        NuGetForUnitySourceKind.Embedded => string.Empty,
+        NuGetForUnitySourceKind.OpenUpm => "    \"com.github-glitchenzo.nugetforunity\": \"4.5.0\",\n",
+        _ => throw new ArgumentOutOfRangeException(nameof(context.NuGetForUnitySource), context.NuGetForUnitySource, null)
+    };
+
+    private static string BuildScopedRegistriesBlock(StarterTemplateContext context) => context.NuGetForUnitySource switch
+    {
+        NuGetForUnitySourceKind.Embedded => string.Empty,
+        NuGetForUnitySourceKind.OpenUpm => """
+,
   "scopedRegistries": [
     {
       "name": "OpenUPM",
@@ -68,8 +90,9 @@ internal static class StarterUnityTemplate
       ]
     }
   ]
-}
-""";
+""",
+        _ => throw new ArgumentOutOfRangeException(nameof(context.NuGetForUnitySource), context.NuGetForUnitySource, null)
+    };
 
     private static string BuildPackagesConfig(StarterTemplateContext context)
     {
@@ -126,7 +149,7 @@ internal static class StarterUnityTemplate
 # {{context.ClientEngine.GetDisplayName()}} Client Starter ({{context.ClientEngine.GetStarterClientLabel()}})
 
 1. Open this folder with {{context.ClientEngine.GetStarterClientLabel()}}.
-2. Wait for `NuGetForUnity` import.
+2. Wait for {{GetNuGetForUnitySetupDescription(context)}}.
 3. In the editor: `NuGet -> Restore Packages` to install ULinkRPC latest packages.
 4. Shared code is provided by local UPM package:
    - `com.{{context.CompanyId}}.shared` -> `../../{{context.SharedProjectName}}`
@@ -135,11 +158,27 @@ internal static class StarterUnityTemplate
 
 Selected transport: {{context.Transport}}
 Selected serializer: {{context.Serializer}}
+NuGetForUnity source: {{context.NuGetForUnitySource}}
 """;
+
+    private static string GetNuGetForUnitySetupDescription(StarterTemplateContext context) => context.NuGetForUnitySource switch
+    {
+        NuGetForUnitySourceKind.Embedded => "the bundled embedded `NuGetForUnity` package to import",
+        NuGetForUnitySourceKind.OpenUpm => "`NuGetForUnity` to download from OpenUPM and finish importing",
+        _ => throw new ArgumentOutOfRangeException(nameof(context.NuGetForUnitySource), context.NuGetForUnitySource, null)
+    };
+
+    private static void ExtractEmbeddedNuGetForUnityPackage(string clientPath)
+    {
+        StarterFileWriter.ExtractEmbeddedZip(
+            NuGetForUnityAssetResourceName,
+            Path.Combine(clientPath, "Packages"));
+    }
 
     private static string BuildProjectVersion(ClientEngineKind clientEngine) => clientEngine switch
     {
         ClientEngineKind.Unity => "m_EditorVersion: 2022.3.62f3c1\nm_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)\n",
+        ClientEngineKind.UnityCn => "m_EditorVersion: 2022.3.62f3c1\nm_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)\n",
         ClientEngineKind.Tuanjie => "m_EditorVersion: 2022.3.61t11\nm_EditorVersionWithRevision: 2022.3.61t11 (122146d53e32)\nm_TuanjieEditorVersion: 1.6.10\n",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };

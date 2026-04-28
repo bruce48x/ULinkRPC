@@ -4,7 +4,7 @@ internal static class StarterCli
 {
     public static void PrintUsage()
     {
-        Console.WriteLine("Usage: ulinkrpc-starter [--version] [--name MyGame] [--output ./out] [--client-engine unity|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack]");
+        Console.WriteLine("Usage: ulinkrpc-starter [--version] [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]");
     }
 
     public static bool TryParseArgs(string[] args, out StarterCliOptions options, out string error)
@@ -15,6 +15,7 @@ internal static class StarterCli
         ClientEngineKind? clientEngine = null;
         TransportKind? transport = null;
         SerializerKind? serializer = null;
+        NuGetForUnitySourceKind? nuGetForUnitySource = null;
         error = string.Empty;
 
         for (var i = 0; i < args.Length; i++)
@@ -77,6 +78,19 @@ internal static class StarterCli
                 continue;
             }
 
+            if (arg is "--nugetforunity-source" && i + 1 < args.Length)
+            {
+                if (!TryParseNuGetForUnitySource(args[++i], out var parsed))
+                {
+                    options = default!;
+                    error = "Invalid --nugetforunity-source value.";
+                    return false;
+                }
+
+                nuGetForUnitySource = parsed;
+                continue;
+            }
+
             options = default!;
             error = $"Unknown or incomplete option: {arg}";
             return false;
@@ -89,7 +103,7 @@ internal static class StarterCli
             return false;
         }
 
-        options = new StarterCliOptions(projectName, outputDir, showVersion, clientEngine, transport, serializer);
+        options = new StarterCliOptions(projectName, outputDir, showVersion, clientEngine, transport, serializer, nuGetForUnitySource);
         return true;
     }
 
@@ -97,8 +111,9 @@ internal static class StarterCli
     {
         Console.WriteLine("Select client engine:");
         Console.WriteLine("  1) Unity");
-        Console.WriteLine("  2) Tuanjie");
-        Console.WriteLine("  3) Godot");
+        Console.WriteLine("  2) Unity CN");
+        Console.WriteLine("  3) Tuanjie");
+        Console.WriteLine("  4) Godot");
         while (true)
         {
             Console.Write("> ");
@@ -106,11 +121,12 @@ internal static class StarterCli
             switch (line)
             {
                 case "1": return ClientEngineKind.Unity;
-                case "2": return ClientEngineKind.Tuanjie;
-                case "3": return ClientEngineKind.Godot;
+                case "2": return ClientEngineKind.UnityCn;
+                case "3": return ClientEngineKind.Tuanjie;
+                case "4": return ClientEngineKind.Godot;
             }
 
-            Console.WriteLine("Please enter 1-3.");
+            Console.WriteLine("Please enter 1-4.");
         }
     }
 
@@ -184,13 +200,33 @@ internal static class StarterCli
         switch (normalized)
         {
             case "unity": clientEngine = ClientEngineKind.Unity; return true;
-            case "tuanjie":
             case "unity-china":
+            case "unity-cn":
             case "unitycn":
+                clientEngine = ClientEngineKind.UnityCn;
+                return true;
+            case "tuanjie":
                 clientEngine = ClientEngineKind.Tuanjie;
                 return true;
             case "godot": clientEngine = ClientEngineKind.Godot; return true;
             default: clientEngine = default; return false;
+        }
+    }
+
+    private static bool TryParseNuGetForUnitySource(string raw, out NuGetForUnitySourceKind source)
+    {
+        var normalized = raw.Trim().ToLowerInvariant();
+        switch (normalized)
+        {
+            case "embedded":
+                source = NuGetForUnitySourceKind.Embedded;
+                return true;
+            case "openupm":
+                source = NuGetForUnitySourceKind.OpenUpm;
+                return true;
+            default:
+                source = default;
+                return false;
         }
     }
 }

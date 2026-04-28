@@ -16,8 +16,15 @@ internal enum SerializerKind
 internal enum ClientEngineKind
 {
     Unity,
+    UnityCn,
     Tuanjie,
     Godot
+}
+
+internal enum NuGetForUnitySourceKind
+{
+    Embedded,
+    OpenUpm
 }
 
 internal static class ClientEngineKindExtensions
@@ -25,6 +32,7 @@ internal static class ClientEngineKindExtensions
     public static bool IsUnityCompatible(this ClientEngineKind clientEngine) => clientEngine switch
     {
         ClientEngineKind.Unity => true,
+        ClientEngineKind.UnityCn => true,
         ClientEngineKind.Tuanjie => true,
         ClientEngineKind.Godot => false,
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
@@ -33,6 +41,7 @@ internal static class ClientEngineKindExtensions
     public static string GetDisplayName(this ClientEngineKind clientEngine) => clientEngine switch
     {
         ClientEngineKind.Unity => "Unity",
+        ClientEngineKind.UnityCn => "Unity CN",
         ClientEngineKind.Tuanjie => "Tuanjie",
         ClientEngineKind.Godot => "Godot",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
@@ -41,8 +50,18 @@ internal static class ClientEngineKindExtensions
     public static string GetStarterClientLabel(this ClientEngineKind clientEngine) => clientEngine switch
     {
         ClientEngineKind.Unity => "Unity 2022 LTS",
+        ClientEngineKind.UnityCn => "Unity 2022 LTS (China-friendly defaults)",
         ClientEngineKind.Tuanjie => "Tuanjie (Unity-compatible)",
         ClientEngineKind.Godot => "Godot 4.6",
+        _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
+    };
+
+    public static NuGetForUnitySourceKind GetDefaultNuGetForUnitySource(this ClientEngineKind clientEngine) => clientEngine switch
+    {
+        ClientEngineKind.Unity => NuGetForUnitySourceKind.OpenUpm,
+        ClientEngineKind.UnityCn => NuGetForUnitySourceKind.Embedded,
+        ClientEngineKind.Tuanjie => NuGetForUnitySourceKind.Embedded,
+        ClientEngineKind.Godot => NuGetForUnitySourceKind.Embedded,
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 }
@@ -63,7 +82,8 @@ internal sealed record StarterCliOptions(
     bool ShowVersion,
     ClientEngineKind? ClientEngine,
     TransportKind? Transport,
-    SerializerKind? Serializer);
+    SerializerKind? Serializer,
+    NuGetForUnitySourceKind? NuGetForUnitySource);
 
 internal sealed record StarterPaths(
     string RootPath,
@@ -78,6 +98,7 @@ internal sealed record StarterTemplateContext(
     ClientEngineKind ClientEngine,
     TransportKind Transport,
     SerializerKind Serializer,
+    NuGetForUnitySourceKind NuGetForUnitySource,
     ResolvedVersions Versions,
     StarterPaths Paths)
 {

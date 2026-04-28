@@ -20,6 +20,7 @@ internal static class Program
         var transport = options.Transport ?? StarterCli.PromptTransport();
         var serializer = options.Serializer ?? StarterCli.PromptSerializer();
         var clientEngine = options.ClientEngine ?? StarterCli.PromptClientEngine();
+        var nuGetForUnitySource = options.NuGetForUnitySource ?? clientEngine.GetDefaultNuGetForUnitySource();
 
         var rootPath = Path.GetFullPath(Path.Combine(options.OutputDir, options.ProjectName));
         var versions = NuGetVersionResolver.ResolveVersions(transport, serializer);
@@ -29,7 +30,7 @@ internal static class Program
         {
             StarterOutputManager.GenerateIntoTargetDirectory(
                 rootPath,
-                stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, clientEngine, transport, serializer, versions));
+                stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, clientEngine, transport, serializer, nuGetForUnitySource, versions));
         }
         catch (InvalidOperationException ex)
         {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.48
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.48`
+- Added a dedicated `unity-cn` starter client option.
+- Changed the default `NuGetForUnity` source selection so `unity` uses `openupm`, while `unity-cn` and `tuanjie` use the embedded local package by default.
+- Kept `--nugetforunity-source embedded|openupm` as an explicit override on top of those client-specific defaults.
+
 ## 0.2.47
 
 - Release packages:
