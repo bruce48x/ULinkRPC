@@ -140,7 +140,7 @@ Selected serializer: {{context.Serializer}}
     private static string BuildProjectVersion(ClientEngineKind clientEngine) => clientEngine switch
     {
         ClientEngineKind.Unity => "m_EditorVersion: 2022.3.62f3c1\nm_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)\n",
-        ClientEngineKind.Tuanjie => "m_EditorVersion: 1.6.10\nm_EditorVersionWithRevision: 1.6.10\n",
+        ClientEngineKind.Tuanjie => "m_EditorVersion: 2022.3.61t11\nm_EditorVersionWithRevision: 2022.3.61t11 (122146d53e32)\nm_TuanjieEditorVersion: 1.6.10\n",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 

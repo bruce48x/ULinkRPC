@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.47
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.47`
+- Tuanjie starter projects now write `Client/ProjectSettings/ProjectVersion.txt` using the real Tuanjie format: Unity base editor version `2022.3.61t11`, matching revision `122146d53e32`, plus `m_TuanjieEditorVersion: 1.6.10`.
+
 ## 0.2.46
 
 - Release packages:

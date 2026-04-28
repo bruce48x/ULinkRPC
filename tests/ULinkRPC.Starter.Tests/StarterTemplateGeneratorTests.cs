@@ -526,8 +526,9 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("Tuanjie Client Starter (Tuanjie (Unity-compatible))", clientReadme);
             Assert.Contains("Open this folder with Tuanjie (Unity-compatible).", clientReadme);
             Assert.Contains("file:../../Shared", manifestJson);
-            Assert.Contains("m_EditorVersion: 1.6.10", projectVersion);
-            Assert.Contains("m_EditorVersionWithRevision: 1.6.10", projectVersion);
+            Assert.Contains("m_EditorVersion: 2022.3.61t11", projectVersion);
+            Assert.Contains("m_EditorVersionWithRevision: 2022.3.61t11 (122146d53e32)", projectVersion);
+            Assert.Contains("m_TuanjieEditorVersion: 1.6.10", projectVersion);
             Assert.Contains("<add key=\"nuget.org\" value=\"https://nuget.cdn.azure.cn/v3/index.json\" enableCredentialProvider=\"false\" />", nugetConfig);
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode unity --output \"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
             Assert.True(File.Exists(generatedClientApi));
