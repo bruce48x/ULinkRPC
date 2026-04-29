@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.49
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.49`
+- Improved the generated Godot starter `RpcConnectionTester` so it logs scene-entry and ready-state milestones before attempting the default connection.
+- The generated Godot starter test node now exits explicitly after success or failure, which makes headless CI validation deterministic for flows like `websocket + memorypack`.
+- Added a dedicated daily GitHub Actions workflow that generates a fresh Godot starter project, launches the server and client, and verifies real network communication.
+
 ## 0.2.48
 
 - Release packages:
