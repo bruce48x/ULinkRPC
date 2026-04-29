@@ -141,6 +141,41 @@ wait_for_port() {
   return 1
 }
 
+wait_for_server_ready() {
+  local attempts="${1:-60}"
+  local expected_log=""
+
+  case "$TRANSPORT" in
+    websocket)
+      expected_log="listening on ws://"
+      ;;
+    tcp)
+      expected_log="listening on tcp://"
+      ;;
+    kcp)
+      expected_log="listening on udp://"
+      ;;
+  esac
+
+  if [[ -n "$expected_log" ]]; then
+    for ((i = 0; i < attempts; i++)); do
+      if grep -Fq "$expected_log" "$SERVER_LOG" 2>/dev/null; then
+        return 0
+      fi
+
+      if [[ -n "${SERVER_PID:-}" ]] && ! kill -0 "$SERVER_PID" 2>/dev/null; then
+        echo "Server process exited before readiness log appeared." >&2
+        return 1
+      fi
+
+      sleep 1
+    done
+  fi
+
+  echo "Timed out waiting for server readiness log: $expected_log" >&2
+  return 1
+}
+
 cat > "$CI_NUGET_CONFIG" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -202,7 +237,14 @@ echo "Starting generated server"
 dotnet run --project "$SERVER_PROJECT" -c Release --no-build >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 
-if ! wait_for_port 127.0.0.1 20000; then
+if [[ "$TRANSPORT" == "tcp" || "$TRANSPORT" == "websocket" ]]; then
+  if ! wait_for_port 127.0.0.1 20000; then
+    print_logs
+    exit 1
+  fi
+fi
+
+if ! wait_for_server_ready; then
   print_logs
   exit 1
 fi
