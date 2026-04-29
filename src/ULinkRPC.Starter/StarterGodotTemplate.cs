@@ -172,27 +172,30 @@ public partial class RpcConnectionTester : Node
     [Export] private string _path = "{{defaultPath}}";
     [Export] private string _message = "hello";
     [Export] private bool _autoConnect = true;
+    [Export] private bool _quitOnComplete = true;
 
     private readonly CancellationTokenSource _cts = new();
     private RpcClient? _client;
     private bool _isShuttingDown;
 
+    public override void _EnterTree()
+    {
+        GD.Print("RpcConnectionTester entered tree.");
+    }
+
     public override void _Ready()
     {
+        GD.Print("RpcConnectionTester ready.");
+
         if (!_autoConnect)
             return;
 
-        CallDeferred(MethodName.BeginAutoConnect);
+        _ = ConnectAndPingAsync();
     }
 
     public override void _ExitTree()
     {
         _ = ShutdownAsync();
-    }
-
-    private async void BeginAutoConnect()
-    {
-        await ConnectAndPingAsync();
     }
 
     public async Task ConnectAndPingAsync()
@@ -216,6 +219,7 @@ public partial class RpcConnectionTester : Node
             });
 
             GD.Print($"Ping ok: message={reply.Message}, serverTimeUtc={reply.ServerTimeUtc}");
+            await CompleteAsync(0);
         }
         catch (OperationCanceledException)
         {
@@ -223,7 +227,7 @@ public partial class RpcConnectionTester : Node
         catch (Exception ex)
         {
             GD.PushError($"Connect failed: {ex}");
-            await ShutdownAsync();
+            await CompleteAsync(1);
         }
     }
 
@@ -256,6 +260,17 @@ public partial class RpcConnectionTester : Node
         }
 
         _cts.Dispose();
+    }
+
+    private async Task CompleteAsync(int exitCode)
+    {
+        await ShutdownAsync();
+
+        if (_quitOnComplete)
+        {
+            GD.Print($"RpcConnectionTester quitting with exit code {exitCode}.");
+            GetTree().Quit(exitCode);
+        }
     }
 }
 """;

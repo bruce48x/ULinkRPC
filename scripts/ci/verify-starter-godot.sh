@@ -12,6 +12,7 @@ CLIENT_PROJECT="$CLIENT_DIR/Client.csproj"
 LOG_DIR="$WORK_DIR/logs"
 SERVER_LOG="$LOG_DIR/server.log"
 CLIENT_LOG="$LOG_DIR/client.log"
+GODOT_STDOUT_LOG="$LOG_DIR/godot.stdout.log"
 LOCAL_FEED="$ROOT_DIR/artifacts/ci-nuget"
 CI_NUGET_CONFIG="$WORK_DIR/NuGet.config"
 
@@ -24,6 +25,11 @@ rm -rf "$WORK_DIR" "$LOCAL_FEED"
 mkdir -p "$GENERATED_ROOT" "$LOG_DIR" "$LOCAL_FEED"
 
 cleanup() {
+  if [[ -n "${GODOT_PID:-}" ]] && kill -0 "$GODOT_PID" 2>/dev/null; then
+    kill "$GODOT_PID" 2>/dev/null || true
+    wait "$GODOT_PID" 2>/dev/null || true
+  fi
+
   if [[ -n "${SERVER_PID:-}" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
@@ -47,6 +53,27 @@ print_logs() {
     echo "===== client.log =====" >&2
     cat "$CLIENT_LOG" >&2
   fi
+
+  if [[ -f "$GODOT_STDOUT_LOG" ]]; then
+    echo "===== godot.stdout.log =====" >&2
+    cat "$GODOT_STDOUT_LOG" >&2
+  fi
+}
+
+wait_for_log() {
+  local pattern="$1"
+  local file_path="$2"
+  local attempts="${3:-30}"
+
+  for ((i = 0; i < attempts; i++)); do
+    if grep -Fq "$pattern" "$file_path" 2>/dev/null; then
+      return 0
+    fi
+
+    sleep 1
+  done
+
+  return 1
 }
 
 wait_for_port() {
@@ -109,7 +136,7 @@ dotnet build "$SERVER_PROJECT" -c Release --no-restore
 
 echo "Restoring and building generated Godot client"
 dotnet restore "$CLIENT_PROJECT" --configfile "$CI_NUGET_CONFIG"
-dotnet build "$CLIENT_PROJECT" -c Release --no-restore
+dotnet build "$CLIENT_PROJECT" -c Debug --no-restore
 
 echo "Starting generated server"
 dotnet run --project "$SERVER_PROJECT" -c Release --no-build >"$SERVER_LOG" 2>&1 &
@@ -121,25 +148,56 @@ if ! wait_for_port 127.0.0.1 20000; then
 fi
 
 echo "Running generated Godot client headless"
-timeout 90s "$GODOT_BIN" \
+"$GODOT_BIN" \
   --headless \
   --path "$CLIENT_DIR" \
   --scene "res://Main.tscn" \
-  --quit-after 300 \
   --log-file "$CLIENT_LOG" \
   --verbose \
-  --no-header
+  --no-header >"$GODOT_STDOUT_LOG" 2>&1 &
+GODOT_PID=$!
 
-if grep -Fq "Connect failed:" "$CLIENT_LOG"; then
-  echo "Godot client reported a connection failure." >&2
+if ! wait_for_log "RpcConnectionTester entered tree." "$CLIENT_LOG" 15; then
+  echo "Godot loaded the project but the generated C# test node never entered the scene tree." >&2
   print_logs
   exit 1
 fi
 
-if ! grep -Fq "Ping ok:" "$CLIENT_LOG"; then
-  echo "Did not find successful ping log in Godot output." >&2
-  print_logs
-  exit 1
-fi
+for ((i = 0; i < 90; i++)); do
+  if grep -Fq "Connect failed:" "$CLIENT_LOG" 2>/dev/null; then
+    echo "Godot client reported a connection failure." >&2
+    print_logs
+    exit 1
+  fi
 
-echo "Starter Godot websocket + memorypack verification passed."
+  if grep -Fq "Ping ok:" "$CLIENT_LOG" 2>/dev/null; then
+    wait "$GODOT_PID"
+    godot_exit_code=$?
+
+    if [[ "$godot_exit_code" -ne 0 ]]; then
+      echo "Godot client reached ping success but exited with code $godot_exit_code." >&2
+      print_logs
+      exit 1
+    fi
+
+    echo "Starter Godot websocket + memorypack verification passed."
+    exit 0
+  fi
+
+  if ! kill -0 "$GODOT_PID" 2>/dev/null; then
+    if wait "$GODOT_PID"; then
+      godot_exit_code=0
+    else
+      godot_exit_code=$?
+    fi
+    echo "Godot process exited before producing a successful ping log. Exit code: $godot_exit_code" >&2
+    print_logs
+    exit 1
+  fi
+
+  sleep 1
+done
+
+echo "Timed out waiting for successful ping from Godot client." >&2
+print_logs
+exit 1
