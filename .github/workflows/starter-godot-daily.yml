@@ -15,6 +15,17 @@ jobs:
   verify-godot-starter:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - transport: websocket
+            serializer: memorypack
+          - transport: tcp
+            serializer: json
+          - transport: kcp
+            serializer: memorypack
+    name: Verify Godot starter (${{ matrix.transport }} + ${{ matrix.serializer }})
 
     steps:
       - name: Checkout
@@ -51,4 +62,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Verify starter-generated Godot project
+        env:
+          STARTER_TRANSPORT: ${{ matrix.transport }}
+          STARTER_SERIALIZER: ${{ matrix.serializer }}
         run: bash ./scripts/ci/verify-starter-godot.sh

@@ -4,7 +4,11 @@ set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK_DIR="$ROOT_DIR/.tmp/starter-godot-daily"
 GENERATED_ROOT="$WORK_DIR/generated"
-PROJECT_NAME="StarterGodotWsMemoryPack"
+TRANSPORT="${STARTER_TRANSPORT:-websocket}"
+SERIALIZER="${STARTER_SERIALIZER:-memorypack}"
+TRANSPORT_LABEL="$(tr '[:lower:]' '[:upper:]' <<< "${TRANSPORT:0:1}")${TRANSPORT:1}"
+SERIALIZER_LABEL="$(tr '[:lower:]' '[:upper:]' <<< "${SERIALIZER:0:1}")${SERIALIZER:1}"
+PROJECT_NAME="StarterGodot${TRANSPORT_LABEL}${SERIALIZER_LABEL}"
 PROJECT_DIR="$GENERATED_ROOT/$PROJECT_NAME"
 CLIENT_DIR="$PROJECT_DIR/Client"
 SERVER_PROJECT="$PROJECT_DIR/Server/Server/Server.csproj"
@@ -20,6 +24,24 @@ if [[ -z "${GODOT_BIN:-}" || -z "${GODOT_NUPKGS:-}" ]]; then
   echo "GODOT_BIN and GODOT_NUPKGS must be set." >&2
   exit 1
 fi
+
+case "$TRANSPORT" in
+  tcp|websocket|kcp)
+    ;;
+  *)
+    echo "Unsupported STARTER_TRANSPORT: $TRANSPORT" >&2
+    exit 1
+    ;;
+esac
+
+case "$SERIALIZER" in
+  json|memorypack)
+    ;;
+  *)
+    echo "Unsupported STARTER_SERIALIZER: $SERIALIZER" >&2
+    exit 1
+    ;;
+esac
 
 rm -rf "$WORK_DIR" "$LOCAL_FEED"
 mkdir -p "$GENERATED_ROOT" "$LOG_DIR" "$LOCAL_FEED"
@@ -135,19 +157,38 @@ echo "Packing local packages into $LOCAL_FEED"
 pack_local_package "$ROOT_DIR/src/ULinkRPC.Core/ULinkRPC.Core.csproj"
 pack_local_package "$ROOT_DIR/src/ULinkRPC.Client/ULinkRPC.Client.csproj"
 pack_local_package "$ROOT_DIR/src/ULinkRPC.Server/ULinkRPC.Server.csproj"
-pack_local_package "$ROOT_DIR/src/ULinkRPC.Transport.WebSocket/ULinkRPC.Transport.WebSocket.csproj"
-pack_local_package "$ROOT_DIR/src/ULinkRPC.Serializer.MemoryPack/ULinkRPC.Serializer.MemoryPack.csproj"
+
+case "$TRANSPORT" in
+  websocket)
+    pack_local_package "$ROOT_DIR/src/ULinkRPC.Transport.WebSocket/ULinkRPC.Transport.WebSocket.csproj"
+    ;;
+  tcp)
+    pack_local_package "$ROOT_DIR/src/ULinkRPC.Transport.Tcp/ULinkRPC.Transport.Tcp.csproj"
+    ;;
+  kcp)
+    pack_local_package "$ROOT_DIR/src/ULinkRPC.Transport.Kcp/ULinkRPC.Transport.Kcp.csproj"
+    ;;
+esac
+
+case "$SERIALIZER" in
+  json)
+    pack_local_package "$ROOT_DIR/src/ULinkRPC.Serializer.Json/ULinkRPC.Serializer.Json.csproj"
+    ;;
+  memorypack)
+    pack_local_package "$ROOT_DIR/src/ULinkRPC.Serializer.MemoryPack/ULinkRPC.Serializer.MemoryPack.csproj"
+    ;;
+esac
 
 export ULINKRPC_GODOT_NUPKGS="$GODOT_NUPKGS"
 export ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT="$ROOT_DIR/src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj"
 
-echo "Generating starter project at $PROJECT_DIR"
+echo "Generating starter project at $PROJECT_DIR ($TRANSPORT + $SERIALIZER)"
 dotnet run --project "$ROOT_DIR/src/ULinkRPC.Starter/ULinkRPC.Starter.csproj" -- \
   --name "$PROJECT_NAME" \
   --output "$GENERATED_ROOT" \
   --client-engine godot \
-  --transport websocket \
-  --serializer memorypack
+  --transport "$TRANSPORT" \
+  --serializer "$SERIALIZER"
 
 echo "Restoring and building generated server"
 dotnet restore "$SERVER_PROJECT" --configfile "$CI_NUGET_CONFIG"
@@ -199,7 +240,7 @@ for ((i = 0; i < 90; i++)); do
       exit 1
     fi
 
-    echo "Starter Godot websocket + memorypack verification passed."
+    echo "Starter Godot $TRANSPORT + $SERIALIZER verification passed."
     exit 0
   fi
 
