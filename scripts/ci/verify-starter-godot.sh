@@ -25,15 +25,8 @@ rm -rf "$WORK_DIR" "$LOCAL_FEED"
 mkdir -p "$GENERATED_ROOT" "$LOG_DIR" "$LOCAL_FEED"
 
 cleanup() {
-  if [[ -n "${GODOT_PID:-}" ]] && kill -0 "$GODOT_PID" 2>/dev/null; then
-    kill "$GODOT_PID" 2>/dev/null || true
-    wait "$GODOT_PID" 2>/dev/null || true
-  fi
-
-  if [[ -n "${SERVER_PID:-}" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
+  terminate_process "${GODOT_PID:-}" "godot"
+  terminate_process "${SERVER_PID:-}" "server"
 }
 
 trap cleanup EXIT
@@ -76,15 +69,41 @@ wait_for_log() {
   return 1
 }
 
+terminate_process() {
+  local pid="${1:-}"
+  local name="${2:-process}"
+
+  if [[ -z "$pid" ]]; then
+    return 0
+  fi
+
+  if ! kill -0 "$pid" 2>/dev/null; then
+    return 0
+  fi
+
+  kill "$pid" 2>/dev/null || true
+
+  for ((i = 0; i < 10; i++)); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid" 2>/dev/null || true
+      return 0
+    fi
+
+    sleep 1
+  done
+
+  echo "Force killing lingering $name process $pid." >&2
+  kill -9 "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+}
+
 wait_for_port() {
   local host="$1"
   local port="$2"
   local attempts="${3:-60}"
 
   for ((i = 0; i < attempts; i++)); do
-    if exec 3<>"/dev/tcp/$host/$port" 2>/dev/null; then
-      exec 3>&-
-      exec 3<&-
+    if bash -c "</dev/tcp/$host/$port" >/dev/null 2>&1; then
       return 0
     fi
 
