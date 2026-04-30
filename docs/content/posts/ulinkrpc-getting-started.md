@@ -15,7 +15,12 @@ categories:
   - Tutorial
 ---
 
-如果你现在想开始一个新的C#双端项目，用 `ULinkRPC.Starter` 是最佳选择。
+如果你现在想开始一个新的 C# 双端项目，用 `ULinkRPC.Starter` 是最佳选择。
+
+它现在的定位不只是“初始化脚手架”，而是 ULinkRPC 的项目工具：
+
+- 用 `ulinkrpc-starter new` 创建新项目
+- 用 `ulinkrpc-starter codegen` 重新生成双端胶水代码
 
 它会一次性帮你生成：
 
@@ -52,10 +57,10 @@ categories:
 
 ```bash
 dotnet tool install -g ULinkRPC.Starter
-ulinkrpc-starter --name MyGame --client-engine unity --transport websocket --serializer json
+ulinkrpc-starter new --name MyGame --client-engine unity --transport websocket --serializer json
 
 # 或者
-ulinkrpc-starter --name MyGame --client-engine tuanjie --transport websocket --serializer json
+ulinkrpc-starter new --name MyGame --client-engine tuanjie --transport websocket --serializer json
 cd MyGame
 dotnet run --project Server/Server/Server.csproj
 ```
@@ -139,22 +144,23 @@ dotnet tool update -g ULinkRPC.Starter
 
 ## 生成项目
 
-最常用的命令是：
+最常用的创建命令是：
 
 ```bash
-ulinkrpc-starter --name MyGame --transport websocket --serializer json
+ulinkrpc-starter new --name MyGame --transport websocket --serializer json
 ```
 
 你也可以省略参数，进入交互模式：
 
 ```bash
-ulinkrpc-starter --name MyGame
+ulinkrpc-starter new --name MyGame
 ```
 
 目前可选项是：
 
 - `client-engine`
   - `unity`
+  - `unity-cn`
   - `tuanjie`
   - `godot`
 
@@ -169,7 +175,7 @@ ulinkrpc-starter --name MyGame
 例如，生成一个 `WebSocket + MemoryPack` 项目：
 
 ```bash
-ulinkrpc-starter --name MyGame --client-engine godot --transport websocket --serializer memorypack
+ulinkrpc-starter new --name MyGame --client-engine godot --transport websocket --serializer memorypack
 ```
 
 ## 生成后 starter 做了什么
@@ -190,27 +196,45 @@ starter 不只是“建几个空目录”，而是会直接做完这些事情：
 
 所以它的目标不是“给你一个空模板”，而是“给你一个可直接启动的起点”。
 
-## CodeGen 怎么用
+## 日常怎么重新生成代码
 
 starter 第一次生成项目时，会自动帮你安装并跑好 `ULinkRPC.CodeGen`。
 
 所以 `CodeGen` 真正重要的地方，不是在“第一次建项目”，而是在你后续做新功能的时候。
 
+但日常入口已经不是手敲两次 `dotnet tool run ulinkrpc-codegen` 了，而是直接用 starter 的项目命令：
+
+```bash
+ulinkrpc-starter codegen
+```
+
+如果你当前不在项目根目录，也可以显式指定：
+
+```bash
+ulinkrpc-starter codegen --project-root ./MyGame
+```
+
+如果本地 tool manifest 已经恢复过，想跳过恢复步骤，也可以加：
+
+```bash
+ulinkrpc-starter codegen --no-restore
+```
+
 最常见的真实开发顺序其实是这样的：
 
 1. 先在 `Shared/Interfaces/` 里定义新的接口和 DTO
-2. 重新运行 `CodeGen`
+2. 重新运行 `ulinkrpc-starter codegen`
 3. 让 server / client 两侧更新胶水代码
 4. 再去补服务端实现
 5. 最后在客户端里调用新的 generated API
 
 你可以把它记成一句话：
 
-**Shared 契约变了，就先跑 codegen；胶水代码更新完，再继续写业务逻辑。**
+**Shared 契约变了，就先跑 `ulinkrpc-starter codegen`；胶水代码更新完，再继续写业务逻辑。**
 
 ```mermaid
 flowchart LR
-    A["修改 Shared/Interfaces<br/>接口与 DTO"] --> B["运行 ULinkRPC.CodeGen"]
+    A["修改 Shared/Interfaces<br/>接口与 DTO"] --> B["运行 ulinkrpc-starter codegen"]
     B --> C["更新 Server 生成代码"]
     B --> D["更新 Client 生成代码"]
     C --> E["补服务端实现"]
@@ -276,7 +300,7 @@ namespace Shared.Interfaces
 
 ### 这时候该做什么
 
-这时候就应该立刻重新跑 `CodeGen`。
+这时候就应该立刻重新跑 starter 的项目级 codegen。
 
 在 starter 生成的项目里，直接这样做：
 
@@ -289,7 +313,7 @@ ulinkrpc-starter codegen
 
 ### 跑完之后会发生什么
 
-跑完以后，`CodeGen` 会根据你刚才写的 `IInventoryService` 和 DTO 自动更新两边的胶水代码。
+跑完以后，`ULinkRPC.CodeGen` 会根据你刚才写的 `IInventoryService` 和 DTO 自动更新两边的胶水代码，而 starter 负责替你把 server / client 两次调用都编排好。
 
 server 侧会更新：
 
@@ -371,7 +395,7 @@ foreach (var item in reply.Items)
 - 服务端实现只关心接口
 - 客户端调用只关心生成后的强类型 API
 
-### 什么时候一定要重跑 CodeGen
+### 什么时候一定要重跑 `ulinkrpc-starter codegen`
 
 只要你改了这些内容，就应该立刻重跑：
 
@@ -393,7 +417,7 @@ foreach (var item in reply.Items)
 
 **这次改动有没有动 `Shared/Interfaces/` 里的契约定义？**
 
-如果答案是“有”，那下一步就不是继续写别的代码，而是先跑 `CodeGen`。
+如果答案是“有”，那下一步就不是继续写别的代码，而是先跑 `ulinkrpc-starter codegen`。
 
 如果答案是“没有”，那通常可以继续改服务实现或客户端逻辑。
 
@@ -560,7 +584,7 @@ Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 当 starter 生成的默认 `Ping` 示例已经跑通后，后续开发就按前面的 `Inventory` 例子那条线往前走：
 
 1. 先在 `Shared/Interfaces/` 里定义功能契约
-2. 立刻重新运行 `CodeGen`
+2. 立刻重新运行 `ulinkrpc-starter codegen`
 3. 再补服务端实现和客户端业务接入
 
 日常开发里真正的源头始终是：
