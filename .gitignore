@@ -182,6 +182,8 @@ InitTestScene*.unity*
 pack.cmd
 # Local dotnet cache
 .dotnet/
+# Local repo-scoped dotnet CLI cache
+.dotnetcli/
 # Local NuGet cache
 .nuget/
 
