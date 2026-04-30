@@ -278,24 +278,14 @@ namespace Shared.Interfaces
 
 这时候就应该立刻重新跑 `CodeGen`。
 
-在 starter 生成的项目里，通常直接这样做：
+在 starter 生成的项目里，直接这样做：
 
 ```bash
 cd MyGame
-dotnet tool restore
-cd Server/Server
-dotnet tool run ulinkrpc-codegen -- --contracts "../../Shared" --mode server --server-output "Generated" --server-namespace "Server.Generated"
-cd ../../Client
-dotnet tool run ulinkrpc-codegen -- --contracts "../Shared" --mode unity --output "Assets/Scripts/Rpc/Generated" --namespace "Rpc.Generated"
+ulinkrpc-starter codegen
 ```
 
-如果客户端是 Godot，最后一条改成：
-
-```bash
-dotnet tool run ulinkrpc-codegen -- --contracts "../Shared" --mode godot --output "Scripts/Rpc/Generated" --namespace "Rpc.Generated"
-```
-
-如果你用的是团结引擎，它走的就是 Unity 这条命令。
+它会自动恢复本地 tool manifest，并根据项目结构同时更新 server 和 client 的生成代码。Godot、Unity、Unity CN、团结都走同一个入口。
 
 ### 跑完之后会发生什么
 

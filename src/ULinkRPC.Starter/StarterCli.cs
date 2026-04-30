@@ -4,14 +4,45 @@ internal static class StarterCli
 {
     public static void PrintUsage()
     {
-        Console.WriteLine("Usage: ulinkrpc-starter [--version] [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]");
+        Console.WriteLine("Usage:");
+        Console.WriteLine("  ulinkrpc-starter [--version]");
+        Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]");
+        Console.WriteLine("  ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]");
     }
 
     public static bool TryParseArgs(string[] args, out StarterCliOptions options, out string error)
     {
+        if (args.Length == 0)
+        {
+            return TryParseNewArgs([], out options, out error);
+        }
+
+        if (args.Length == 1 && args[0] == "--version")
+        {
+            options = new StarterCliOptions(StarterCommandKind.New, true, null, null);
+            error = string.Empty;
+            return true;
+        }
+
+        var firstArg = args[0];
+        if (firstArg.Equals("new", StringComparison.OrdinalIgnoreCase))
+            return TryParseNewArgs(args[1..], out options, out error);
+
+        if (firstArg.Equals("codegen", StringComparison.OrdinalIgnoreCase))
+            return TryParseCodeGenArgs(args[1..], out options, out error);
+
+        if (firstArg.StartsWith("-", StringComparison.Ordinal))
+            return TryParseNewArgs(args, out options, out error);
+
+        options = default!;
+        error = $"Unknown command: {firstArg}";
+        return false;
+    }
+
+    private static bool TryParseNewArgs(string[] args, out StarterCliOptions options, out string error)
+    {
         var projectName = "ULinkApp";
         var outputDir = Directory.GetCurrentDirectory();
-        var showVersion = false;
         ClientEngineKind? clientEngine = null;
         TransportKind? transport = null;
         SerializerKind? serializer = null;
@@ -35,7 +66,12 @@ internal static class StarterCli
 
             if (arg is "--version")
             {
-                showVersion = true;
+                options = new StarterCliOptions(StarterCommandKind.New, true, null, null);
+                return true;
+            }
+
+            if (arg.Equals("new", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
             }
 
@@ -103,7 +139,45 @@ internal static class StarterCli
             return false;
         }
 
-        options = new StarterCliOptions(projectName, outputDir, showVersion, clientEngine, transport, serializer, nuGetForUnitySource);
+        options = new StarterCliOptions(
+            StarterCommandKind.New,
+            false,
+            new StarterNewCommandOptions(projectName, outputDir, clientEngine, transport, serializer, nuGetForUnitySource),
+            null);
+        return true;
+    }
+
+    private static bool TryParseCodeGenArgs(string[] args, out StarterCliOptions options, out string error)
+    {
+        var projectRoot = Directory.GetCurrentDirectory();
+        var noRestore = false;
+        error = string.Empty;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            var arg = args[i];
+            if (arg is "--project-root" && i + 1 < args.Length)
+            {
+                projectRoot = args[++i];
+                continue;
+            }
+
+            if (arg is "--no-restore")
+            {
+                noRestore = true;
+                continue;
+            }
+
+            options = default!;
+            error = $"Unknown or incomplete option: {arg}";
+            return false;
+        }
+
+        options = new StarterCliOptions(
+            StarterCommandKind.CodeGen,
+            false,
+            null,
+            new StarterCodeGenCommandOptions(projectRoot, noRestore));
         return true;
     }
 

@@ -1,6 +1,8 @@
 # ULinkRPC.Starter
 
-Scaffold a runnable ULinkRPC template with fixed project folders:
+Project management tool for ULinkRPC workspaces. It can scaffold a runnable project and later regenerate project codegen output from the same CLI.
+
+Generated projects use these fixed folders:
 
 - `Shared` (netstandard2.1 + net10.0)
 - `Server` (.NET 10)
@@ -19,10 +21,14 @@ dotnet tool install -g ULinkRPC.Starter
 ## Usage
 
 ```bash
-ulinkrpc-starter [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]
+ulinkrpc-starter [--version]
+ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]
+ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]
 ```
 
 Options:
+
+For `new`:
 
 - `--name` Project root folder name. Default is `ULinkApp`.
 - `--output` Parent directory for the generated project. Default is the current working directory.
@@ -30,6 +36,11 @@ Options:
 - `--transport` Transport package to use: `tcp`, `websocket`, `kcp`.
 - `--serializer` Serializer package to use: `json`, `memorypack`.
 - `--nugetforunity-source` For Unity-compatible clients only: `embedded` or `openupm`. This overrides the client engine default.
+
+For `codegen`:
+
+- `--project-root` Starter project root. Default is the current working directory. The tool also searches parent directories.
+- `--no-restore` Skip `dotnet tool restore` before running `ULinkRPC.CodeGen`.
 
 Default `NuGetForUnity` source by client engine:
 
@@ -44,13 +55,20 @@ If `--client-engine`, `--transport`, or `--serializer` is omitted, the tool ente
 Create a project in the current directory and choose transport/serializer interactively:
 
 ```bash
-ulinkrpc-starter --name MyGame
+ulinkrpc-starter new --name MyGame
 ```
 
 Create a project non-interactively:
 
 ```bash
-ulinkrpc-starter --name MyGame --output ./samples --transport kcp --serializer memorypack
+ulinkrpc-starter new --name MyGame --output ./samples --transport kcp --serializer memorypack
+```
+
+Regenerate both server and client generated code after changing `Shared/` contracts:
+
+```bash
+cd MyGame
+ulinkrpc-starter codegen
 ```
 
 This generates:
@@ -59,8 +77,6 @@ This generates:
 samples/
   MyGame/
     .gitignore
-    codegen.ps1
-    codegen.sh
     Shared/
     Server/
       Server.sln or Server.slnx
@@ -90,7 +106,6 @@ flowchart LR
 - `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and wires the selected serializer and acceptor explicitly.
 - `Client/`: Unity 2022 LTS / Unity CN / Tuanjie-compatible skeleton with `packages.config`, a local reference to `Shared`, and either an OpenUPM or embedded `NuGetForUnity` setup depending on the selected client engine, or a Godot 4.6 C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node.
-- `codegen.ps1` / `codegen.sh`: rerun `ULinkRPC.CodeGen` for both `Server` and `Client` after you change DTOs or service contracts under `Shared/`.
 - `.gitignore`: ignore rules for .NET build outputs, editor files, Unity/Godot generated folders, and NuGetForUnity restored packages.
 
 The tool uses a bundled, release-tested package manifest for:
@@ -103,7 +118,7 @@ The tool uses a bundled, release-tested package manifest for:
 - `ULinkRPC.CodeGen`
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
-Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, runs code generation for both server and the selected client engine automatically, and writes root `codegen.ps1` / `codegen.sh` helpers so you can regenerate both sides later with one command.
+Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and the selected client engine automatically. Later, you rerun both sides with `ulinkrpc-starter codegen`.
 When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
@@ -138,13 +153,6 @@ Then open `Client/` with Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6, depend
 
 After editing DTOs or service contracts under `Shared/`, rerun:
 
-```powershell
-./codegen.ps1
-```
-
-On macOS / Linux:
-
 ```bash
-chmod +x ./codegen.sh
-./codegen.sh
+ulinkrpc-starter codegen
 ```

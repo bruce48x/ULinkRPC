@@ -7,9 +7,9 @@
     <RootNamespace>ULinkRPC.Starter</RootNamespace>
     <AssemblyName>ULinkRPC.Starter</AssemblyName>
     <PackageId>ULinkRPC.Starter</PackageId>
-    <Version>0.2.49</Version>
+    <Version>0.2.50</Version>
     <Authors>ULinkRPC</Authors>
-    <Description>CLI tool to scaffold ULinkRPC shared/server/Unity or Godot starter projects.</Description>
+    <Description>CLI project tool to scaffold and manage ULinkRPC shared/server/client workspaces.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ulinkrpc-starter</ToolCommandName>

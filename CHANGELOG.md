@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.50
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.50`
+- Repositioned `ULinkRPC.Starter` as a project management tool instead of only a one-time initializer.
+- Added `ulinkrpc-starter new` and `ulinkrpc-starter codegen` subcommands so starter-managed workspaces can regenerate both server and client code from one CLI entry point.
+- Starter-generated projects no longer emit root `codegen.ps1` / `codegen.sh`; shared contract regeneration now goes through `ulinkrpc-starter codegen`.
+
 ## 0.2.49
 
 - Release packages:

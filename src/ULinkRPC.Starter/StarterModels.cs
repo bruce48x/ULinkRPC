@@ -76,14 +76,29 @@ internal sealed record ResolvedVersions(
     string? SerializerRuntime,
     string? SerializerRuntimeCore);
 
-internal sealed record StarterCliOptions(
+internal enum StarterCommandKind
+{
+    New,
+    CodeGen
+}
+
+internal sealed record StarterNewCommandOptions(
     string ProjectName,
     string OutputDir,
-    bool ShowVersion,
     ClientEngineKind? ClientEngine,
     TransportKind? Transport,
     SerializerKind? Serializer,
     NuGetForUnitySourceKind? NuGetForUnitySource);
+
+internal sealed record StarterCodeGenCommandOptions(
+    string ProjectRoot,
+    bool NoRestore);
+
+internal sealed record StarterCliOptions(
+    StarterCommandKind Command,
+    bool ShowVersion,
+    StarterNewCommandOptions? NewCommand,
+    StarterCodeGenCommandOptions? CodeGenCommand);
 
 internal sealed record StarterPaths(
     string RootPath,

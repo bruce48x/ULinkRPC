@@ -18,7 +18,6 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         GenerateSolution(context.Paths.ServerRootPath);
         GenerateClientTemplate(context);
         GenerateCodeGenToolManifest(context);
-        GenerateCodeGenScripts(context);
         RunCodeGen(context);
         InitializeGit(context.Paths.RootPath);
     }
@@ -113,105 +112,6 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
 
     private static string BuildClientCodeGenCommand(StarterTemplateContext context) =>
         $"tool run ulinkrpc-codegen -- --contracts \"{context.Paths.SharedPath}\" --mode {context.ClientCodeGenMode} --output \"{context.ClientCodeGenOutput}\" --namespace \"Rpc.Generated\"";
-
-    private static void GenerateCodeGenScripts(StarterTemplateContext context)
-    {
-        var powerShellScript = $$"""
-param(
-    [switch]$NoRestore
-)
-
-$ErrorActionPreference = 'Stop'
-
-$root = $PSScriptRoot
-$serverPath = Join-Path $root 'Server\Server'
-$clientPath = Join-Path $root 'Client'
-
-$serverArgs = @(
-    'tool', 'run', 'ulinkrpc-codegen', '--',
-    '--contracts', (Join-Path $root 'Shared'),
-    '--mode', 'server',
-    '--server-output', 'Generated',
-    '--server-namespace', 'Server.Generated'
-)
-
-$clientArgs = @(
-    'tool', 'run', 'ulinkrpc-codegen', '--',
-    '--contracts', (Join-Path $root 'Shared'),
-    '--mode', '{{context.ClientCodeGenMode}}',
-    '--output', '{{context.ClientCodeGenOutput}}',
-    '--namespace', 'Rpc.Generated'
-)
-
-if (-not $NoRestore) {
-    & dotnet tool restore
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet tool restore failed with exit code $LASTEXITCODE"
-    }
-}
-
-Push-Location $serverPath
-try {
-    & dotnet @serverArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Server codegen failed with exit code $LASTEXITCODE"
-    }
-}
-finally {
-    Pop-Location
-}
-
-Push-Location $clientPath
-try {
-    & dotnet @clientArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "Client codegen failed with exit code $LASTEXITCODE"
-    }
-}
-finally {
-    Pop-Location
-}
-""";
-
-        var shellScript = $$"""
-#!/usr/bin/env sh
-set -eu
-
-NO_RESTORE=0
-if [ "${1-}" = "--no-restore" ]; then
-  NO_RESTORE=1
-fi
-
-ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-SERVER_PATH="$ROOT_DIR/Server/Server"
-CLIENT_PATH="$ROOT_DIR/Client"
-
-if [ "$NO_RESTORE" -ne 1 ]; then
-  dotnet tool restore
-fi
-
-(
-  cd "$SERVER_PATH"
-  dotnet tool run ulinkrpc-codegen -- \
-    --contracts "$ROOT_DIR/Shared" \
-    --mode server \
-    --server-output Generated \
-    --server-namespace Server.Generated
-)
-
-(
-  cd "$CLIENT_PATH"
-  dotnet tool run ulinkrpc-codegen -- \
-    --contracts "$ROOT_DIR/Shared" \
-    --mode {{context.ClientCodeGenMode}} \
-    --output "{{context.ClientCodeGenOutput.Replace("\\", "/")}}" \
-    --namespace Rpc.Generated
-)
-""";
-
-        StarterFileWriter.Write(Path.Combine(context.Paths.RootPath, "codegen.ps1"), powerShellScript);
-        StarterFileWriter.Write(Path.Combine(context.Paths.RootPath, "codegen.sh"), shellScript);
-    }
 
     private static void GenerateGitIgnore(string rootPath)
     {

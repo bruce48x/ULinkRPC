@@ -17,6 +17,24 @@ internal static class Program
             return 0;
         }
 
+        try
+        {
+            return options.Command switch
+            {
+                StarterCommandKind.New => RunNewCommand(options.NewCommand!),
+                StarterCommandKind.CodeGen => RunCodeGenCommand(options.CodeGenCommand!),
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    private static int RunNewCommand(StarterNewCommandOptions options)
+    {
         var transport = options.Transport ?? StarterCli.PromptTransport();
         var serializer = options.Serializer ?? StarterCli.PromptSerializer();
         var clientEngine = options.ClientEngine ?? StarterCli.PromptClientEngine();
@@ -26,26 +44,33 @@ internal static class Program
         var versions = NuGetVersionResolver.ResolveVersions(transport, serializer);
         var generator = new StarterTemplateGenerator(ProcessRunner.RunDotNet, ProcessRunner.RunGit);
 
-        try
-        {
-            StarterOutputManager.GenerateIntoTargetDirectory(
-                rootPath,
-                stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, clientEngine, transport, serializer, nuGetForUnitySource, versions));
-        }
-        catch (InvalidOperationException ex)
-        {
-            Console.Error.WriteLine(ex.Message);
-            return 1;
-        }
+        StarterOutputManager.GenerateIntoTargetDirectory(
+            rootPath,
+            stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, clientEngine, transport, serializer, nuGetForUnitySource, versions));
 
-        Console.WriteLine($"Created ULinkRPC starter template at: {rootPath}");
+        Console.WriteLine($"Created ULinkRPC project at: {rootPath}");
         Console.WriteLine("Next steps:");
         Console.WriteLine($"  1) cd \"{rootPath}\"");
         Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
         Console.WriteLine(clientEngine.IsUnityCompatible()
             ? $"  3) Open \"Client\" with {clientEngine.GetStarterClientLabel()}."
             : "  3) Open \"Client\" with Godot 4.6 and build the C# solution.");
+        Console.WriteLine("  4) After changing Shared contracts, run `ulinkrpc-starter codegen` from the project root.");
+        return 0;
+    }
 
+    private static int RunCodeGenCommand(StarterCodeGenCommandOptions options)
+    {
+        var startPath = Path.GetFullPath(options.ProjectRoot);
+        if (!StarterWorkspace.TryResolveProjectContext(startPath, out var context, out var error))
+        {
+            Console.Error.WriteLine(error);
+            return 1;
+        }
+
+        var projectTool = new StarterProjectTool(ProcessRunner.RunDotNet);
+        projectTool.RunCodeGen(context, options.NoRestore);
+        Console.WriteLine($"Regenerated server and client code for: {context.RootPath}");
         return 0;
     }
 
