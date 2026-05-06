@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.51
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.51`
+- Added `--help` / `-h` handling to `ulinkrpc-starter` so usage text prints successfully without starting interactive project creation.
+
 ## 0.2.50
 
 - Release packages:

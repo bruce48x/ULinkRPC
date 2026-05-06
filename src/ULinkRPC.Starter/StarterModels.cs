@@ -96,6 +96,7 @@ internal sealed record StarterCodeGenCommandOptions(
 
 internal sealed record StarterCliOptions(
     StarterCommandKind Command,
+    bool ShowHelp,
     bool ShowVersion,
     StarterNewCommandOptions? NewCommand,
     StarterCodeGenCommandOptions? CodeGenCommand);

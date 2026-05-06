@@ -5,7 +5,7 @@ internal static class StarterCli
     public static void PrintUsage()
     {
         Console.WriteLine("Usage:");
-        Console.WriteLine("  ulinkrpc-starter [--version]");
+        Console.WriteLine("  ulinkrpc-starter [--help|-h|--version]");
         Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]");
         Console.WriteLine("  ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]");
     }
@@ -19,7 +19,14 @@ internal static class StarterCli
 
         if (args.Length == 1 && args[0] == "--version")
         {
-            options = new StarterCliOptions(StarterCommandKind.New, true, null, null);
+            options = new StarterCliOptions(StarterCommandKind.New, false, true, null, null);
+            error = string.Empty;
+            return true;
+        }
+
+        if (args.Length == 1 && IsHelpOption(args[0]))
+        {
+            options = new StarterCliOptions(StarterCommandKind.New, true, false, null, null);
             error = string.Empty;
             return true;
         }
@@ -66,7 +73,13 @@ internal static class StarterCli
 
             if (arg is "--version")
             {
-                options = new StarterCliOptions(StarterCommandKind.New, true, null, null);
+                options = new StarterCliOptions(StarterCommandKind.New, false, true, null, null);
+                return true;
+            }
+
+            if (IsHelpOption(arg))
+            {
+                options = new StarterCliOptions(StarterCommandKind.New, true, false, null, null);
                 return true;
             }
 
@@ -142,6 +155,7 @@ internal static class StarterCli
         options = new StarterCliOptions(
             StarterCommandKind.New,
             false,
+            false,
             new StarterNewCommandOptions(projectName, outputDir, clientEngine, transport, serializer, nuGetForUnitySource),
             null);
         return true;
@@ -156,6 +170,12 @@ internal static class StarterCli
         for (var i = 0; i < args.Length; i++)
         {
             var arg = args[i];
+            if (IsHelpOption(arg))
+            {
+                options = new StarterCliOptions(StarterCommandKind.CodeGen, true, false, null, null);
+                return true;
+            }
+
             if (arg is "--project-root" && i + 1 < args.Length)
             {
                 projectRoot = args[++i];
@@ -176,10 +196,13 @@ internal static class StarterCli
         options = new StarterCliOptions(
             StarterCommandKind.CodeGen,
             false,
+            false,
             null,
             new StarterCodeGenCommandOptions(projectRoot, noRestore));
         return true;
     }
+
+    private static bool IsHelpOption(string arg) => arg is "--help" or "-h";
 
     public static ClientEngineKind PromptClientEngine()
     {

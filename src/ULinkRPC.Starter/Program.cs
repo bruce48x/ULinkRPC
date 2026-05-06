@@ -11,6 +11,12 @@ internal static class Program
             return 1;
         }
 
+        if (options.ShowHelp)
+        {
+            StarterCli.PrintUsage();
+            return 0;
+        }
+
         if (options.ShowVersion)
         {
             Console.WriteLine(GetVersion());

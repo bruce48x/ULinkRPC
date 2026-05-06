@@ -614,6 +614,21 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal(NuGetForUnitySourceKind.OpenUpm, options.NewCommand!.NuGetForUnitySource);
     }
 
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    [InlineData("new", "--help")]
+    [InlineData("codegen", "--help")]
+    public void TryParseArgs_ParsesHelpOption(params string[] args)
+    {
+        var ok = StarterCli.TryParseArgs(args, out var options, out var error);
+
+        Assert.True(ok);
+        Assert.Equal(string.Empty, error);
+        Assert.True(options.ShowHelp);
+        Assert.False(options.ShowVersion);
+    }
+
     [Fact]
     public void TryParseArgs_ParsesCodeGenCommand()
     {

@@ -21,7 +21,7 @@ dotnet tool install -g ULinkRPC.Starter
 ## Usage
 
 ```bash
-ulinkrpc-starter [--version]
+ulinkrpc-starter [--help|-h|--version]
 ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]
 ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]
 ```
