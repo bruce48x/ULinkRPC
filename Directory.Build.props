@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <RepositoryUrl>https://github.com/bruce48x/ULinkRPC</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/bruce48x/ULinkRPC</PackageProjectUrl>
+  </PropertyGroup>
+</Project>

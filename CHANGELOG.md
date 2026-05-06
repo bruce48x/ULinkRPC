@@ -1,5 +1,21 @@
 # Changelog
 
+## Repository metadata refresh
+
+- Release packages:
+	- `ULinkRPC.Client` `0.11.2`
+	- `ULinkRPC.CodeGen` `0.16.5`
+	- `ULinkRPC.Core` `0.11.3`
+	- `ULinkRPC.Serializer.Json` `0.11.1`
+	- `ULinkRPC.Serializer.MemoryPack` `0.11.1`
+	- `ULinkRPC.Server` `0.11.8`
+	- `ULinkRPC.Starter` `0.2.52`
+	- `ULinkRPC.Transport.Kcp` `0.11.9`
+	- `ULinkRPC.Transport.Loopback` `0.11.1`
+	- `ULinkRPC.Transport.Tcp` `0.11.3`
+	- `ULinkRPC.Transport.WebSocket` `0.11.4`
+- Added NuGet repository and project URL metadata pointing to `https://github.com/bruce48x/ULinkRPC` so package pages expose the source repository.
+
 ## 0.2.51
 
 - Release packages:
