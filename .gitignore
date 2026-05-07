@@ -177,7 +177,8 @@ InitTestScene*.unity*
 **/[Uu]ser[Ss]ettings/
 
 # NuGet artifacts
-/artifacts/
+/artifacts/*
+!/artifacts/.gitkeep
 # Local release helpers
 pack.cmd
 # Local dotnet cache
