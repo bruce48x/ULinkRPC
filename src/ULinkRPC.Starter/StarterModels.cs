@@ -88,7 +88,8 @@ internal sealed record StarterNewCommandOptions(
     ClientEngineKind? ClientEngine,
     TransportKind? Transport,
     SerializerKind? Serializer,
-    NuGetForUnitySourceKind? NuGetForUnitySource);
+    NuGetForUnitySourceKind? NuGetForUnitySource,
+    bool NoNextSteps);
 
 internal sealed record StarterCodeGenCommandOptions(
     string ProjectRoot,

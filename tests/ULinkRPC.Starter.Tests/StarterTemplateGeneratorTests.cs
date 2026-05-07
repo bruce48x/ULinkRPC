@@ -614,6 +614,19 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal(NuGetForUnitySourceKind.OpenUpm, options.NewCommand!.NuGetForUnitySource);
     }
 
+    [Fact]
+    public void TryParseArgs_ParsesNoNextSteps()
+    {
+        var ok = StarterCli.TryParseArgs(
+            ["new", "--no-next-steps"],
+            out var options,
+            out var error);
+
+        Assert.True(ok);
+        Assert.Equal(string.Empty, error);
+        Assert.True(options.NewCommand!.NoNextSteps);
+    }
+
     [Theory]
     [InlineData("--help")]
     [InlineData("-h")]

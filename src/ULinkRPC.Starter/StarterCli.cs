@@ -6,7 +6,7 @@ internal static class StarterCli
     {
         Console.WriteLine("Usage:");
         Console.WriteLine("  ulinkrpc-starter [--help|-h|--version]");
-        Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]");
+        Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]");
         Console.WriteLine("  ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]");
     }
 
@@ -54,6 +54,7 @@ internal static class StarterCli
         TransportKind? transport = null;
         SerializerKind? serializer = null;
         NuGetForUnitySourceKind? nuGetForUnitySource = null;
+        var noNextSteps = false;
         error = string.Empty;
 
         for (var i = 0; i < args.Length; i++)
@@ -140,6 +141,12 @@ internal static class StarterCli
                 continue;
             }
 
+            if (arg is "--no-next-steps")
+            {
+                noNextSteps = true;
+                continue;
+            }
+
             options = default!;
             error = $"Unknown or incomplete option: {arg}";
             return false;
@@ -156,7 +163,7 @@ internal static class StarterCli
             StarterCommandKind.New,
             false,
             false,
-            new StarterNewCommandOptions(projectName, outputDir, clientEngine, transport, serializer, nuGetForUnitySource),
+            new StarterNewCommandOptions(projectName, outputDir, clientEngine, transport, serializer, nuGetForUnitySource, noNextSteps),
             null);
         return true;
     }

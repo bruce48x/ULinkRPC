@@ -22,7 +22,7 @@ dotnet tool install -g ULinkRPC.Starter
 
 ```bash
 ulinkrpc-starter [--help|-h|--version]
-ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm]
+ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]
 ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]
 ```
 
@@ -36,6 +36,7 @@ For `new`:
 - `--transport` Transport package to use: `tcp`, `websocket`, `kcp`.
 - `--serializer` Serializer package to use: `json`, `memorypack`.
 - `--nugetforunity-source` For Unity-compatible clients only: `embedded` or `openupm`. This overrides the client engine default.
+- `--no-next-steps` Do not print the post-create "Next steps" guidance.
 
 For `codegen`:
 

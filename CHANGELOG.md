@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.53
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.53`
+- Added `--no-next-steps` to `ulinkrpc-starter new` so automation scripts can create starter projects without printing the post-create "Next steps" guidance.
+
 ## Repository metadata refresh
 
 - Release packages:

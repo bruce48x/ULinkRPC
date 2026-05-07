@@ -55,6 +55,11 @@ internal static class Program
             stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, clientEngine, transport, serializer, nuGetForUnitySource, versions));
 
         Console.WriteLine($"Created ULinkRPC project at: {rootPath}");
+        if (options.NoNextSteps)
+        {
+            return 0;
+        }
+
         Console.WriteLine("Next steps:");
         Console.WriteLine($"  1) cd \"{rootPath}\"");
         Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
