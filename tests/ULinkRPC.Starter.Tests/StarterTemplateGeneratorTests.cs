@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Xml.Linq;
 using ULinkRPC.Starter;
 using Xunit;
 
@@ -62,19 +63,37 @@ public sealed class StarterTemplateGeneratorTests
         var jsonVersions = NuGetVersionResolver.ResolveVersions(TransportKind.WebSocket, SerializerKind.Json);
         var memoryPackVersions = NuGetVersionResolver.ResolveVersions(TransportKind.Kcp, SerializerKind.MemoryPack);
 
-        Assert.Equal("0.11.2", jsonVersions.Core);
-        Assert.Equal("0.11.7", jsonVersions.Server);
-        Assert.Equal("0.11.0", jsonVersions.Client);
-        Assert.Equal("0.11.3", jsonVersions.Transport);
-        Assert.Equal("0.11.0", jsonVersions.Serializer);
-        Assert.Equal("0.16.4", jsonVersions.CodeGen);
+        Assert.Equal("0.11.3", jsonVersions.Core);
+        Assert.Equal("0.11.8", jsonVersions.Server);
+        Assert.Equal("0.11.2", jsonVersions.Client);
+        Assert.Equal("0.11.4", jsonVersions.Transport);
+        Assert.Equal("0.11.1", jsonVersions.Serializer);
+        Assert.Equal("0.16.5", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
-        Assert.Equal("0.11.8", memoryPackVersions.Transport);
-        Assert.Equal("0.11.0", memoryPackVersions.Serializer);
+        Assert.Equal("0.11.9", memoryPackVersions.Transport);
+        Assert.Equal("0.11.1", memoryPackVersions.Serializer);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntime);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntimeCore);
+    }
+
+    [Fact]
+    public void StarterReleaseVersions_MatchSourceProjectVersions()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Core", "ULinkRPC.Core.csproj"), StarterReleaseVersions.Core);
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Server", "ULinkRPC.Server.csproj"), StarterReleaseVersions.Server);
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Client", "ULinkRPC.Client.csproj"), StarterReleaseVersions.Client);
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Transport.Tcp", "ULinkRPC.Transport.Tcp.csproj"), StarterReleaseVersions.TransportTcp);
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Transport.WebSocket", "ULinkRPC.Transport.WebSocket.csproj"), StarterReleaseVersions.TransportWebSocket);
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Transport.Kcp", "ULinkRPC.Transport.Kcp.csproj"), StarterReleaseVersions.TransportKcp);
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Serializer.Json", "ULinkRPC.Serializer.Json.csproj"), StarterReleaseVersions.SerializerJson);
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Serializer.MemoryPack", "ULinkRPC.Serializer.MemoryPack.csproj"), StarterReleaseVersions.SerializerMemoryPack);
+        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.CodeGen", "ULinkRPC.CodeGen.csproj"), StarterReleaseVersions.CodeGen);
+        Assert.Equal(ReadPackageReferenceVersion(repositoryRoot, "src", "ULinkRPC.Serializer.MemoryPack", "ULinkRPC.Serializer.MemoryPack.csproj", "MemoryPack"), StarterReleaseVersions.MemoryPackRuntime);
+        Assert.Equal(ReadPackageReferenceVersion(repositoryRoot, "src", "ULinkRPC.Serializer.MemoryPack", "ULinkRPC.Serializer.MemoryPack.csproj", "MemoryPack"), StarterReleaseVersions.MemoryPackRuntimeCore);
     }
 
     [Fact]
@@ -717,6 +736,46 @@ public sealed class StarterTemplateGeneratorTests
         var root = Path.Combine(Path.GetTempPath(), $"ulinkrpc_starter_{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
         return root;
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "ARCHITECTURE_REVIEW_AND_DEVELOPMENT_PLAN.md")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("Could not find repository root from test output directory.");
+    }
+
+    private static string ReadProjectVersion(string repositoryRoot, params string[] pathParts)
+    {
+        var project = XDocument.Load(Path.Combine([repositoryRoot, .. pathParts]));
+        return project.Root?
+            .Elements("PropertyGroup")
+            .Elements("Version")
+            .Select(element => element.Value)
+            .FirstOrDefault(version => !string.IsNullOrWhiteSpace(version))
+            ?? throw new InvalidOperationException($"Project version not found in {Path.Combine(pathParts)}.");
+    }
+
+    private static string ReadPackageReferenceVersion(string repositoryRoot, string directory, string projectDirectory, string projectFile, string packageId)
+    {
+        var project = XDocument.Load(Path.Combine(repositoryRoot, directory, projectDirectory, projectFile));
+        return project.Root?
+            .Elements("ItemGroup")
+            .Elements("PackageReference")
+            .Where(element => string.Equals((string?)element.Attribute("Include"), packageId, StringComparison.Ordinal))
+            .Select(element => (string?)element.Attribute("Version"))
+            .FirstOrDefault(version => !string.IsNullOrWhiteSpace(version))
+            ?? throw new InvalidOperationException($"Package reference '{packageId}' not found in {projectFile}.");
     }
 
     private static string CreateFakeGodotSdkSource(string root, string version)

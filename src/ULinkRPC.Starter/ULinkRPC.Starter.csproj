@@ -28,5 +28,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="TemplateAssets\NuGetForUnity.4.5.0.zip" LogicalName="ULinkRPC.Starter.TemplateAssets.NuGetForUnity.4.5.0.zip" />
+    <EmbeddedResource Include="ReleaseVersions.json" LogicalName="ULinkRPC.Starter.ReleaseVersions.json" />
   </ItemGroup>
 </Project>
