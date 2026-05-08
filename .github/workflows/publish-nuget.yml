@@ -1,10 +1,17 @@
 name: Publish NuGet
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-nuget.yml"
+      - "Directory.Build.props"
+      - "src/**"
+
+concurrency:
+  group: publish-nuget
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
