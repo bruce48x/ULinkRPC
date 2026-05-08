@@ -126,6 +126,8 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
 
         WsServerTransport? transport = null;
         var completion = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var slotOwnedByHandler = true;
+        var transportTransferredToQueue = false;
 
         try
         {
@@ -137,10 +139,13 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
 
             if (!_connections.Writer.TryWrite(new RpcAcceptedConnection(transport, remoteEndPoint?.ToString() ?? "?", remoteEndPoint)))
             {
-                ReleasePendingSlot();
+                ReleaseHandlerPendingSlot();
                 await transport.DisposeAsync().ConfigureAwait(false);
                 return;
             }
+
+            slotOwnedByHandler = false;
+            transportTransferredToQueue = true;
 
             using var registration = _disposeCts.Token.Register(static state =>
             {
@@ -151,22 +156,31 @@ public sealed class WsConnectionAcceptor : IRpcConnectionAcceptor
         }
         catch (ChannelClosedException)
         {
-            ReleasePendingSlot();
-            if (transport is not null)
+            ReleaseHandlerPendingSlot();
+            if (!transportTransferredToQueue && transport is not null)
                 await transport.DisposeAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            ReleasePendingSlot();
-            if (transport is not null)
+            ReleaseHandlerPendingSlot();
+            if (!transportTransferredToQueue && transport is not null)
                 await transport.DisposeAsync().ConfigureAwait(false);
         }
         catch
         {
-            ReleasePendingSlot();
-            if (transport is not null)
+            ReleaseHandlerPendingSlot();
+            if (!transportTransferredToQueue && transport is not null)
                 await transport.DisposeAsync().ConfigureAwait(false);
             throw;
+        }
+
+        void ReleaseHandlerPendingSlot()
+        {
+            if (!slotOwnedByHandler)
+                return;
+
+            slotOwnedByHandler = false;
+            ReleasePendingSlot();
         }
     }
 

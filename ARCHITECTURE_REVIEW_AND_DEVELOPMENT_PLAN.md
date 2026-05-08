@@ -310,6 +310,8 @@ namespace ULinkRPC.Client
 4. 从用户文档站点入口移除该报告。
 5. 修复 `StarterReleaseVersions` 与 csproj 版本漂移。
 6. 增加 starter 版本一致性测试。
+7. 修复 `WsConnectionAcceptor` pending slot 所有权。
+8. 增加 WebSocket acceptor queued dispose 回归测试，防止 pending slot 重复释放。
 
 ### 待办
 
@@ -319,9 +321,8 @@ namespace ULinkRPC.Client
 
 待办：
 
-1. 修复 `WsConnectionAcceptor` pending slot 所有权。
-2. 增加 WebSocket acceptor 的 dispose race / cancellation / queued connection 测试。
-3. 清理本地 `src/**/bin` 和 `src/**/obj` 构建产物。
+1. 增加 WebSocket acceptor 的 cancellation / dispose race 扩展测试。
+2. 清理本地 `src/**/bin` 和 `src/**/obj` 构建产物。
 
 验收标准：
 

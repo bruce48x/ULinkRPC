@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -113,6 +114,22 @@ public class WebSocketTransportTests
     }
 
     [Fact]
+    public async Task WsConnectionAcceptor_DisposeAsync_ReleasesQueuedPendingSlotOnce()
+    {
+        var port = GetFreePort();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var acceptor = await WsConnectionAcceptor.CreateAsync(port, "/ws", 1, cts.Token);
+
+        using var client = new ClientWebSocket();
+        await client.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), cts.Token);
+        await WaitForPendingConnectionCountAsync(acceptor, 1, cts.Token);
+
+        await WithTimeout(acceptor.DisposeAsync(), cts.Token);
+
+        Assert.Equal(0, GetPendingConnectionCount(acceptor));
+    }
+
+    [Fact]
     public async Task WsServerTransport_DisposeAsync_DoesNotHangAfterRemoteAbort()
     {
         var port = GetFreePort();
@@ -136,6 +153,28 @@ public class WebSocketTransportTests
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
+    }
+
+    private static async Task WaitForPendingConnectionCountAsync(
+        WsConnectionAcceptor acceptor,
+        int expected,
+        CancellationToken ct)
+    {
+        while (GetPendingConnectionCount(acceptor) != expected)
+        {
+            await Task.Delay(10, ct);
+        }
+    }
+
+    private static int GetPendingConnectionCount(WsConnectionAcceptor acceptor)
+    {
+        var field = typeof(WsConnectionAcceptor).GetField(
+            "_pendingAcceptedConnections",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        return field is null
+            ? throw new MissingFieldException(nameof(WsConnectionAcceptor), "_pendingAcceptedConnections")
+            : (int)field.GetValue(acceptor)!;
     }
 
     private static async Task WithTimeout(Task task, CancellationToken ct)
