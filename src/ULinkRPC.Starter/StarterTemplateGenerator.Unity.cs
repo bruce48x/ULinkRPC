@@ -394,53 +394,11 @@ DefaultImporter:
   assetBundleVariant: 
 """;
 
-    private static string GetEditorBuildSettingsAsset() => """
-%YAML 1.1
-%TAG !u! tag:unity3d.com,2011:
---- !u!1045 &1
-EditorBuildSettings:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Scenes:
-  - enabled: 1
-    path: Assets/Scenes/ConnectionTest.unity
-    guid: d4d2d5faafe942e58a33f4a41e3b7cf2
-  m_configObjects: {}
-""";
+    private static string GetEditorBuildSettingsAsset() =>
+        StarterTemplateRenderer.Render("Unity/EditorBuildSettings.asset.template");
 
-    private static string GetAutoOpenSceneEditorScript() => """
-#if UNITY_EDITOR
-using UnityEditor;
-using UnityEditor.SceneManagement;
-
-[InitializeOnLoad]
-internal static class AutoOpenConnectionScene
-{
-    private const string SessionStateKey = "ULinkRPC.Starter.ConnectionSceneOpened";
-    private const string ScenePath = "Assets/Scenes/ConnectionTest.unity";
-
-    static AutoOpenConnectionScene()
-    {
-        EditorApplication.delayCall += TryOpenScene;
-    }
-
-    private static void TryOpenScene()
-    {
-        if (SessionState.GetBool(SessionStateKey, false))
-            return;
-
-        if (EditorApplication.isPlayingOrWillChangePlaymode)
-            return;
-
-        if (!System.IO.File.Exists(ScenePath))
-            return;
-
-        SessionState.SetBool(SessionStateKey, true);
-        EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-    }
-}
-#endif
-""";
+    private static string GetAutoOpenSceneEditorScript() =>
+        StarterTemplateRenderer.Render("Unity/AutoOpenConnectionScene.template");
 
     private static string GetUnitySceneContent(TransportKind transport)
     {

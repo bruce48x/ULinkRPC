@@ -34,10 +34,6 @@ namespace Rpc.Generated
         public IPlayerService Player { get; }
     }
 
-}
-
-namespace ULinkRPC.Client
-{
     public sealed class RpcClient : IAsyncDisposable
     {
         private readonly RpcClientRuntime _runtime;
@@ -47,7 +43,7 @@ namespace ULinkRPC.Client
         public RpcClient(RpcClientOptions options)
         {
             Options = options ?? throw new ArgumentNullException(nameof(options));
-            _runtime = new RpcClientRuntime(options.Transport, options.Serializer, options.KeepAlive);
+            _runtime = new RpcClientRuntime(options);
         }
 
         public RpcClient(RpcClientOptions options, RpcCallbackBindings callbacks) : this(options)
@@ -108,3 +104,43 @@ namespace ULinkRPC.Client
         }
     }
 }
+
+#if ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE
+namespace ULinkRPC.Client
+{
+    [Obsolete("Generated RpcClient moved to the configured generated namespace. Use global::Rpc.Generated.RpcClient instead.")]
+    public sealed class RpcClient : IAsyncDisposable
+    {
+        private readonly global::Rpc.Generated.RpcClient _inner;
+
+        public RpcClient(RpcClientOptions options)
+        {
+            _inner = new global::Rpc.Generated.RpcClient(options);
+        }
+
+        public RpcClient(RpcClientOptions options, global::Rpc.Generated.RpcCallbackBindings callbacks)
+        {
+            _inner = new global::Rpc.Generated.RpcClient(options, callbacks);
+        }
+
+        public event Action<Exception?>? Disconnected
+        {
+            add => _inner.Disconnected += value;
+            remove => _inner.Disconnected -= value;
+        }
+
+        public RpcClientOptions Options => _inner.Options;
+        public global::Rpc.Generated.RpcApi Api => _inner.Api;
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            return _inner.ConnectAsync(ct);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return _inner.DisposeAsync();
+        }
+    }
+}
+#endif

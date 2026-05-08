@@ -17,4 +17,8 @@
     <ProjectReference Include="..\..\src\ULinkRPC.Starter\ULinkRPC.Starter.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Golden\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

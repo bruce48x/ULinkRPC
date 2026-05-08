@@ -68,7 +68,7 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal("0.11.4", jsonVersions.Client);
         Assert.Equal("0.11.6", jsonVersions.Transport);
         Assert.Equal("0.11.1", jsonVersions.Serializer);
-        Assert.Equal("0.16.6", jsonVersions.CodeGen);
+        Assert.Equal("0.16.7", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
@@ -479,6 +479,27 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
+    public void GenerateTemplate_GodotStableFiles_MatchGoldenFiles()
+    {
+        var root = CreateTempRoot();
+        var sdkSource = CreateFakeGodotSdkSource(root, "4.6.1");
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+
+            WithGodotSdkSource(sdkSource,
+                () => generator.GenerateTemplate(root, "Godot-Golden", ClientEngineKind.Godot, TransportKind.WebSocket, SerializerKind.Json, Versions));
+
+            AssertGoldenFile("GodotWebSocketJson", "project.godot", File.ReadAllText(Path.Combine(root, "Client", "project.godot")));
+            AssertGoldenFile("GodotWebSocketJson", "Main.tscn", File.ReadAllText(Path.Combine(root, "Client", "Main.tscn")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void GenerateTemplate_CreatesGodotKcpMemoryPackClient_WithExpectedReferencesAndScript()
     {
         var root = CreateTempRoot();
@@ -748,6 +769,18 @@ public sealed class StarterTemplateGeneratorTests
         var root = Path.Combine(Path.GetTempPath(), $"ulinkrpc_starter_{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
         return root;
+    }
+
+    private static void AssertGoldenFile(string scenario, string fileName, string actual)
+    {
+        var goldenPath = Path.Combine(AppContext.BaseDirectory, "Golden", scenario, fileName);
+        var expected = File.ReadAllText(goldenPath);
+        Assert.Equal(NormalizeLineEndings(expected), NormalizeLineEndings(actual));
+    }
+
+    private static string NormalizeLineEndings(string value)
+    {
+        return value.Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot()

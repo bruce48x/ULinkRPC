@@ -37,7 +37,7 @@ public class FacadeEmitterTests
 
         var code = FacadeEmitter.GenerateClientFacade([svc], "Gen", "ULinkRPC.Core", "ULinkRPC.Client");
 
-        Assert.Contains("namespace ULinkRPC.Client", code);
+        Assert.Contains("namespace Gen", code);
         Assert.Contains("public sealed class RpcClient : IAsyncDisposable", code);
         Assert.Contains("private readonly RpcClientRuntime _runtime;", code);
         Assert.Contains("public RpcClient(RpcClientOptions options)", code);
@@ -54,6 +54,17 @@ public class FacadeEmitterTests
         Assert.DoesNotContain("public sealed class RpcConnection", code);
         Assert.DoesNotContain("public sealed class GameRpcClient", code);
         Assert.DoesNotContain("RpcClientBuilder", code);
+    }
+
+    [Fact]
+    public void GeneratesConditionalLegacyClientWrapper()
+    {
+        var svc = MakeSvc("IPlayerService", "Game.IPlayerService", 1);
+        var code = FacadeEmitter.GenerateClientFacade([svc], "Gen", "ULinkRPC.Core", "ULinkRPC.Client");
+
+        Assert.Contains("#if ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE", code);
+        Assert.Contains("namespace ULinkRPC.Client", code);
+        Assert.Contains("Use global::Gen.RpcClient instead.", code);
     }
 
     [Fact]

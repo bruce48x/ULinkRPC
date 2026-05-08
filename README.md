@@ -91,6 +91,8 @@ namespace Game.Rpc.Contracts
 Example client setup:
 
 ```csharp
+using Rpc.Generated;
+
 var options = new RpcClientOptions(
     new WsTransport("ws://127.0.0.1:20000/ws"),
     new JsonRpcSerializer());

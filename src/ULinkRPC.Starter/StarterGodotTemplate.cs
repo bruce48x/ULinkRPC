@@ -26,18 +26,11 @@ internal static class StarterGodotTemplate
         Directory.CreateDirectory(Path.Combine(clientPath, "Scripts", "Rpc", "Testing"));
     }
 
-    private static string BuildProjectFile(StarterTemplateContext context) => $$"""
-; Engine configuration file.
-config_version=5
-
-[application]
-config/name="{{context.ProjectName}}"
-run/main_scene="res://Main.tscn"
-config/features=PackedStringArray("4.6", "C#")
-
-[dotnet]
-project/assembly_name="Client"
-""";
+    private static string BuildProjectFile(StarterTemplateContext context) =>
+        StarterTemplateRenderer.Render("Godot/project.godot.template", new Dictionary<string, string>
+        {
+            ["ProjectName"] = context.ProjectName
+        });
 
     private static string BuildClientProject(StarterTemplateContext context, GodotSdkReference? sdk)
     {
@@ -109,14 +102,7 @@ Selected serializer: {{context.Serializer}}
 </configuration>
 """;
 
-    private static string BuildMainScene() => """
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://Scripts/Rpc/Testing/RpcConnectionTester.cs" id="1"]
-
-[node name="Main" type="Node"]
-script = ExtResource("1")
-""";
+    private static string BuildMainScene() => StarterTemplateRenderer.Render("Godot/Main.tscn.template");
 
     private static string BuildTesterScript(StarterTemplateContext context)
     {

@@ -323,6 +323,9 @@ namespace ULinkRPC.Client
 17. 评估 `IClientTransport` / `IAcceptedTransport` 拆分兼容性，本阶段保持 `ITransport` 稳定，先通过文档和测试收紧语义。
 18. 给 `RpcClientOptions` 增加 client 侧 `UseSecurity` / `Security` 配置入口，并让 generated facade 通过 `RpcClientRuntime(RpcClientOptions)` 统一应用。
 19. 更新 Unity / Godot starter 模板，展示 client/server 两侧一致的安全层配置入口。
+20. 调整 generated facade namespace，默认将 `RpcClient` / `RpcCallbackBindings` 放入用户指定 generated namespace，并用 `ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE` 提供旧 namespace 迁移 wrapper。
+21. 将部分 Unity / Godot 稳定模板拆成嵌入式模板资源，并新增 Godot starter golden file 测试。
+22. 改造 `ProcessRunner`，并行读取 stdout/stderr，支持异步等待、超时和取消。
 
 ### 待办
 
@@ -374,11 +377,7 @@ namespace ULinkRPC.Client
 
 待办：
 
-1. 调整 generated facade 的 namespace 策略，避免占用 `ULinkRPC.Client`。
-2. 为 facade namespace 改动设计兼容迁移路径。
-3. 将 Unity / Godot 大模板拆成嵌入式模板文件。
-4. 给 starter 输出增加 golden file 测试。
-5. 改造 `ProcessRunner`，支持异步输出读取、取消和超时。
+无，已完成。
 
 验收标准：
 

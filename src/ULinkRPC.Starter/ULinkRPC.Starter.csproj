@@ -7,7 +7,7 @@
     <RootNamespace>ULinkRPC.Starter</RootNamespace>
     <AssemblyName>ULinkRPC.Starter</AssemblyName>
     <PackageId>ULinkRPC.Starter</PackageId>
-    <Version>0.2.55</Version>
+    <Version>0.2.56</Version>
     <Authors>ULinkRPC</Authors>
     <Description>CLI project tool to scaffold and manage ULinkRPC shared/server/client workspaces.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -29,5 +29,9 @@
   <ItemGroup>
     <EmbeddedResource Include="TemplateAssets\NuGetForUnity.4.5.0.zip" LogicalName="ULinkRPC.Starter.TemplateAssets.NuGetForUnity.4.5.0.zip" />
     <EmbeddedResource Include="ReleaseVersions.json" LogicalName="ULinkRPC.Starter.ReleaseVersions.json" />
+    <EmbeddedResource Include="Templates\Godot\project.godot.template" LogicalName="ULinkRPC.Starter.Templates.Godot.project.godot.template" />
+    <EmbeddedResource Include="Templates\Godot\Main.tscn.template" LogicalName="ULinkRPC.Starter.Templates.Godot.Main.tscn.template" />
+    <EmbeddedResource Include="Templates\Unity\EditorBuildSettings.asset.template" LogicalName="ULinkRPC.Starter.Templates.Unity.EditorBuildSettings.asset.template" />
+    <EmbeddedResource Include="Templates\Unity\AutoOpenConnectionScene.template" LogicalName="ULinkRPC.Starter.Templates.Unity.AutoOpenConnectionScene.template" />
   </ItemGroup>
 </Project>

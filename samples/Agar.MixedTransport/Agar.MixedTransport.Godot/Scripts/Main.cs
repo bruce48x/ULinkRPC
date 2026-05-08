@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
+using Rpc.Generated;
 using Shared.Interfaces;
 using ULinkRPC.Client;
 using ULinkRPC.Serializer.MemoryPack;
