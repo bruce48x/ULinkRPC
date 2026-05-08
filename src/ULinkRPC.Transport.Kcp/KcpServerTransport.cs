@@ -14,7 +14,7 @@ namespace ULinkRPC.Transport.Kcp
     /// </summary>
     public sealed class KcpServerTransport : ITransport, IKcpCallback, IRentable, IRemoteEndPointProvider
     {
-        private const int MaxFrameSize = 64 * 1024 * 1024;
+        private const int MaxFrameSize = RpcProtocolLimits.DefaultMaxTransportFrameSize;
         private readonly ConcurrentQueue<TransportFrame> _frames = new();
         private readonly SemaphoreSlim _frameSignal = new(0);
         private readonly SimpleSegManager.Kcp _kcp;

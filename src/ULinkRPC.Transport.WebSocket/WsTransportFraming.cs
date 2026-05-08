@@ -7,7 +7,7 @@ namespace ULinkRPC.Transport.WebSocket;
 
 internal static class WsTransportFraming
 {
-    private const int MaxBufferedBytes = 64 * 1024 * 1024;
+    private const int MaxBufferedBytes = RpcProtocolLimits.DefaultMaxTransportFrameSize;
     private static readonly TimeSpan CloseHandshakeTimeout = TimeSpan.FromSeconds(1);
 
     public static async ValueTask SendFrameAsync(NetWebSocket webSocket, ReadOnlyMemory<byte> frame, CancellationToken ct)

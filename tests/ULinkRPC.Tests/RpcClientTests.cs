@@ -54,6 +54,47 @@ public class RpcClientRuntimeTests
     }
 
     [Fact]
+    public async Task RpcClientOptions_SecurityConfig_WrapsTransportForRuntime()
+    {
+        LoopbackTransport.CreatePair(out var rawClientTransport, out var rawServerTransport);
+        var serializer = new JsonRpcSerializer();
+        var security = new TransportSecurityConfig
+        {
+            EnableCompression = true,
+            CompressionThresholdBytes = 0
+        };
+
+        var server = new RpcSession(new TransformingTransport(rawServerTransport, security), serializer);
+        server.Register(1, 1, (req, ct) =>
+        {
+            var arg = serializer.Deserialize<string>(req.Payload);
+            return ValueTask.FromResult(new RpcResponseEnvelope
+            {
+                RequestId = req.RequestId,
+                Status = RpcStatus.Ok,
+                Payload = SerializeBytes(serializer, arg + "-secured")
+            });
+        });
+
+        await server.StartAsync();
+
+        var options = new RpcClientOptions(rawClientTransport, serializer)
+            .UseSecurity(clientSecurity =>
+            {
+                clientSecurity.EnableCompression = true;
+                clientSecurity.CompressionThresholdBytes = 0;
+            });
+        var client = new RpcClientRuntime(options);
+        await client.StartAsync();
+
+        var response = await client.CallAsync(EchoMethod, "hello");
+        Assert.Equal("hello-secured", response);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
     public async Task CallAsync_VoidReturn()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);

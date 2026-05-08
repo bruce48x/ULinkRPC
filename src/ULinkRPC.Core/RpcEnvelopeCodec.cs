@@ -6,7 +6,7 @@ namespace ULinkRPC.Core
 {
     public static class RpcEnvelopeCodec
     {
-        public const int MaxPayloadSize = 64 * 1024 * 1024;
+        public const int MaxPayloadSize = RpcProtocolLimits.DefaultMaxPayloadSize;
 
         public static RpcFrameType PeekFrameType(ReadOnlySpan<byte> data)
         {

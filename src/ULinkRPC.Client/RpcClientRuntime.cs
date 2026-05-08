@@ -32,6 +32,14 @@ namespace ULinkRPC.Client
         private Task? _pushLoop;
         private Exception? _disconnectReason;
 
+        public RpcClientRuntime(RpcClientOptions options)
+            : this(
+                (options ?? throw new ArgumentNullException(nameof(options))).CreateConfiguredTransport(),
+                options.Serializer,
+                options.KeepAlive)
+        {
+        }
+
         public RpcClientRuntime(ITransport transport, IRpcSerializer serializer, RpcKeepAliveOptions? keepAlive = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));

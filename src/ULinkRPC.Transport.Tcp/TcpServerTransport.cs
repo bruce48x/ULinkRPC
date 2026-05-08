@@ -10,7 +10,7 @@ namespace ULinkRPC.Transport.Tcp
     /// </summary>
     public sealed class TcpServerTransport : ITransport, IRemoteEndPointProvider
     {
-        private const int MaxFrameSize = 64 * 1024 * 1024;
+        private const int MaxFrameSize = RpcProtocolLimits.DefaultMaxTransportFrameSize;
 
         private readonly TcpClient _client;
         private bool _connected;

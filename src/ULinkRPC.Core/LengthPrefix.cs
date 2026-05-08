@@ -9,7 +9,7 @@ namespace ULinkRPC.Core
     /// </summary>
     public static class LengthPrefix
     {
-        public const int DefaultMaxFrameSize = 64 * 1024 * 1024;
+        public const int DefaultMaxFrameSize = RpcProtocolLimits.DefaultMaxTransportFrameSize;
 
         public static TransportFrame Pack(ReadOnlySpan<byte> payload)
         {

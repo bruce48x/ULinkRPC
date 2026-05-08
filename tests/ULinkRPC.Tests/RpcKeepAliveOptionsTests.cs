@@ -31,6 +31,30 @@ public sealed class RpcKeepAliveOptionsTests
         Assert.Equal(TimeSpan.FromSeconds(15), first.KeepAlive.Interval);
     }
 
+    [Fact]
+    public void RpcClientOptions_UseSecurity_ConfiguresSymmetricClientSecurity()
+    {
+        var options = new RpcClientOptions(new StubTransport(), new StubSerializer())
+            .UseSecurity(security =>
+            {
+                security.EnableCompression = true;
+                security.CompressionThresholdBytes = 256;
+            });
+
+        Assert.True(options.Security.EnableCompression);
+        Assert.Equal(256, options.Security.CompressionThresholdBytes);
+        Assert.IsType<TransformingTransport>(options.CreateConfiguredTransport());
+    }
+
+    [Fact]
+    public void RpcClientOptions_CreateConfiguredTransport_ReturnsOriginalTransportWhenSecurityDisabled()
+    {
+        var transport = new StubTransport();
+        var options = new RpcClientOptions(transport, new StubSerializer());
+
+        Assert.Same(transport, options.CreateConfiguredTransport());
+    }
+
     private sealed class StubTransport : ITransport
     {
         public bool IsConnected => true;

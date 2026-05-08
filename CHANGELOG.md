@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.10 / 0.16.6 / 0.2.55
+
+- Release packages:
+	- `ULinkRPC.Client` `0.11.4`
+	- `ULinkRPC.CodeGen` `0.16.6`
+	- `ULinkRPC.Core` `0.11.5`
+	- `ULinkRPC.Starter` `0.2.55`
+	- `ULinkRPC.Transport.Kcp` `0.11.10`
+	- `ULinkRPC.Transport.Tcp` `0.11.4`
+	- `ULinkRPC.Transport.WebSocket` `0.11.6`
+- Introduced shared `RpcProtocolLimits` defaults so RPC payload, transport frame, and security decompression limits all resolve from one source.
+- Added first-class client-side security configuration via `RpcClientOptions.UseSecurity(...)`, matching the existing server builder security entry point while preserving direct `TransformingTransport` usage.
+- Updated generated facades and starter templates so client/server security configuration is represented through symmetric public APIs.
+- Documented `ITransport.ConnectAsync` semantics for client transports, accepted server transports, and no-op/in-memory transports, with contract tests covering idempotent initialization.
+
 ## 0.2.53
 
 - Release packages:

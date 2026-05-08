@@ -11,7 +11,7 @@ namespace ULinkRPC.Transport.Kcp
 {
     public sealed class KcpTransport : ITransport, IKcpCallback, IRentable
     {
-        private const int MaxFrameSize = 64 * 1024 * 1024;
+        private const int MaxFrameSize = RpcProtocolLimits.DefaultMaxTransportFrameSize;
         private const int ReceiveBufferSize = 64 * 1024;
         private readonly ConcurrentQueue<TransportFrame> _frames = new();
         private readonly object _kcpGate = new();

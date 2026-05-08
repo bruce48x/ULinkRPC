@@ -9,7 +9,7 @@ namespace ULinkRPC.Transport.Tcp
 {
     public sealed class TcpTransport : ITransport
     {
-        private const int MaxFrameSize = 64 * 1024 * 1024;
+        private const int MaxFrameSize = RpcProtocolLimits.DefaultMaxTransportFrameSize;
 
         private readonly string _host;
         private readonly int _port;

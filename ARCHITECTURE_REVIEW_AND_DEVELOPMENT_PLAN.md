@@ -318,6 +318,11 @@ namespace ULinkRPC.Client
 12. 清理本地 `src/**/bin` 和 `src/**/obj` 构建产物。
 13. 增加 client/server disconnect reason、keepalive timeout、send failure、dispose during receive 行为测试。
 14. 将 `RpcSession.ProcessRequestAsync` 中的 handler dispatch 拆成 `ServerRequestDispatcher`。
+15. 引入 `RpcProtocolLimits`，集中默认最大 RPC payload、transport frame 和安全解压限制。
+16. 补充 `ITransport.ConnectAsync` accepted transport / client transport / no-op 语义注释和 contract tests。
+17. 评估 `IClientTransport` / `IAcceptedTransport` 拆分兼容性，本阶段保持 `ITransport` 稳定，先通过文档和测试收紧语义。
+18. 给 `RpcClientOptions` 增加 client 侧 `UseSecurity` / `Security` 配置入口，并让 generated facade 通过 `RpcClientRuntime(RpcClientOptions)` 统一应用。
+19. 更新 Unity / Godot starter 模板，展示 client/server 两侧一致的安全层配置入口。
 
 ### 待办
 
@@ -355,11 +360,7 @@ namespace ULinkRPC.Client
 
 待办：
 
-1. 引入集中式协议限制常量或配置模型。
-2. 梳理 `ITransport.ConnectAsync` 语义，补充注释和 contract tests。
-3. 评估拆分 `IClientTransport` / `IAcceptedTransport` 的兼容性。
-4. 给 client 侧增加对称 security 配置入口。
-5. 更新 starter 模板，展示 client/server 两侧一致的安全层配置。
+无，已完成。
 
 验收标准：
 

@@ -249,6 +249,7 @@ using System.Threading.Tasks;
 using Rpc.Generated;
 using Shared.Interfaces;
 using ULinkRPC.Client;
+using ULinkRPC.Core;
 {{values.TransportUsing}}
 {{values.SerializerUsing}}
 using UnityEngine;
@@ -302,7 +303,8 @@ namespace Rpc.Testing
                 _client = new RpcClient(
                     new RpcClientOptions(
                         {{values.TransportConstruction}},
-                        {{values.SerializerConstruction}}));
+                        {{values.SerializerConstruction}})
+                    .UseSecurity(ConfigureTransportSecurity));
 
                 await _client.ConnectAsync(_cts.Token);
 
@@ -337,6 +339,14 @@ namespace Rpc.Testing
                 return string.Empty;
 
             return path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path;
+        }
+
+        private static void ConfigureTransportSecurity(TransportSecurityConfig security)
+        {
+            security.EnableCompression = false;
+            security.CompressionThresholdBytes = 1024;
+            security.EnableEncryption = false;
+            security.EncryptionKeyBase64 = null;
         }
 
         private async Task ShutdownAsync()

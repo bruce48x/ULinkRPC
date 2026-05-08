@@ -63,16 +63,16 @@ public sealed class StarterTemplateGeneratorTests
         var jsonVersions = NuGetVersionResolver.ResolveVersions(TransportKind.WebSocket, SerializerKind.Json);
         var memoryPackVersions = NuGetVersionResolver.ResolveVersions(TransportKind.Kcp, SerializerKind.MemoryPack);
 
-        Assert.Equal("0.11.3", jsonVersions.Core);
-        Assert.Equal("0.11.8", jsonVersions.Server);
-        Assert.Equal("0.11.2", jsonVersions.Client);
-        Assert.Equal("0.11.4", jsonVersions.Transport);
+        Assert.Equal("0.11.5", jsonVersions.Core);
+        Assert.Equal("0.11.9", jsonVersions.Server);
+        Assert.Equal("0.11.4", jsonVersions.Client);
+        Assert.Equal("0.11.6", jsonVersions.Transport);
         Assert.Equal("0.11.1", jsonVersions.Serializer);
-        Assert.Equal("0.16.5", jsonVersions.CodeGen);
+        Assert.Equal("0.16.6", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
-        Assert.Equal("0.11.9", memoryPackVersions.Transport);
+        Assert.Equal("0.11.10", memoryPackVersions.Transport);
         Assert.Equal("0.11.1", memoryPackVersions.Serializer);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntime);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntimeCore);
@@ -242,6 +242,8 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("var builder = RpcServerHostBuilder.Create()", serverProgram);
             Assert.Contains(".UseCommandLine(commandLineArgs)", serverProgram);
             Assert.Contains(".UseSerializer(new JsonRpcSerializer())", serverProgram);
+            Assert.Contains(".UseSecurity(ConfigureTransportSecurity)", serverProgram);
+            Assert.Contains("static void ConfigureTransportSecurity(TransportSecurityConfig security)", serverProgram);
             Assert.Contains("builder.UseAcceptor(async ct => await WsConnectionAcceptor.CreateAsync(builder.ResolvePort(20000), \"/ws\", builder.Limits.MaxPendingAcceptedConnections, ct));", serverProgram);
             Assert.Contains("await builder.RunAsync();", serverProgram);
             Assert.True(File.Exists(pingServicePath));
@@ -270,10 +272,13 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("download from OpenUPM", clientReadme);
             Assert.Contains("using Rpc.Generated;", testerScript);
             Assert.Contains("using Shared.Interfaces;", testerScript);
+            Assert.Contains("using ULinkRPC.Core;", testerScript);
             Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
             Assert.Contains("new WsTransport($\"ws://{_endpoint.Host}:{_endpoint.Port}{NormalizePath(_endpoint.Path)}\")", testerScript);
             Assert.Contains("new JsonRpcSerializer()", testerScript);
+            Assert.Contains(".UseSecurity(ConfigureTransportSecurity)", testerScript);
+            Assert.Contains("private static void ConfigureTransportSecurity(TransportSecurityConfig security)", testerScript);
             Assert.Contains("_client.Api.Shared.Ping.PingAsync", testerScript);
             Assert.DoesNotContain("}, _cts.Token);", testerScript, StringComparison.Ordinal);
             Assert.Contains("                });", testerScript);
@@ -314,6 +319,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", serverProgram);
             Assert.Contains("using ULinkRPC.Transport.Tcp;", serverProgram);
             Assert.Contains(".UseSerializer(new MemoryPackRpcSerializer())", serverProgram);
+            Assert.Contains(".UseSecurity(ConfigureTransportSecurity)", serverProgram);
             Assert.Contains("builder.UseAcceptor(new TcpConnectionAcceptor(builder.ResolvePort(20000)));", serverProgram);
             Assert.DoesNotContain(".UseJson()", serverProgram, StringComparison.Ordinal);
             Assert.DoesNotContain(".UseWebSocket(", serverProgram, StringComparison.Ordinal);
@@ -387,8 +393,10 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"MemoryPack\" version=\"6.7.8\" />", packagesConfig);
             Assert.Contains("using ULinkRPC.Transport.Kcp;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);
+            Assert.Contains("using ULinkRPC.Core;", testerScript);
             Assert.Contains("new KcpTransport(_endpoint.Host, _endpoint.Port)", testerScript);
             Assert.Contains("new MemoryPackRpcSerializer()", testerScript);
+            Assert.Contains(".UseSecurity(ConfigureTransportSecurity)", testerScript);
             Assert.Contains("[MemoryPackable]", sharedDtos);
             Assert.DoesNotContain("GenerateType.VersionTolerant", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("public sealed partial class PingRequest", sharedDtos);
@@ -444,12 +452,14 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("[node name=\"Main\" type=\"Node\"]", scene);
             Assert.Contains("path=\"res://Scripts/Rpc/Testing/RpcConnectionTester.cs\"", scene);
             Assert.Contains("using Godot;", testerScript);
+            Assert.Contains("using ULinkRPC.Core;", testerScript);
             Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
             Assert.DoesNotContain("namespace Rpc.Testing", testerScript, StringComparison.Ordinal);
             Assert.Contains("public partial class RpcConnectionTester : Node", testerScript);
             Assert.Contains("new WsTransport($\"ws://{_host}:{_port}{NormalizePath(_path)}\")", testerScript);
             Assert.Contains("new JsonRpcSerializer()", testerScript);
+            Assert.Contains(".UseSecurity(ConfigureTransportSecurity)", testerScript);
             Assert.Contains("GD.Print($\"Ping ok:", testerScript);
             Assert.Contains("[Export] private string _path = \"/ws\";", testerScript);
             Assert.Contains("public override void _Ready()", testerScript);
@@ -504,10 +514,12 @@ public sealed class StarterTemplateGeneratorTests
 
             Assert.Contains("using ULinkRPC.Transport.Kcp;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);
+            Assert.Contains("using ULinkRPC.Core;", testerScript);
             Assert.DoesNotContain("namespace Rpc.Testing", testerScript, StringComparison.Ordinal);
             Assert.Contains("public partial class RpcConnectionTester : Node", testerScript);
             Assert.Contains("new KcpTransport(_host, _port)", testerScript);
             Assert.Contains("new MemoryPackRpcSerializer()", testerScript);
+            Assert.Contains(".UseSecurity(ConfigureTransportSecurity)", testerScript);
             Assert.Contains("[Export] private string _path = \"\";", testerScript);
             Assert.Contains("if (_isShuttingDown || _client is not null)", testerScript);
             Assert.True(File.Exists(generatedClientApi));

@@ -162,6 +162,7 @@ using Godot;
 using Rpc.Generated;
 using Shared.Interfaces;
 using ULinkRPC.Client;
+using ULinkRPC.Core;
 {{transportUsing}}
 {{serializerUsing}}
 
@@ -209,7 +210,8 @@ public partial class RpcConnectionTester : Node
         {
             _client = new RpcClient(new RpcClientOptions(
                 {{transportConstruction}},
-                {{serializerConstruction}}));
+                {{serializerConstruction}})
+                .UseSecurity(ConfigureTransportSecurity));
 
             await _client.ConnectAsync(_cts.Token);
 
@@ -243,6 +245,14 @@ public partial class RpcConnectionTester : Node
             return string.Empty;
 
         return path.StartsWith("/", StringComparison.Ordinal) ? path : "/" + path;
+    }
+
+    private static void ConfigureTransportSecurity(TransportSecurityConfig security)
+    {
+        security.EnableCompression = false;
+        security.CompressionThresholdBytes = 1024;
+        security.EnableEncryption = false;
+        security.EncryptionKeyBase64 = null;
     }
 
     private async Task ShutdownAsync()

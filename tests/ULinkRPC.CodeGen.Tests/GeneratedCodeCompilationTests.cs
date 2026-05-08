@@ -91,7 +91,7 @@ public class GeneratedCodeCompilationTests
             {
                 public event Action<Exception?>? Disconnected;
 
-                public RpcClientRuntime(ITransport transport, IRpcSerializer serializer, RpcKeepAliveOptions keepAlive) { }
+                public RpcClientRuntime(RpcClientOptions options) { }
 
                 public ValueTask StartAsync(CancellationToken ct = default) => default;
                 public ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg arg, CancellationToken ct) => default;

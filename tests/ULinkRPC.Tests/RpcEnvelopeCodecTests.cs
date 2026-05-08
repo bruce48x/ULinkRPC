@@ -339,6 +339,6 @@ public class RpcEnvelopeCodecTests
     [Fact]
     public void MaxPayloadSize_Is64MB()
     {
-        Assert.Equal(64 * 1024 * 1024, RpcEnvelopeCodec.MaxPayloadSize);
+        Assert.Equal(RpcProtocolLimits.DefaultMaxPayloadSize, RpcEnvelopeCodec.MaxPayloadSize);
     }
 }

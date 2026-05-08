@@ -116,11 +116,20 @@ namespace Server.Services
 var commandLineArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
 var builder = RpcServerHostBuilder.Create()
     .UseCommandLine(commandLineArgs)
-    .UseSerializer({{serializerSetup}});
+    .UseSerializer({{serializerSetup}})
+    .UseSecurity(ConfigureTransportSecurity);
 
 {{transportSetup}}
 
 await builder.RunAsync();
+
+static void ConfigureTransportSecurity(TransportSecurityConfig security)
+{
+    security.EnableCompression = false;
+    security.CompressionThresholdBytes = 1024;
+    security.EnableEncryption = false;
+    security.EncryptionKeyBase64 = null;
+}
 """;
     }
 }
