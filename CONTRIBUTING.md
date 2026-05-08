@@ -6,6 +6,8 @@ User-facing introduction, samples, and tutorial links live in [README.md](./READ
 
 Mandatory engineering rules for this repo. Target is **Unity 2022 LTS** with **iOS / IL2CPP / HybridCLR**; stability and platform compatibility take priority.
 
+Maintainer-facing architecture findings and the current refactoring roadmap are tracked in [ARCHITECTURE_REVIEW_AND_DEVELOPMENT_PLAN.md](./ARCHITECTURE_REVIEW_AND_DEVELOPMENT_PLAN.md).
+
 ---
 
 ## 1. Architecture & Sources
