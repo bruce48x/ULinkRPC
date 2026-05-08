@@ -640,6 +640,31 @@ public class RpcSessionTests
     }
 
     [Fact]
+    public async Task DisposeAsync_DuringPendingReceive_Completes()
+    {
+        var transport = new IdleSessionTransport();
+        var server = new RpcSession(transport, new JsonRpcSerializer());
+
+        await server.StartAsync();
+
+        await server.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task PushAsync_WhenSendFails_PropagatesAndDisposeStillCompletes()
+    {
+        var transport = new ThrowingSendSessionTransport();
+        var server = new RpcSession(transport, new JsonRpcSerializer());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            server.PushAsync(1, 1, "send-fail").AsTask());
+
+        Assert.Equal("send failed", ex.Message);
+
+        await server.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
     public async Task KeepAlivePing_ReceivesPong()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
@@ -994,6 +1019,33 @@ public class RpcSessionTests
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return TransportFrame.Empty;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsConnected = false;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class ThrowingSendSessionTransport : ITransport
+    {
+        public bool IsConnected { get; private set; } = true;
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            IsConnected = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+        {
+            throw new InvalidOperationException("send failed");
+        }
+
+        public ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
+        {
+            return ValueTask.FromResult(TransportFrame.Empty);
         }
 
         public ValueTask DisposeAsync()

@@ -11,6 +11,7 @@ namespace ULinkRPC.Client
     {
         private readonly CancellationTokenSource _cts = new();
         private readonly RpcKeepAliveState _keepAliveState;
+        private readonly SerializedFrameSender _sender;
         private readonly RpcPendingRequestCollection _pending = new();
         private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RpcPushPayloadHandler> _pushHandlers = new();
         private readonly Channel<RpcPushFrame> _pushQueue = Channel.CreateUnbounded<RpcPushFrame>(new UnboundedChannelOptions
@@ -18,7 +19,6 @@ namespace ULinkRPC.Client
             SingleReader = true,
             SingleWriter = true
         });
-        private readonly SemaphoreSlim _sendLock = new(1, 1);
         private readonly ITransport _transport;
         private readonly IRpcSerializer _serializer;
         private readonly RpcKeepAliveOptions _keepAlive;
@@ -38,6 +38,7 @@ namespace ULinkRPC.Client
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             _keepAlive = keepAlive ?? RpcKeepAliveOptions.Disabled;
             _keepAliveState = new RpcKeepAliveState(_keepAlive.MeasureRtt);
+            _sender = new SerializedFrameSender(_transport, _keepAliveState);
         }
 
         public event Action<Exception?>? Disconnected;
@@ -169,7 +170,7 @@ namespace ULinkRPC.Client
                 }
 
             await _transport.DisposeAsync().ConfigureAwait(false);
-            _sendLock.Dispose();
+            _sender.Dispose();
             try { _cts.Dispose(); } catch (ObjectDisposedException) { }
         }
 
@@ -209,7 +210,7 @@ namespace ULinkRPC.Client
                             {
                                 TimestampTicksUtc = ping.TimestampTicksUtc
                             });
-                            await SendFrameAsyncSerialized(pong.Memory, ct).ConfigureAwait(false);
+                            await _sender.SendAsync(pong.Memory, ct).ConfigureAwait(false);
                             break;
                         }
                         case RpcFrameType.KeepAlivePong:
@@ -272,82 +273,31 @@ namespace ULinkRPC.Client
 
         private async Task KeepAliveLoopAsync()
         {
-            var interval = _keepAlive.Interval;
-            var timeout = _keepAlive.Timeout;
-            if (interval <= TimeSpan.Zero || timeout <= TimeSpan.Zero)
-                return;
-
-            while (!_cts.IsCancellationRequested)
-            {
-                try
+            var coordinator = new RpcKeepAliveCoordinator(
+                _transport,
+                _sender,
+                _keepAliveState,
+                _keepAlive,
+                "RPC keepalive timed out.",
+                ex =>
                 {
-                    await Task.Delay(interval, _cts.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-
-                var nowTicks = DateTimeOffset.UtcNow.UtcTicks;
-                switch (_keepAliveState.GetNextAction(nowTicks, interval, timeout))
-                {
-                    case RpcKeepAliveAction.None:
-                        continue;
-                    case RpcKeepAliveAction.TimedOut:
+                    SetDisconnectReason(ex);
+                    try
                     {
-                        _keepAliveState.MarkTimedOut();
-                        SetDisconnectReason(new TimeoutException("RPC keepalive timed out."));
-                        try
-                        {
-                            _cts.Cancel();
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                        }
-                        return;
+                        _cts.Cancel();
                     }
-                    case RpcKeepAliveAction.SendPing:
-                        break;
-                }
+                    catch (ObjectDisposedException)
+                    {
+                    }
+                },
+                markTimedOut: true);
 
-                var pingTimestamp = DateTimeOffset.UtcNow.UtcTicks;
-                using var ping = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
-                {
-                    TimestampTicksUtc = pingTimestamp
-                });
-
-                try
-                {
-                    await SendFrameAsyncSerialized(ping.Memory, _cts.Token).ConfigureAwait(false);
-                    _keepAliveState.MarkPingSent(pingTimestamp);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-                catch (ObjectDisposedException)
-                {
-                    return;
-                }
-                catch (InvalidOperationException) when (!_transport.IsConnected)
-                {
-                    return;
-                }
-            }
+            await coordinator.RunAsync(_cts.Token).ConfigureAwait(false);
         }
 
-        private async ValueTask SendFrameAsyncSerialized(ReadOnlyMemory<byte> frame, CancellationToken ct)
+        private ValueTask SendFrameAsyncSerialized(ReadOnlyMemory<byte> frame, CancellationToken ct)
         {
-            await _sendLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await _transport.SendFrameAsync(frame, ct).ConfigureAwait(false);
-                _keepAliveState.MarkSent();
-            }
-            finally
-            {
-                _sendLock.Release();
-            }
+            return _sender.SendAsync(frame, ct);
         }
 
         private void SetDisconnectReason(Exception ex)

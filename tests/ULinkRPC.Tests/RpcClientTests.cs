@@ -170,6 +170,34 @@ public class RpcClientRuntimeTests
     }
 
     [Fact]
+    public async Task DisposeAsync_DuringPendingReceive_Completes()
+    {
+        var transport = new IdleClientTransport();
+        var client = new RpcClientRuntime(transport, new JsonRpcSerializer());
+
+        await client.StartAsync();
+
+        await client.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task CallAsync_WhenSendFails_RemovesPendingRequest()
+    {
+        var transport = new ThrowingSendClientTransport();
+        var client = new RpcClientRuntime(transport, new JsonRpcSerializer());
+
+        await client.StartAsync();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.CallAsync(EchoMethod, "send-fail").AsTask());
+
+        Assert.Equal("send failed", ex.Message);
+        Assert.Equal(0, GetPendingRequestCount(client));
+
+        await client.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Disconnected_EventFired_OnTransportClose()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
@@ -613,6 +641,45 @@ public class RpcClientRuntimeTests
             while (_sentRequestIds.Count < count)
                 await Task.Delay(10, cts.Token);
         }
+    }
+
+    private sealed class ThrowingSendClientTransport : ITransport
+    {
+        public bool IsConnected { get; private set; }
+
+        public ValueTask ConnectAsync(CancellationToken ct = default)
+        {
+            IsConnected = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+        {
+            throw new InvalidOperationException("send failed");
+        }
+
+        public async ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return TransportFrame.Empty;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            IsConnected = false;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private static int GetPendingRequestCount(RpcClientRuntime client)
+    {
+        var pendingCollection = typeof(RpcClientRuntime)
+            .GetField("_pending", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(client)!;
+        var pending = pendingCollection.GetType()
+            .GetField("_pending", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(pendingCollection)!;
+        return (int)pending.GetType().GetProperty("Count")!.GetValue(pending)!;
     }
 
     private static void SetNextRequestId(RpcClientRuntime client, int value)

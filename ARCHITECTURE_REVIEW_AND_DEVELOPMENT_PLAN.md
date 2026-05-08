@@ -312,6 +312,12 @@ namespace ULinkRPC.Client
 6. 增加 starter 版本一致性测试。
 7. 修复 `WsConnectionAcceptor` pending slot 所有权。
 8. 增加 WebSocket acceptor queued dispose 回归测试，防止 pending slot 重复释放。
+9. 抽出 `SerializedFrameSender`，统一 client/server 发送锁和 `MarkSent` 行为。
+10. 抽出 `RpcKeepAliveCoordinator`，让 client/server 复用 keepalive ping/timeout 判断逻辑。
+11. 增加 WebSocket acceptor cancellation / dispose race 扩展测试。
+12. 清理本地 `src/**/bin` 和 `src/**/obj` 构建产物。
+13. 增加 client/server disconnect reason、keepalive timeout、send failure、dispose during receive 行为测试。
+14. 将 `RpcSession.ProcessRequestAsync` 中的 handler dispatch 拆成 `ServerRequestDispatcher`。
 
 ### 待办
 
@@ -321,8 +327,7 @@ namespace ULinkRPC.Client
 
 待办：
 
-1. 增加 WebSocket acceptor 的 cancellation / dispose race 扩展测试。
-2. 清理本地 `src/**/bin` 和 `src/**/obj` 构建产物。
+无，已完成。
 
 验收标准：
 
@@ -336,10 +341,7 @@ namespace ULinkRPC.Client
 
 待办：
 
-1. 抽出 `SerializedFrameSender`，统一 send lock 和 `MarkSent` 行为。
-2. 抽出 `RpcKeepAliveCoordinator` 或等价内部组件，复用 client/server keepalive loop 判断逻辑。
-3. 给 disconnect reason、keepalive timeout、send failure、dispose during receive 建立共享行为测试。
-4. 将 `RpcSession.ProcessRequestAsync` 中的 handler dispatch 拆成独立内部类或私有组件。
+无，已完成。
 
 验收标准：
 

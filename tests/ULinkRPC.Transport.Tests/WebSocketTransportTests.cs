@@ -130,6 +130,53 @@ public class WebSocketTransportTests
     }
 
     [Fact]
+    public async Task WsConnectionAcceptor_AcceptAsyncCancellation_DoesNotReleaseQueuedPendingSlot()
+    {
+        var port = GetFreePort();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var acceptor = await WsConnectionAcceptor.CreateAsync(port, "/ws", 1, cts.Token);
+
+        using var client = new ClientWebSocket();
+        await client.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), cts.Token);
+        await WaitForPendingConnectionCountAsync(acceptor, 1, cts.Token);
+
+        using (var acceptCts = new CancellationTokenSource())
+        {
+            acceptCts.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => acceptor.AcceptAsync(acceptCts.Token).AsTask());
+        }
+
+        Assert.Equal(1, GetPendingConnectionCount(acceptor));
+
+        var accepted = await WithTimeout(acceptor.AcceptAsync(cts.Token), cts.Token);
+        await accepted.Transport.DisposeAsync();
+
+        Assert.Equal(0, GetPendingConnectionCount(acceptor));
+    }
+
+    [Fact]
+    public async Task WsConnectionAcceptor_DisposeRace_DoesNotOverReleasePendingSlots()
+    {
+        var port = GetFreePort();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var acceptor = await WsConnectionAcceptor.CreateAsync(port, "/ws", 2, cts.Token);
+
+        using var first = new ClientWebSocket();
+        using var second = new ClientWebSocket();
+        await first.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), cts.Token);
+        await second.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/ws"), cts.Token);
+        await WaitForPendingConnectionCountAsync(acceptor, 2, cts.Token);
+
+        var acceptTask = acceptor.AcceptAsync(cts.Token).AsTask();
+        var disposeTask = acceptor.DisposeAsync().AsTask();
+        var accepted = await WithTimeout(acceptTask, cts.Token);
+        await accepted.Transport.DisposeAsync();
+        await WithTimeout(disposeTask, cts.Token);
+
+        Assert.Equal(0, GetPendingConnectionCount(acceptor));
+    }
+
+    [Fact]
     public async Task WsServerTransport_DisposeAsync_DoesNotHangAfterRemoteAbort()
     {
         var port = GetFreePort();

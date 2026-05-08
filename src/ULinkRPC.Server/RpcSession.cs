@@ -9,12 +9,12 @@ namespace ULinkRPC.Server
 
     public sealed class RpcSession : IAsyncDisposable
     {
-        private const string HandlerExecutionErrorMessage = "RPC handler failed.";
         private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RpcHandler> _handlers = new();
         private readonly TrackedTaskCollection _inflightRequests = new();
         private readonly System.Collections.Concurrent.ConcurrentDictionary<int, object> _scopedServices = new();
         private readonly RpcKeepAliveState _keepAliveState;
-        private readonly RpcServiceRegistry? _registry;
+        private readonly SerializedFrameSender _sender;
+        private readonly ServerRequestDispatcher _requestDispatcher;
         private readonly ITransport _transport;
         private readonly IRpcSerializer _serializer;
         private readonly RpcKeepAliveOptions _keepAlive;
@@ -23,7 +23,6 @@ namespace ULinkRPC.Server
         private readonly bool _ownsTransport;
         private readonly SemaphoreSlim _requestConcurrencyGate;
         private readonly SemaphoreSlim _requestBudget;
-        private readonly SemaphoreSlim _sendLock = new(1, 1);
 
         private CancellationTokenSource? _cts;
         private Task? _keepAliveLoop;
@@ -81,7 +80,6 @@ namespace ULinkRPC.Server
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
-            _registry = registry;
             _ownsTransport = ownsTransport;
             _keepAlive = keepAlive ?? RpcKeepAliveOptions.Disabled;
             _logger = logger ?? DefaultRpcLogging.CreateLogger<RpcSession>();
@@ -96,6 +94,8 @@ namespace ULinkRPC.Server
                 _requestBudget = new SemaphoreSlim(requestBudget, requestBudget);
             }
             _keepAliveState = new RpcKeepAliveState(_keepAlive.MeasureRtt);
+            _sender = new SerializedFrameSender(_transport, _keepAliveState);
+            _requestDispatcher = new ServerRequestDispatcher(_handlers, registry, _sender, _logger);
             ContextId = contextId ?? throw new ArgumentNullException(nameof(contextId));
             RemoteEndPoint = ResolveRemoteEndPoint(_transport);
         }
@@ -318,65 +318,26 @@ namespace ULinkRPC.Server
             if (serverCts is null)
                 return;
 
-            var ct = serverCts.Token;
-            var interval = _keepAlive.Interval;
-            var timeout = _keepAlive.Timeout;
-            if (interval <= TimeSpan.Zero || timeout <= TimeSpan.Zero)
-                return;
-
-            while (!ct.IsCancellationRequested)
-            {
-                try
+            var coordinator = new RpcKeepAliveCoordinator(
+                _transport,
+                _sender,
+                _keepAliveState,
+                _keepAlive,
+                "RPC session keepalive timed out.",
+                ex =>
                 {
-                    await Task.Delay(interval, ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-
-                var nowTicks = DateTimeOffset.UtcNow.UtcTicks;
-                switch (_keepAliveState.GetNextAction(nowTicks, interval, timeout))
-                {
-                    case RpcKeepAliveAction.None:
-                        continue;
-                    case RpcKeepAliveAction.TimedOut:
-                        SetDisconnectReason(new TimeoutException("RPC session keepalive timed out."));
-                        try
-                        {
-                            serverCts.Cancel();
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                        }
-                        return;
-                    case RpcKeepAliveAction.SendPing:
-                        break;
-                }
-
-                try
-                {
-                    var pingTimestamp = DateTimeOffset.UtcNow.UtcTicks;
-                    using var pingBytes = RpcEnvelopeCodec.EncodeKeepAlivePing(new RpcKeepAlivePingEnvelope
+                    SetDisconnectReason(ex);
+                    try
                     {
-                        TimestampTicksUtc = pingTimestamp
-                    });
-                    await SendFrameAsyncSerialized(pingBytes.Memory, ct).ConfigureAwait(false);
-                    _keepAliveState.MarkPingSent(pingTimestamp);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (ObjectDisposedException)
-                {
-                    return;
-                }
-                catch (InvalidOperationException) when (!_transport.IsConnected)
-                {
-                    return;
-                }
-            }
+                        serverCts.Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
+                },
+                markTimedOut: false);
+
+            await coordinator.RunAsync(serverCts.Token).ConfigureAwait(false);
         }
 
         private void EnqueueRequestProcessing(RpcRequestFrame req, CancellationToken ct)
@@ -407,85 +368,7 @@ namespace ULinkRPC.Server
                 await _requestConcurrencyGate.WaitAsync(ct).ConfigureAwait(false);
                 enteredConcurrencyGate = true;
 
-                if (_handlers.TryGetValue((req.ServiceId, req.MethodId), out var handler))
-                {
-                    // User-registered handler: operates on the envelope model.
-                    RpcResponseEnvelope resp;
-                    try
-                    {
-                        resp = await handler(new RpcRequestEnvelope
-                        {
-                            RequestId = req.RequestId,
-                            ServiceId = req.ServiceId,
-                            MethodId = req.MethodId,
-                            Payload = req.Payload.Memory
-                        }, ct).ConfigureAwait(false);
-                        if (resp is null)
-                            resp = new RpcResponseEnvelope
-                            {
-                                RequestId = req.RequestId,
-                                Status = RpcStatus.Exception,
-                                Payload = Array.Empty<byte>(),
-                                ErrorMessage = "RPC handler returned null response."
-                            };
-                    }
-                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        LogHandlerFailure(req, ex);
-                        resp = new RpcResponseEnvelope
-                        {
-                            RequestId = req.RequestId,
-                            Status = RpcStatus.Exception,
-                            Payload = Array.Empty<byte>(),
-                            ErrorMessage = HandlerExecutionErrorMessage
-                        };
-                    }
-
-                    using var respBytes = RpcEnvelopeCodec.EncodeResponse(resp);
-                    await SendFrameAsyncSerialized(respBytes.Memory, ct).ConfigureAwait(false);
-                }
-                else if (_registry is not null && _registry.TryGetHandler(req.ServiceId, req.MethodId, out var sessionHandler))
-                {
-                    // Code-generated registry handler: returns the fully-encoded response frame,
-                    // eliminating the RpcResponseEnvelope allocation and the Serialize→ToArray copy.
-                    TransportFrame? respFrame = null;
-                    try
-                    {
-                        try
-                        {
-                            respFrame = await sessionHandler(this, req, ct).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                        {
-                            return;
-                        }
-                        catch (Exception ex)
-                        {
-                            LogHandlerFailure(req, ex);
-                            using var errFrame = RpcEnvelopeCodec.EncodeResponse(
-                                req.RequestId, RpcStatus.Exception, ReadOnlyMemory<byte>.Empty, HandlerExecutionErrorMessage);
-                            await SendFrameAsyncSerialized(errFrame.Memory, ct).ConfigureAwait(false);
-                            return;
-                        }
-
-                        await SendFrameAsyncSerialized(respFrame.Memory, ct).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        respFrame?.Dispose();
-                    }
-                }
-                else
-                {
-                    using var notFoundFrame = RpcEnvelopeCodec.EncodeResponse(
-                        req.RequestId, RpcStatus.NotFound, ReadOnlyMemory<byte>.Empty,
-                        $"No handler for {req.ServiceId}:{req.MethodId}");
-                    await SendFrameAsyncSerialized(notFoundFrame.Memory, ct).ConfigureAwait(false);
-                }
+                await _requestDispatcher.DispatchAsync(this, req, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -508,18 +391,9 @@ namespace ULinkRPC.Server
 
         private async Task SendOverloadedResponseAsync(uint requestId, CancellationToken ct)
         {
-            var response = new RpcResponseEnvelope
-            {
-                RequestId = requestId,
-                Status = RpcStatus.Exception,
-                Payload = Array.Empty<byte>(),
-                ErrorMessage = "RPC server is overloaded; request queue is full."
-            };
-
             try
             {
-                using var respBytes = RpcEnvelopeCodec.EncodeResponse(response);
-                await SendFrameAsyncSerialized(respBytes.Memory, ct).ConfigureAwait(false);
+                await _requestDispatcher.SendOverloadedResponseAsync(requestId, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -534,27 +408,7 @@ namespace ULinkRPC.Server
 
         private async ValueTask SendFrameAsyncSerialized(ReadOnlyMemory<byte> frame, CancellationToken ct)
         {
-            await _sendLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await _transport.SendFrameAsync(frame, ct).ConfigureAwait(false);
-                _keepAliveState.MarkSent();
-            }
-            finally
-            {
-                _sendLock.Release();
-            }
-        }
-
-        private void LogHandlerFailure(RpcRequestFrame req, Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "RPC handler failed for request {RequestId} service {ServiceId} method {MethodId} in session {ContextId}.",
-                req.RequestId,
-                req.ServiceId,
-                req.MethodId,
-                ContextId);
+            await _sender.SendAsync(frame, ct).ConfigureAwait(false);
         }
 
         private void ResetRuntimeState(CancellationTokenSource serverCts)
@@ -646,7 +500,7 @@ namespace ULinkRPC.Server
             await DisposeOwnedTransportIfNeededAsync().ConfigureAwait(false);
             _requestConcurrencyGate.Dispose();
             _requestBudget.Dispose();
-            _sendLock.Dispose();
+            _sender.Dispose();
         }
 
         private async ValueTask DisposeOwnedTransportIfNeededAsync()
