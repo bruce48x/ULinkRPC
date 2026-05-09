@@ -252,6 +252,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("ServerTimeUtc = DateTime.UtcNow.ToString(\"O\")", pingService);
             Assert.Contains("<RootNamespace>Server</RootNamespace>", serverCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", serverCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", serverCsproj);
             Assert.Contains("<package id=\"ULinkRPC.Core\" version=\"1.2.3\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Transport.WebSocket\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Serializer.Json\" version=\"5.6.7\" manuallyInstalled=\"true\" />", packagesConfig);
@@ -359,6 +360,9 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<package id=\"System.Memory\" version=\"4.5.4\" />", packagesConfig);
             Assert.Contains("<package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"6.1.2\" />", packagesConfig);
             Assert.Contains("<package id=\"System.IO.Pipelines\" version=\"10.0.6\" />", packagesConfig);
+            var serverCsproj = File.ReadAllText(Path.Combine(root, "Server", "Server", "Server.csproj"));
+            Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", serverCsproj);
+            Assert.DoesNotContain("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\"", serverCsproj, StringComparison.Ordinal);
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\" Version=\"5.6.7\" />", sharedCsproj);
             Assert.Contains("<PackageReference Include=\"MemoryPack\" Version=\"6.7.8\" />", sharedCsproj);
@@ -527,11 +531,15 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>", clientCsproj);
             Assert.Contains("<NuGetAudit>false</NuGetAudit>", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.Kcp\" Version=\"4.5.6\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\" Version=\"5.6.7\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"MemoryPack\" Version=\"6.7.8\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"MemoryPack.Core\" Version=\"8.9.10\" />", clientCsproj);
+            Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
+            Assert.DoesNotContain("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\"", clientCsproj, StringComparison.Ordinal);
+            Assert.DoesNotContain("<PackageReference Include=\"MemoryPack\"", clientCsproj, StringComparison.Ordinal);
+            Assert.DoesNotContain("<PackageReference Include=\"MemoryPack.Core\"", clientCsproj, StringComparison.Ordinal);
             Assert.Contains("<add key=\"godot-local\" value=\"" + sdkSource + "\" />", nugetConfig);
-            Assert.Contains("<TargetFrameworks>net8.0;net10.0</TargetFrameworks>", File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj")));
+            var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
+            Assert.Contains("<TargetFrameworks>net8.0;net10.0</TargetFrameworks>", sharedCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\" Version=\"5.6.7\" />", sharedCsproj);
+            Assert.Contains("<PackageReference Include=\"MemoryPack\" Version=\"6.7.8\" />", sharedCsproj);
 
             Assert.Contains("using ULinkRPC.Transport.Kcp;", testerScript);
             Assert.Contains("using ULinkRPC.Serializer.MemoryPack;", testerScript);

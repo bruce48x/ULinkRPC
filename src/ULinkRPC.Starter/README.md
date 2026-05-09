@@ -141,6 +141,10 @@ The long-form decision record is here:
 
 - [`docs/starter-unity-shared-source-link.md`](./docs/starter-unity-shared-source-link.md)
 
+Starter dependency ownership is documented separately:
+
+- [`docs/starter-dependency-planning.md`](./docs/starter-dependency-planning.md)
+
 ## Next Steps
 
 After generation:

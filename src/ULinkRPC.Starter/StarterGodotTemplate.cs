@@ -35,13 +35,7 @@ internal static class StarterGodotTemplate
     private static string BuildClientProject(StarterTemplateContext context, GodotSdkReference? sdk)
     {
         var transportPackage = NuGetVersionResolver.GetTransportPackage(context.Transport);
-        var serializerPackage = NuGetVersionResolver.GetSerializerPackage(context.Serializer);
-        var serializerRuntimeReferences = context.Serializer == SerializerKind.MemoryPack
-            ? $$"""
-    <PackageReference Include="MemoryPack" Version="{{context.Versions.SerializerRuntime}}" />
-    <PackageReference Include="MemoryPack.Core" Version="{{context.Versions.SerializerRuntimeCore}}" />
-"""
-            : string.Empty;
+        var serializerPackageReference = BuildClientSerializerPackageReference(context);
 
         var sdkVersion = sdk?.Version ?? "4.6.1";
 
@@ -61,11 +55,18 @@ internal static class StarterGodotTemplate
     <PackageReference Include="ULinkRPC.Core" Version="{{context.Versions.Core}}" />
     <PackageReference Include="ULinkRPC.Client" Version="{{context.Versions.Client}}" />
     <PackageReference Include="{{transportPackage}}" Version="{{context.Versions.Transport}}" />
-    <PackageReference Include="{{serializerPackage}}" Version="{{context.Versions.Serializer}}" />
-{{serializerRuntimeReferences}}</ItemGroup>
+{{serializerPackageReference}}
+  </ItemGroup>
 </Project>
 """;
     }
+
+    private static string BuildClientSerializerPackageReference(StarterTemplateContext context) => context.Serializer switch
+    {
+        SerializerKind.Json => $$"""    <PackageReference Include="{{NuGetVersionResolver.GetSerializerPackage(context.Serializer)}}" Version="{{context.Versions.Serializer}}" />""",
+        SerializerKind.MemoryPack => string.Empty,
+        _ => throw new ArgumentOutOfRangeException(nameof(context), context.Serializer, null)
+    };
 
     private static string BuildReadme(StarterTemplateContext context, GodotSdkReference? sdk)
     {

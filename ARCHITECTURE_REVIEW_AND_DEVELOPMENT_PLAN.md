@@ -36,7 +36,7 @@ flowchart LR
 - `CodeGen` 从共享契约生成 proxy、binder、facade。
 - `Starter` 生成 Shared、Server、Client 项目模板，并调用 codegen。
 
-这个分层总体合理，主要风险集中在版本来源、生命周期状态机、运行时类职责过大、生成代码边界和模板维护成本上。
+这个分层总体合理，主要风险集中在版本来源、生命周期状态机、运行时类职责过大、生成代码边界、模板依赖归属和模板维护成本上。
 
 ## 坏味道清单
 
@@ -275,7 +275,36 @@ namespace ULinkRPC.Client
 - 并行读取 stdout/stderr。
 - 支持 timeout 和 cancellation token。
 
-#### 11. 本地 `src` 树中存在 `bin/obj` 构建产物
+#### 11. Starter 生成项目的依赖归属规则分散
+
+Starter 需要根据 engine / transport / serializer 生成多个项目的依赖：
+
+- `Shared/Shared.csproj`
+- `Server/Server/Server.csproj`
+- Unity / Tuanjie `Assets/packages.config`
+- Godot `Client.csproj`
+
+这些项目的依赖消费模型不同：
+
+- Server 和 Godot 通过 SDK-style `.csproj` `ProjectReference` 消费 `Shared.csproj`。
+- Unity 和 Tuanjie 通过本地 UPM source package 消费 `Shared`，并通过 NuGetForUnity `packages.config` 显式恢复 DLL。
+
+已发现的具体问题是 `memorypack` 组合中 `Shared.csproj` 已经引用 `ULinkRPC.Serializer.MemoryPack`，而 Server / Godot 又重复声明同一 serializer 包。
+
+影响：
+
+- 新增 serializer 或 client engine 时容易重复声明依赖。
+- `.csproj` 传递依赖规则和 Unity NuGetForUnity 显式包规则容易混在一起。
+- 模板测试只能看到最终字符串，很难直接表达“依赖归属”模型。
+
+处理方向：
+
+- 引入 `StarterDependencyPlanner`，集中计算各 project role 的直接依赖。
+- 明确区分 SDK-style transitive restore 和 Unity/Tuanjie NuGetForUnity 显式 restore。
+- 保留模板渲染测试，同时增加 dependency plan 单元测试。
+- 详细设计见 `src/ULinkRPC.Starter/docs/starter-dependency-planning.md`。
+
+#### 12. 本地 `src` 树中存在 `bin/obj` 构建产物
 
 虽然 `.gitignore` 已经覆盖，且这些产物未被 git 跟踪，但本地 `src` 目录下仍有大量 `bin/obj`。
 
@@ -326,6 +355,8 @@ namespace ULinkRPC.Client
 20. 调整 generated facade namespace，默认将 `RpcClient` / `RpcCallbackBindings` 放入用户指定 generated namespace，并用 `ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE` 提供旧 namespace 迁移 wrapper。
 21. 将部分 Unity / Godot 稳定模板拆成嵌入式模板资源，并新增 Godot starter golden file 测试。
 22. 改造 `ProcessRunner`，并行读取 stdout/stderr，支持异步等待、超时和取消。
+23. 优化 starter 生成项目的 `memorypack` 依赖归属：Server / Godot 通过 `Shared.csproj` 获取 `ULinkRPC.Serializer.MemoryPack`，不再重复声明；JSON 仍在 Server / Godot 直接声明 serializer 包。
+24. 新增 Starter 依赖规划设计文档，记录 Shared、Server、Godot、Unity/Tuanjie 的依赖边界。
 
 ### 待办
 
@@ -377,10 +408,13 @@ namespace ULinkRPC.Client
 
 待办：
 
-无，已完成。
+1. 引入 `StarterDependencyPlanner`，集中计算 Shared / Server / UnityClient / GodotClient 的直接依赖。
+2. 将 Server、Godot、Unity/Tuanjie 模板中的 package reference 选择逻辑迁移到 dependency planner。
+3. 增加 dependency plan 单元测试，直接覆盖 JSON / MemoryPack、Server / Godot / Unity / Tuanjie 的依赖矩阵。
 
 验收标准：
 
 - 生成代码边界更接近用户项目命名空间。
 - Starter 模板修改可以通过文件 diff 清楚 review。
+- Starter 依赖归属规则有集中模型，新增 serializer 或 client engine 不需要在多个模板里重复推导。
 - 子进程执行异常时有稳定、完整、不会阻塞的错误报告。

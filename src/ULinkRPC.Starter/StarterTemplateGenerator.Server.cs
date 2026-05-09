@@ -17,7 +17,7 @@ internal static class StarterServerTemplate
     private static string BuildServerProjectFile(StarterTemplateContext context)
     {
         var transportPackage = NuGetVersionResolver.GetTransportPackage(context.Transport);
-        var serializerPackage = NuGetVersionResolver.GetSerializerPackage(context.Serializer);
+        var serializerPackageReference = BuildServerSerializerPackageReference(context);
 
         return $$"""
 <Project Sdk="Microsoft.NET.Sdk">
@@ -36,11 +36,18 @@ internal static class StarterServerTemplate
   <ItemGroup>
     <PackageReference Include="ULinkRPC.Server" Version="{{context.Versions.Server}}" />
     <PackageReference Include="{{transportPackage}}" Version="{{context.Versions.Transport}}" />
-    <PackageReference Include="{{serializerPackage}}" Version="{{context.Versions.Serializer}}" />
+{{serializerPackageReference}}
   </ItemGroup>
 </Project>
 """;
     }
+
+    private static string BuildServerSerializerPackageReference(StarterTemplateContext context) => context.Serializer switch
+    {
+        SerializerKind.Json => $$"""    <PackageReference Include="{{NuGetVersionResolver.GetSerializerPackage(context.Serializer)}}" Version="{{context.Versions.Serializer}}" />""",
+        SerializerKind.MemoryPack => string.Empty,
+        _ => throw new ArgumentOutOfRangeException(nameof(context), context.Serializer, null)
+    };
 
     private static string BuildServerProgramSource(SerializerKind serializer, TransportKind transport) => $$"""
 {{GetServerProgramUsings(serializer, transport)}}
