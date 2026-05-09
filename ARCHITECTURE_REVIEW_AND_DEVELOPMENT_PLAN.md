@@ -357,6 +357,9 @@ Starter 需要根据 engine / transport / serializer 生成多个项目的依赖
 22. 改造 `ProcessRunner`，并行读取 stdout/stderr，支持异步等待、超时和取消。
 23. 优化 starter 生成项目的 `memorypack` 依赖归属：Server / Godot 通过 `Shared.csproj` 获取 `ULinkRPC.Serializer.MemoryPack`，不再重复声明；JSON 仍在 Server / Godot 直接声明 serializer 包。
 24. 新增 Starter 依赖规划设计文档，记录 Shared、Server、Godot、Unity/Tuanjie 的依赖边界。
+25. 引入 `StarterDependencyPlanner`，集中计算 Shared / Server / UnityClient / GodotClient 的直接依赖。
+26. 将 Server、Godot、Unity/Tuanjie 模板中的 package reference 选择逻辑迁移到 dependency planner。
+27. 增加 dependency plan 单元测试，直接覆盖 JSON / MemoryPack、Server / Godot / Unity / Tuanjie 的依赖矩阵。
 
 ### 待办
 
@@ -408,9 +411,7 @@ Starter 需要根据 engine / transport / serializer 生成多个项目的依赖
 
 待办：
 
-1. 引入 `StarterDependencyPlanner`，集中计算 Shared / Server / UnityClient / GodotClient 的直接依赖。
-2. 将 Server、Godot、Unity/Tuanjie 模板中的 package reference 选择逻辑迁移到 dependency planner。
-3. 增加 dependency plan 单元测试，直接覆盖 JSON / MemoryPack、Server / Godot / Unity / Tuanjie 的依赖矩阵。
+无，已完成。
 
 验收标准：
 

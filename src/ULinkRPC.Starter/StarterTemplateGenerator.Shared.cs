@@ -34,19 +34,7 @@ internal static class StarterSharedTemplate
             ? "net8.0;net10.0"
             : "netstandard2.1;net10.0";
 
-        var packageReferences = context.Serializer == SerializerKind.MemoryPack
-            ? $$"""
-    <PackageReference Include="ULinkRPC.Core" Version="{{context.Versions.Core}}" />
-    <PackageReference Include="ULinkRPC.Serializer.MemoryPack" Version="{{context.Versions.Serializer}}" />
-    <PackageReference Include="MemoryPack" Version="{{context.Versions.SerializerRuntime}}" />
-    <PackageReference Include="MemoryPack.Generator" Version="{{context.Versions.SerializerRuntime}}">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-"""
-            : $$"""
-    <PackageReference Include="ULinkRPC.Core" Version="{{context.Versions.Core}}" />
-""";
+        var packageReferences = RenderPackageReferences(StarterDependencyPlanner.Create(context, StarterProjectRole.Shared));
 
         return $$"""
 <Project Sdk="Microsoft.NET.Sdk">
@@ -64,6 +52,34 @@ internal static class StarterSharedTemplate
   </ItemGroup>
 </Project>
 """;
+    }
+
+    private static string RenderPackageReferences(StarterDependencyPlan plan) =>
+        string.Join(Environment.NewLine, plan.PackageReferences.Select(RenderPackageReference));
+
+    private static string RenderPackageReference(StarterPackageReference reference)
+    {
+        if (reference.PrivateAssets is null && reference.IncludeAssets is null)
+        {
+            return $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\" />";
+        }
+
+        var metadata = new List<string>();
+        if (reference.PrivateAssets is not null)
+        {
+            metadata.Add($"      <PrivateAssets>{reference.PrivateAssets}</PrivateAssets>");
+        }
+
+        if (reference.IncludeAssets is not null)
+        {
+            metadata.Add($"      <IncludeAssets>{reference.IncludeAssets}</IncludeAssets>");
+        }
+
+        return string.Join(
+            Environment.NewLine,
+            $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\">",
+            string.Join(Environment.NewLine, metadata),
+            "    </PackageReference>");
     }
 
     private static string BuildSharedDtos(SerializerKind serializer) => serializer == SerializerKind.MemoryPack

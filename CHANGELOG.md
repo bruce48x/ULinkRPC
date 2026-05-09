@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.58
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.2.58`
+
+- Centralized starter dependency ownership in `StarterDependencyPlanner` and moved Shared / Server / Unity / Godot package selection through that planner.
+- Added dependency matrix tests for JSON and MemoryPack starter projects across Server, Godot, Unity, and Tuanjie generation paths.
+
 ## 0.16.8 / 0.2.57
 
 - Release packages:

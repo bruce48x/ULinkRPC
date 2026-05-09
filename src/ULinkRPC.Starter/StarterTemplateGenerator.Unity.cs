@@ -96,26 +96,24 @@ internal static class StarterUnityTemplate
 
     private static string BuildPackagesConfig(StarterTemplateContext context)
     {
-        var transportPackage = NuGetVersionResolver.GetTransportPackage(context.Transport);
-        var serializerPackage = NuGetVersionResolver.GetSerializerPackage(context.Serializer);
+        var packageReferences = RenderUnityPackages(StarterDependencyPlanner.Create(context, StarterProjectRole.UnityClient));
 
         return $$"""
 <?xml version="1.0" encoding="utf-8"?>
 <packages>
-  <package id="ULinkRPC.Core" version="{{context.Versions.Core}}" />
-  <package id="ULinkRPC.Client" version="{{context.Versions.Client}}" manuallyInstalled="true" />
-  <package id="{{transportPackage}}" version="{{context.Versions.Transport}}" manuallyInstalled="true" />
-  <package id="{{serializerPackage}}" version="{{context.Versions.Serializer}}" manuallyInstalled="true" />
-{{GetUnityClientDependencyPackages()}}
-{{GetUnityTransportDependencyPackages(context.Transport)}}
-{{GetUnitySerializerDependencyPackages(context.Serializer, context.Versions)}}
+{{packageReferences}}
 </packages>
 """;
     }
 
-    private static string GetUnityClientDependencyPackages() => $"""
-  <package id="System.Threading.Channels" version="{UnityPackageVersions.SystemThreadingChannels}" />
-""";
+    private static string RenderUnityPackages(StarterDependencyPlan plan) =>
+        string.Join(Environment.NewLine, plan.PackageReferences.Select(RenderUnityPackage));
+
+    private static string RenderUnityPackage(StarterPackageReference reference)
+    {
+        var manuallyInstalled = reference.ManuallyInstalled ? " manuallyInstalled=\"true\"" : string.Empty;
+        return $"  <package id=\"{reference.Id}\" version=\"{reference.Version}\"{manuallyInstalled} />";
+    }
 
     private static string BuildNuGetConfig(ClientEngineKind clientEngine)
     {
@@ -182,57 +180,6 @@ NuGetForUnity source: {{context.NuGetForUnitySource}}
         ClientEngineKind.Tuanjie => "m_EditorVersion: 2022.3.61t11\nm_EditorVersionWithRevision: 2022.3.61t11 (122146d53e32)\nm_TuanjieEditorVersion: 1.6.10\n",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
-
-    private static string GetUnityTransportDependencyPackages(TransportKind transport) => transport switch
-    {
-        TransportKind.Tcp => string.Empty,
-        TransportKind.WebSocket => string.Empty,
-        TransportKind.Kcp => string.Join(
-            Environment.NewLine,
-            $"  <package id=\"Kcp\" version=\"{UnityPackageVersions.Kcp}\" />",
-            $"  <package id=\"System.Memory\" version=\"{UnityPackageVersions.SystemMemoryForKcp}\" />",
-            $"  <package id=\"System.Threading.Tasks.Extensions\" version=\"{UnityPackageVersions.SystemThreadingTasksExtensionsForKcp}\" />"),
-        _ => throw new ArgumentOutOfRangeException(nameof(transport), transport, null)
-    };
-
-    private static string GetUnitySerializerDependencyPackages(SerializerKind serializer, ResolvedVersions versions) => serializer switch
-    {
-        SerializerKind.Json => string.Join(
-            Environment.NewLine,
-            $"  <package id=\"Microsoft.Bcl.AsyncInterfaces\" version=\"{UnityPackageVersions.MicrosoftBclAsyncInterfaces}\" />",
-            $"  <package id=\"System.IO.Pipelines\" version=\"{UnityPackageVersions.SystemIoPipelinesForJson}\" />",
-            $"  <package id=\"System.Text.Encodings.Web\" version=\"{UnityPackageVersions.SystemTextEncodingsWeb}\" />",
-            $"  <package id=\"System.Buffers\" version=\"{UnityPackageVersions.SystemBuffers}\" />",
-            $"  <package id=\"System.Memory\" version=\"{UnityPackageVersions.SystemMemoryForJson}\" />",
-            $"  <package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"{UnityPackageVersions.SystemRuntimeCompilerServicesUnsafe}\" />",
-            $"  <package id=\"System.Threading.Tasks.Extensions\" version=\"{UnityPackageVersions.SystemThreadingTasksExtensionsForJson}\" />",
-            $"  <package id=\"System.Text.Json\" version=\"{UnityPackageVersions.SystemTextJson}\" />"),
-        SerializerKind.MemoryPack => BuildMemoryPackUnityDependencies(versions),
-        _ => throw new ArgumentOutOfRangeException(nameof(serializer), serializer, null)
-    };
-
-    private static string BuildMemoryPackUnityDependencies(ResolvedVersions versions)
-    {
-        if (string.IsNullOrWhiteSpace(versions.SerializerRuntime) || string.IsNullOrWhiteSpace(versions.SerializerRuntimeCore))
-        {
-            throw new InvalidOperationException("MemoryPack serializer requires explicit Unity package dependencies, but they were not resolved.");
-        }
-
-        return string.Join(
-            Environment.NewLine,
-            $"  <package id=\"MemoryPack\" version=\"{versions.SerializerRuntime}\" />",
-            $"  <package id=\"MemoryPack.Core\" version=\"{versions.SerializerRuntimeCore}\" />",
-            $"  <package id=\"MemoryPack.Generator\" version=\"{versions.SerializerRuntime}\" />",
-            $"  <package id=\"Microsoft.CodeAnalysis.Common\" version=\"{UnityPackageVersions.MicrosoftCodeAnalysisCommon}\" />",
-            $"  <package id=\"Microsoft.CodeAnalysis.CSharp\" version=\"{UnityPackageVersions.MicrosoftCodeAnalysisCSharp}\" />",
-            $"  <package id=\"System.Collections.Immutable\" version=\"{UnityPackageVersions.SystemCollectionsImmutable}\" />",
-            $"  <package id=\"System.Reflection.Metadata\" version=\"{UnityPackageVersions.SystemReflectionMetadata}\" />",
-            $"  <package id=\"System.Text.Encoding.CodePages\" version=\"{UnityPackageVersions.SystemTextEncodingCodePages}\" />",
-            $"  <package id=\"System.Threading.Tasks.Extensions\" version=\"{UnityPackageVersions.SystemThreadingTasksExtensionsForRoslyn}\" />",
-            $"  <package id=\"System.Memory\" version=\"{UnityPackageVersions.SystemMemoryForRoslyn}\" />",
-            $"  <package id=\"System.Runtime.CompilerServices.Unsafe\" version=\"{UnityPackageVersions.SystemRuntimeCompilerServicesUnsafe}\" />",
-            $"  <package id=\"System.IO.Pipelines\" version=\"{UnityPackageVersions.SystemIoPipelines}\" />");
-    }
 
     private static string GetUnitySceneName() => "ConnectionTest";
 
