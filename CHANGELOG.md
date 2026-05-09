@@ -1,13 +1,13 @@
 # Changelog
 
-## 0.16.7 / 0.2.56
+## 0.16.8 / 0.2.57
 
 - Release packages:
-	- `ULinkRPC.CodeGen` `0.16.7`
-	- `ULinkRPC.Starter` `0.2.56`
+	- `ULinkRPC.CodeGen` `0.16.8`
+	- `ULinkRPC.Starter` `0.2.57`
 
 - Changed generated client facade boundaries so `RpcClient`, `RpcCallbackBindings`, and `RpcApi` now live in the configured generated namespace instead of occupying `ULinkRPC.Client` by default.
-- Added the `ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE` migration switch, which emits an obsolete forwarding `ULinkRPC.Client.RpcClient` wrapper for projects that need a staged namespace move.
+- Removed the temporary legacy generated `ULinkRPC.Client.RpcClient` facade path; generated clients now live only in the configured generated namespace.
 - Moved stable starter template files into embedded template resources and added golden file coverage for generated Godot project files.
 - Reworked `ProcessRunner` to read stdout/stderr concurrently, use async process waiting, and support timeout/cancellation failure paths.
 

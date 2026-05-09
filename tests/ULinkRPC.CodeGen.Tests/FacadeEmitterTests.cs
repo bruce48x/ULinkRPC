@@ -57,14 +57,14 @@ public class FacadeEmitterTests
     }
 
     [Fact]
-    public void GeneratesConditionalLegacyClientWrapper()
+    public void DoesNotGenerateLegacyClientWrapper()
     {
         var svc = MakeSvc("IPlayerService", "Game.IPlayerService", 1);
         var code = FacadeEmitter.GenerateClientFacade([svc], "Gen", "ULinkRPC.Core", "ULinkRPC.Client");
 
-        Assert.Contains("#if ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE", code);
-        Assert.Contains("namespace ULinkRPC.Client", code);
-        Assert.Contains("Use global::Gen.RpcClient instead.", code);
+        Assert.DoesNotContain("ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE", code);
+        Assert.DoesNotContain("namespace ULinkRPC.Client", code);
+        Assert.DoesNotContain("[Obsolete(", code);
     }
 
     [Fact]

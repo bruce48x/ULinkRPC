@@ -107,54 +107,7 @@ internal static partial class FacadeEmitter
 
         w.CloseBlock();
         w.CloseBlock();
-        EmitLegacyClientFacade(w, ns, callbacks.Count > 0);
         return w.ToString();
-    }
-
-    private static void EmitLegacyClientFacade(CodeWriter w, string generatedNamespace, bool hasCallbacks)
-    {
-        w.Line();
-        w.Line("#if ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE");
-        w.OpenBlock("namespace ULinkRPC.Client");
-        w.Line("[Obsolete(\"Generated RpcClient moved to the configured generated namespace. Use global::" + generatedNamespace + ".RpcClient instead.\")]");
-        w.OpenBlock("public sealed class RpcClient : IAsyncDisposable");
-        w.Line($"private readonly global::{generatedNamespace}.RpcClient _inner;");
-        w.Line();
-
-        w.OpenBlock("public RpcClient(RpcClientOptions options)");
-        w.Line($"_inner = new global::{generatedNamespace}.RpcClient(options);");
-        w.CloseBlock();
-        w.Line();
-
-        if (hasCallbacks)
-        {
-            w.OpenBlock($"public RpcClient(RpcClientOptions options, global::{generatedNamespace}.RpcCallbackBindings callbacks)");
-            w.Line($"_inner = new global::{generatedNamespace}.RpcClient(options, callbacks);");
-            w.CloseBlock();
-            w.Line();
-        }
-
-        w.OpenBlock("public event Action<Exception?>? Disconnected");
-        w.Line("add => _inner.Disconnected += value;");
-        w.Line("remove => _inner.Disconnected -= value;");
-        w.CloseBlock();
-        w.Line();
-
-        w.Line("public RpcClientOptions Options => _inner.Options;");
-        w.Line($"public global::{generatedNamespace}.RpcApi Api => _inner.Api;");
-        w.Line();
-
-        w.OpenBlock("public ValueTask ConnectAsync(CancellationToken ct = default)");
-        w.Line("return _inner.ConnectAsync(ct);");
-        w.CloseBlock();
-        w.Line();
-
-        w.OpenBlock("public ValueTask DisposeAsync()");
-        w.Line("return _inner.DisposeAsync();");
-        w.CloseBlock();
-        w.CloseBlock();
-        w.CloseBlock();
-        w.Line("#endif");
     }
 
     private static string GetFacadeGroupTypeName(string groupName) => $"{groupName}RpcGroup";

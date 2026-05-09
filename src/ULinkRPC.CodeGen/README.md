@@ -25,7 +25,6 @@ Generated client calls use typed descriptors (`RpcMethod<TArg, TResult>` / `RpcP
 Generated client output also includes `IRpcClient` extension factories (for example `client.CreatePlayerService()`) so business code does not instantiate generated client types directly.
 Generated client output also emits a complete `RpcClient` wrapper in the configured generated namespace. It owns `RpcClientRuntime`, binds callbacks, and exposes the grouped `Api` facade.
 Client generated code namespace is derived from the output directory (for example `Assets/Scripts/Rpc/Generated` or `Scripts/Rpc/Generated` -> `Rpc.Generated`).
-For compatibility migrations, defining `ULINKRPC_GENERATE_LEGACY_CLIENT_FACADE` also emits an obsolete `ULinkRPC.Client.RpcClient` forwarding wrapper.
 Generated files now inherit `using` directives declared by contract sources so referenced types resolve correctly.
 Contract parsing is implemented via Roslyn syntax trees for better correctness across C# language forms.
 Generated binders reference `ULinkRPC.Core` + `ULinkRPC.Server` and include both `Bind(RpcServiceRegistry, IYourService)` and delegate-based `Bind(...)` overloads. Generated `AllServicesBinder` emits only `BindAll(RpcServiceRegistry registry)`, which reflects over the current assembly to locate concrete service implementations automatically; callback services prefer a single-parameter constructor accepting the callback interface, and fall back to a public parameterless constructor. Per-connection service creation now uses `RpcSession`.
