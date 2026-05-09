@@ -142,29 +142,29 @@ dotnet run --project src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj --
 
 ## 8. NuGet Publishing
 
-### Prerequisites
-Set the `NUGET_API_KEY` environment variable with your nuget.org API key before publishing.
+NuGet publishing is handled by GitHub Actions, not by a local manual push.
 
-### Pack & Push
-```powershell
-# Pack all src projects into artifacts/
-dotnet pack src/ULinkRPC.Core/ULinkRPC.Core.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.Client/ULinkRPC.Client.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.Server/ULinkRPC.Server.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.Serializer.Json/ULinkRPC.Serializer.Json.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.Serializer.MemoryPack/ULinkRPC.Serializer.MemoryPack.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.Transport.Tcp/ULinkRPC.Transport.Tcp.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.Transport.Loopback/ULinkRPC.Transport.Loopback.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.Transport.Kcp/ULinkRPC.Transport.Kcp.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.Transport.WebSocket/ULinkRPC.Transport.WebSocket.csproj -c Release -o artifacts
-dotnet pack src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj -c Release -o artifacts
+Pushing to `main` triggers `.github/workflows/publish-nuget.yml` when any of these paths change:
 
-# Push to nuget.org (--skip-duplicate ignores already-published versions)
-dotnet nuget push "artifacts/*.nupkg" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
-```
+- `.github/workflows/publish-nuget.yml`
+- `Directory.Build.props`
+- `src/**`
+
+The workflow restores test and package projects, runs the core/codegen/serializer/transport test suites, packs every `src/*/*.csproj` project into `artifacts/nuget`, and pushes the packages to nuget.org with `--skip-duplicate`.
+
+The workflow uses the `release` GitHub environment and `NuGet/login@v1` with `secrets.NUGET_USER`; do not rely on a local `NUGET_API_KEY` for the normal release path.
 
 ### Version Bumping
-Each package version is defined in its `.csproj` via the `<Version>` property. Bump versions before packing when publishing a new release.
+Each package version is defined in its `.csproj` via the `<Version>` property. Bump versions before pushing to `main` when publishing a new release.
+
+For local verification only, you can pack all package projects without publishing:
+
+```powershell
+mkdir artifacts/nuget
+Get-ChildItem src/*/*.csproj | ForEach-Object {
+  dotnet pack $_.FullName --no-restore -c Release -o artifacts/nuget
+}
+```
 
 ---
 
