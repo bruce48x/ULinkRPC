@@ -5,8 +5,22 @@ using ULinkRPC.Core;
 
 namespace ULinkRPC.Server
 {
+    /// <summary>
+    ///     Low-level handler for a decoded RPC request.
+    /// </summary>
+    /// <param name="req">Request envelope.</param>
+    /// <param name="ct">Cancellation token for request processing.</param>
+    /// <returns>Response envelope to send back to the client.</returns>
     public delegate ValueTask<RpcResponseEnvelope> RpcHandler(RpcRequestEnvelope req, CancellationToken ct);
 
+    /// <summary>
+    ///     Runtime for one accepted client connection.
+    /// </summary>
+    /// <remarks>
+    ///     A session owns receive, dispatch, optional keepalive, and server push for one transport connection.
+    ///     Generated server binders usually create session-scoped service instances through
+    ///     <see cref="GetOrAddScopedService{TService}"/>.
+    /// </remarks>
     public sealed class RpcSession : IAsyncDisposable
     {
         private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RpcHandler> _handlers = new();
@@ -33,41 +47,81 @@ namespace ULinkRPC.Server
         private long _disconnectReasonSet;
         private Exception? _disconnectReason;
 
+        /// <summary>
+        ///     Creates a session that does not own the transport.
+        /// </summary>
+        /// <param name="transport">Transport for this connection.</param>
+        /// <param name="serializer">Serializer used for RPC payloads.</param>
         public RpcSession(ITransport transport, IRpcSerializer serializer)
             : this(transport, serializer, registry: null, Guid.NewGuid().ToString("N"), false, keepAlive: null)
         {
         }
 
+        /// <summary>
+        ///     Creates a session and optionally disposes the transport when the session is disposed.
+        /// </summary>
+        /// <param name="transport">Transport for this connection.</param>
+        /// <param name="serializer">Serializer used for RPC payloads.</param>
+        /// <param name="ownsTransport">Whether disposing the session also disposes the transport.</param>
         public RpcSession(ITransport transport, IRpcSerializer serializer, bool ownsTransport)
             : this(transport, serializer, registry: null, Guid.NewGuid().ToString("N"), ownsTransport, keepAlive: null)
         {
         }
 
+        /// <summary>
+        ///     Creates a session with an explicit context id.
+        /// </summary>
+        /// <param name="transport">Transport for this connection.</param>
+        /// <param name="serializer">Serializer used for RPC payloads.</param>
+        /// <param name="contextId">Stable session id used in logs and scoped services.</param>
         public RpcSession(ITransport transport, IRpcSerializer serializer, string contextId)
             : this(transport, serializer, registry: null, contextId, false, keepAlive: null)
         {
         }
 
+        /// <summary>
+        ///     Creates a session with an explicit context id and transport ownership setting.
+        /// </summary>
         public RpcSession(ITransport transport, IRpcSerializer serializer, string contextId, bool ownsTransport)
             : this(transport, serializer, registry: null, contextId, ownsTransport, keepAlive: null)
         {
         }
 
+        /// <summary>
+        ///     Creates a session backed by a service registry.
+        /// </summary>
         public RpcSession(ITransport transport, IRpcSerializer serializer, RpcServiceRegistry registry)
             : this(transport, serializer, registry, Guid.NewGuid().ToString("N"), false, keepAlive: null)
         {
         }
 
+        /// <summary>
+        ///     Creates a session backed by a service registry and optional transport ownership.
+        /// </summary>
         public RpcSession(ITransport transport, IRpcSerializer serializer, RpcServiceRegistry registry, bool ownsTransport)
             : this(transport, serializer, registry, Guid.NewGuid().ToString("N"), ownsTransport, keepAlive: null)
         {
         }
 
+        /// <summary>
+        ///     Creates a session backed by a service registry with an explicit context id.
+        /// </summary>
         public RpcSession(ITransport transport, IRpcSerializer serializer, RpcServiceRegistry registry, string contextId)
             : this(transport, serializer, registry, contextId, false, keepAlive: null)
         {
         }
 
+        /// <summary>
+        ///     Creates a fully configured session.
+        /// </summary>
+        /// <param name="transport">Transport for this connection.</param>
+        /// <param name="serializer">Serializer used for RPC payloads.</param>
+        /// <param name="registry">Optional generated service registry.</param>
+        /// <param name="contextId">Stable session id used in logs and scoped services.</param>
+        /// <param name="ownsTransport">Whether disposing the session also disposes the transport.</param>
+        /// <param name="keepAlive">Optional keepalive configuration.</param>
+        /// <param name="logger">Optional logger.</param>
+        /// <param name="limits">Optional request concurrency and queue limits.</param>
         public RpcSession(
             ITransport transport,
             IRpcSerializer serializer,
@@ -116,12 +170,27 @@ namespace ULinkRPC.Server
 
         public IRpcSerializer Serializer => _serializer;
 
+        /// <summary>
+        ///     Last UTC timestamp at which this session sent a frame.
+        /// </summary>
         public DateTimeOffset LastSendAt => _keepAliveState.LastSendAt;
 
+        /// <summary>
+        ///     Last UTC timestamp at which this session received a frame.
+        /// </summary>
         public DateTimeOffset LastReceiveAt => _keepAliveState.LastReceiveAt;
 
+        /// <summary>
+        ///     Raised when the session receive loop ends.
+        /// </summary>
         public event Action<Exception?>? Disconnected;
 
+        /// <summary>
+        ///     Registers a low-level request handler for one service method.
+        /// </summary>
+        /// <param name="serviceId">Stable service id.</param>
+        /// <param name="methodId">Stable method id.</param>
+        /// <param name="handler">Request handler.</param>
         public void Register(int serviceId, int methodId, RpcHandler handler)
         {
             ThrowIfDisposed();
@@ -129,6 +198,13 @@ namespace ULinkRPC.Server
             _handlers[(serviceId, methodId)] = handler;
         }
 
+        /// <summary>
+        ///     Gets or creates a service instance scoped to this session and service id.
+        /// </summary>
+        /// <typeparam name="TService">Service implementation type.</typeparam>
+        /// <param name="serviceId">Stable service id.</param>
+        /// <param name="factory">Factory invoked once per session and service id.</param>
+        /// <returns>The existing or newly created service instance.</returns>
         public TService GetOrAddScopedService<TService>(int serviceId, Func<RpcSession, TService> factory)
             where TService : class
         {
@@ -141,6 +217,14 @@ namespace ULinkRPC.Server
             return (TService)service;
         }
 
+        /// <summary>
+        ///     Sends a server-to-client push frame.
+        /// </summary>
+        /// <typeparam name="TArg">Push DTO type.</typeparam>
+        /// <param name="serviceId">Stable service id.</param>
+        /// <param name="methodId">Stable push method id.</param>
+        /// <param name="arg">Push DTO instance.</param>
+        /// <param name="ct">Cancellation token for the send operation.</param>
         public async ValueTask PushAsync<TArg>(int serviceId, int methodId, TArg arg, CancellationToken ct = default)
         {
             ThrowIfDisposed();
@@ -155,6 +239,11 @@ namespace ULinkRPC.Server
             await SendFrameAsyncSerialized(bytes.Memory, ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        ///     Connects the transport and starts the session receive loop.
+        /// </summary>
+        /// <param name="ct">Cancellation token for the initial transport connection.</param>
+        /// <exception cref="InvalidOperationException">Thrown when the session has already been started.</exception>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
             ThrowIfDisposed();
@@ -186,6 +275,9 @@ namespace ULinkRPC.Server
             }
         }
 
+        /// <summary>
+        ///     Waits until the session receive loop and in-flight requests complete.
+        /// </summary>
         public async ValueTask WaitForCompletionAsync()
         {
             if (_loop is null)
@@ -205,6 +297,10 @@ namespace ULinkRPC.Server
             await _inflightRequests.WaitAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        ///     Starts the session, waits for completion, and stops it in a finally block.
+        /// </summary>
+        /// <param name="ct">Cancellation token linked to the session loop.</param>
         public async ValueTask RunAsync(CancellationToken ct = default)
         {
             await StartAsync(ct).ConfigureAwait(false);
@@ -432,6 +528,9 @@ namespace ULinkRPC.Server
             Interlocked.Exchange(ref _started, 0);
         }
 
+        /// <summary>
+        ///     Requests session shutdown and waits for in-flight requests to complete.
+        /// </summary>
         public async ValueTask StopAsync()
         {
             var cts = _cts;
@@ -491,6 +590,9 @@ namespace ULinkRPC.Server
             _scopedServices.Clear();
         }
 
+        /// <summary>
+        ///     Stops the session and disposes owned resources.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)

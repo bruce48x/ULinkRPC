@@ -65,8 +65,20 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
-    public class IncrStepRequest { }
-    public class IncrStepReply { public int Value { get; set; } }
+    public class LoginRequest
+    {
+        public string Account { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+
+    public class LoginReply
+    {
+        public int Code { get; set; }
+        public string Token { get; set; } = "";
+    }
+
+    public class StepRequest { }
+    public class StepReply { public int Step { get; set; } }
     public class PlayerNotify { public string Message { get; set; } = ""; }
 
     [RpcService(1, Callback = typeof(IPlayerCallback))]
@@ -76,7 +88,7 @@ namespace Game.Rpc.Contracts
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
         [RpcMethod(2)]
-        ValueTask<IncrStepReply> IncrStep(IncrStepRequest req);
+        ValueTask<StepReply> IncrStep(StepRequest req);
     }
 
     [RpcCallback(typeof(IPlayerService))]

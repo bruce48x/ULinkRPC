@@ -37,7 +37,7 @@ You can optionally gate new KCP sessions by validating the handshake `conv` befo
 builder.UseAcceptor(new KcpConnectionAcceptor(
     20001,
     builder.Limits.MaxPendingAcceptedConnections,
-    (conv, remoteEndPoint, ct) => ValueTask.FromResult(conv != 0)));
+    (conv, remoteEndPoint, ct) => new ValueTask<bool>(conv != 0)));
 ```
 
 ## Client Usage

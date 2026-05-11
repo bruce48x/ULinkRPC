@@ -18,7 +18,22 @@ namespace ULinkRPC.Core
         ///     transports may implement it as an idempotent no-op.
         /// </remarks>
         ValueTask ConnectAsync(CancellationToken ct = default);
+
+        /// <summary>
+        ///     Sends one complete frame.
+        /// </summary>
+        /// <param name="frame">Frame bytes to send. The transport must not retain this memory after the call completes.</param>
+        /// <param name="ct">Cancellation token for the send operation.</param>
         ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default);
+
+        /// <summary>
+        ///     Receives one complete frame.
+        /// </summary>
+        /// <param name="ct">Cancellation token for the receive operation.</param>
+        /// <returns>
+        ///     An owned frame. The caller disposes it after processing. An empty frame means the remote side closed
+        ///     the connection.
+        /// </returns>
         ValueTask<TransportFrame> ReceiveFrameAsync(CancellationToken ct = default);
     }
 }

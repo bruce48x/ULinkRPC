@@ -361,7 +361,7 @@ namespace Server.Services
                 Count = 5
             });
 
-            return ValueTask.FromResult(reply);
+            return new ValueTask<GetInventoryReply>(reply);
         }
     }
 }

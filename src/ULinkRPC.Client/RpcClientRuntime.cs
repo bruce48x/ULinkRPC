@@ -5,8 +5,19 @@ using ULinkRPC.Core;
 
 namespace ULinkRPC.Client
 {
+    /// <summary>
+    ///     Handles a serialized server-to-client push payload.
+    /// </summary>
+    /// <param name="payload">Serialized push payload.</param>
     public delegate void RpcPushPayloadHandler(ReadOnlySpan<byte> payload);
 
+    /// <summary>
+    ///     Default client runtime for ULinkRPC request/response calls and server push dispatch.
+    /// </summary>
+    /// <remarks>
+    ///     The runtime owns background receive, push, and keepalive loops after <see cref="StartAsync"/>.
+    ///     Push handlers run on the runtime push loop and are not marshalled to the Unity main thread.
+    /// </remarks>
     public sealed class RpcClientRuntime : IAsyncDisposable, IRpcClient
     {
         private readonly CancellationTokenSource _cts = new();
@@ -32,6 +43,11 @@ namespace ULinkRPC.Client
         private Task? _pushLoop;
         private Exception? _disconnectReason;
 
+        /// <summary>
+        ///     Creates a runtime from client options.
+        /// </summary>
+        /// <param name="options">Client options containing transport, serializer, keepalive, and security settings.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
         public RpcClientRuntime(RpcClientOptions options)
             : this(
                 (options ?? throw new ArgumentNullException(nameof(options))).CreateConfiguredTransport(),
@@ -40,6 +56,13 @@ namespace ULinkRPC.Client
         {
         }
 
+        /// <summary>
+        ///     Creates a runtime from explicit transport and serializer instances.
+        /// </summary>
+        /// <param name="transport">Connected or connectable transport used by the runtime.</param>
+        /// <param name="serializer">Serializer used for RPC payloads.</param>
+        /// <param name="keepAlive">Optional keepalive configuration.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="transport"/> or <paramref name="serializer"/> is null.</exception>
         public RpcClientRuntime(ITransport transport, IRpcSerializer serializer, RpcKeepAliveOptions? keepAlive = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
@@ -49,16 +72,41 @@ namespace ULinkRPC.Client
             _sender = new SerializedFrameSender(_transport, _keepAliveState);
         }
 
+        /// <summary>
+        ///     Raised when the receive loop ends.
+        /// </summary>
+        /// <remarks>
+        ///     The event argument is the disconnect reason when one is available. A null value means a normal or
+        ///     locally requested shutdown.
+        /// </remarks>
         public event Action<Exception?>? Disconnected;
 
+        /// <summary>
+        ///     Last UTC timestamp at which the runtime sent a frame.
+        /// </summary>
         public DateTimeOffset LastSendAt => _keepAliveState.LastSendAt;
 
+        /// <summary>
+        ///     Last UTC timestamp at which the runtime received a frame.
+        /// </summary>
         public DateTimeOffset LastReceiveAt => _keepAliveState.LastReceiveAt;
 
+        /// <summary>
+        ///     Last measured keepalive round-trip time, when RTT measurement is enabled.
+        /// </summary>
         public TimeSpan? LastRtt => _keepAliveState.LastRtt;
 
+        /// <summary>
+        ///     Indicates whether the runtime stopped because keepalive timed out.
+        /// </summary>
         public bool TimedOutByKeepAlive => _keepAliveState.TimedOut;
 
+        /// <summary>
+        ///     Connects the transport and starts background runtime loops.
+        /// </summary>
+        /// <param name="ct">Cancellation token for the initial transport connection.</param>
+        /// <exception cref="InvalidOperationException">Thrown when the runtime has already been started.</exception>
+        /// <exception cref="ObjectDisposedException">Thrown when the runtime has been disposed.</exception>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
             ThrowIfDisposed();
@@ -82,6 +130,7 @@ namespace ULinkRPC.Client
             }
         }
 
+        /// <inheritdoc />
         public void RegisterPushHandler<TArg>(RpcPushMethod<TArg> method, Action<TArg> handler)
         {
             ThrowIfDisposed();
@@ -99,6 +148,7 @@ namespace ULinkRPC.Client
             };
         }
 
+        /// <inheritdoc />
         public async ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg? arg,
             CancellationToken ct = default)
         {
@@ -141,6 +191,9 @@ namespace ULinkRPC.Client
             }
         }
 
+        /// <summary>
+        ///     Stops background loops, fails pending requests, and disposes the transport.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)

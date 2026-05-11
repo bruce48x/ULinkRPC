@@ -6,6 +6,9 @@ namespace ULinkRPC.Core;
 /// </summary>
 public sealed class RpcKeepAliveOptions
 {
+    /// <summary>
+    ///     Shared disabled keepalive configuration.
+    /// </summary>
     public static RpcKeepAliveOptions Disabled { get; } = new();
 
     /// <summary>
