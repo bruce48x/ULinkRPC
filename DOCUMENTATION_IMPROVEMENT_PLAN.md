@@ -111,3 +111,8 @@ Acceptance checks:
 - Started P0 fixes for stale sample paths, README example completeness, and docs-site platform wording.
 - Started P1 by enabling XML documentation output for core runtime packages and adding a generator script.
 - Generated the first API reference page from XML documentation comments.
+- Added a lightweight docs consistency check for stale path/runtime snippets and the known forbidden `ValueTask.FromResult(...)` example pattern.
+- Added P3 documentation section scaffolding for Getting Started, Concepts, Reference, Samples, Troubleshooting, and Contributing without moving existing posts.
+- Expanded XML documentation and regenerated API reference coverage for envelope and codec types.
+- Added API reference links to package README files.
+- Added standalone P2 production-readiness guides and linked them from the getting-started tutorial.

@@ -8,6 +8,10 @@ TCP transport implementations for ULinkRPC.
 dotnet add package ULinkRPC.Transport.Tcp
 ```
 
+## Documentation
+
+API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
+
 ## Includes
 
 - `TcpTransport` (client)

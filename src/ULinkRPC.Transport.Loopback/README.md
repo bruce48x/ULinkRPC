@@ -8,6 +8,10 @@ In-memory loopback transport for local tests in ULinkRPC.
 dotnet add package ULinkRPC.Transport.Loopback
 ```
 
+## Documentation
+
+API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
+
 ## Includes
 
 - `LoopbackTransport.CreatePair(out client, out server)`

@@ -8,6 +8,10 @@ Client runtime implementation for ULinkRPC.
 dotnet add package ULinkRPC.Client
 ```
 
+## Documentation
+
+API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
+
 ## Dependencies
 
 - `ULinkRPC.Core`

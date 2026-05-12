@@ -591,6 +591,19 @@ Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 
 **Shared 契约，而不是 generated 目录。**
 
+## 上线前继续阅读
+
+默认 `Ping` 跑通以后，真实项目还需要补齐连接、错误、安全、版本和性能策略。建议继续看这些指南：
+
+- [错误处理](/ULinkRPC/guides/error-handling/)
+- [安全模型](/ULinkRPC/guides/security-model/)
+- [DTO 版本演进](/ULinkRPC/guides/dto-versioning/)
+- [连接生命周期](/ULinkRPC/guides/connection-lifecycle/)
+- [线程模型](/ULinkRPC/guides/threading-model/)
+- [性能调优](/ULinkRPC/guides/performance-tuning/)
+- [Godot 接入指南](/ULinkRPC/guides/godot-guide/)
+- [技术选型指南](/ULinkRPC/guides/selection-guide/)
+
 ## 最后总结
 
 现在最推荐的 ULinkRPC 入门方式已经很明确：

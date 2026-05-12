@@ -2,6 +2,18 @@
 
 This directory contains a Hugo site for GitHub Pages deployment.
 
+## Documentation sections
+
+The site is organized around stable entry points:
+
+- [Getting Started](content/getting-started/_index.md)
+- [Concepts](content/concepts/_index.md)
+- [Guides](content/guides/_index.md)
+- [Reference](content/reference/_index.md)
+- [Samples](content/samples/_index.md)
+- [Troubleshooting](content/troubleshooting/_index.md)
+- [Contributing](content/contributing/_index.md)
+
 ## Local usage
 
 ```bash

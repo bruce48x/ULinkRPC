@@ -8,6 +8,10 @@
 dotnet add package ULinkRPC.Serializer.Json
 ```
 
+## Documentation
+
+API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
+
 ## Usage
 
 ```csharp

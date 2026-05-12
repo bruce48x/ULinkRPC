@@ -4,10 +4,26 @@ using System.Text;
 
 namespace ULinkRPC.Core
 {
+    /// <summary>
+    /// Encodes and decodes ULinkRPC wire envelopes.
+    /// </summary>
+    /// <remarks>
+    /// The codec serializes only the transport envelope fields. RPC method payloads are
+    /// opaque bytes produced by an <see cref="IRpcSerializer"/>.
+    /// </remarks>
     public static class RpcEnvelopeCodec
     {
+        /// <summary>
+        /// Maximum payload length accepted by envelope decoders.
+        /// </summary>
         public const int MaxPayloadSize = RpcProtocolLimits.DefaultMaxPayloadSize;
 
+        /// <summary>
+        /// Reads the frame type byte from an encoded RPC envelope without decoding the full frame.
+        /// </summary>
+        /// <param name="data">Encoded envelope bytes.</param>
+        /// <returns>The frame type stored in the first byte.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when <paramref name="data"/> is empty.</exception>
         public static RpcFrameType PeekFrameType(ReadOnlySpan<byte> data)
         {
             if (data.Length < 1)
@@ -15,6 +31,12 @@ namespace ULinkRPC.Core
             return (RpcFrameType)data[0];
         }
 
+        /// <summary>
+        /// Encodes a request envelope into a transport frame.
+        /// </summary>
+        /// <param name="req">Request metadata and serialized method payload.</param>
+        /// <returns>An owned transport frame containing the encoded request envelope.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="req"/> is <see langword="null"/>.</exception>
         public static TransportFrame EncodeRequest(RpcRequestEnvelope req)
         {
             if (req is null) throw new ArgumentNullException(nameof(req));
@@ -34,6 +56,12 @@ namespace ULinkRPC.Core
             return frame;
         }
 
+        /// <summary>
+        /// Decodes a request envelope from a transport frame.
+        /// </summary>
+        /// <param name="data">Encoded request frame.</param>
+        /// <returns>A decoded request frame whose payload slice references <paramref name="data"/>.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the frame type or envelope length is invalid.</exception>
         public static RpcRequestFrame DecodeRequest(TransportFrame data)
         {
             var offset = 0;
@@ -57,12 +85,26 @@ namespace ULinkRPC.Core
             return new RpcRequestFrame(requestId, serviceId, methodId, payload);
         }
 
+        /// <summary>
+        /// Encodes a response envelope into a transport frame.
+        /// </summary>
+        /// <param name="resp">Response metadata, status, serialized payload, and optional error message.</param>
+        /// <returns>An owned transport frame containing the encoded response envelope.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="resp"/> is <see langword="null"/>.</exception>
         public static TransportFrame EncodeResponse(RpcResponseEnvelope resp)
         {
             if (resp is null) throw new ArgumentNullException(nameof(resp));
             return EncodeResponse(resp.RequestId, resp.Status, resp.Payload, resp.ErrorMessage);
         }
 
+        /// <summary>
+        /// Encodes response fields into a transport frame.
+        /// </summary>
+        /// <param name="requestId">Identifier of the request being answered.</param>
+        /// <param name="status">Response status.</param>
+        /// <param name="payload">Serialized return payload or empty bytes for non-success responses.</param>
+        /// <param name="errorMessage">Optional UTF-8 error text included with the response.</param>
+        /// <returns>An owned transport frame containing the encoded response envelope.</returns>
         public static TransportFrame EncodeResponse(
             uint requestId, RpcStatus status, ReadOnlyMemory<byte> payload, string? errorMessage = null)
         {
@@ -91,6 +133,12 @@ namespace ULinkRPC.Core
             return frame;
         }
 
+        /// <summary>
+        /// Decodes a response envelope from a transport frame.
+        /// </summary>
+        /// <param name="data">Encoded response frame.</param>
+        /// <returns>A decoded response frame whose payload slice references <paramref name="data"/>.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the frame type or envelope length is invalid.</exception>
         public static RpcResponseFrame DecodeResponse(TransportFrame data)
         {
             var offset = 0;
@@ -124,6 +172,12 @@ namespace ULinkRPC.Core
             return new RpcResponseFrame(requestId, status, payload, error);
         }
 
+        /// <summary>
+        /// Encodes a server-to-client push envelope into a transport frame.
+        /// </summary>
+        /// <param name="push">Push metadata and serialized method payload.</param>
+        /// <returns>An owned transport frame containing the encoded push envelope.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="push"/> is <see langword="null"/>.</exception>
         public static TransportFrame EncodePush(RpcPushEnvelope push)
         {
             if (push is null) throw new ArgumentNullException(nameof(push));
@@ -142,6 +196,12 @@ namespace ULinkRPC.Core
             return frame;
         }
 
+        /// <summary>
+        /// Decodes a server-to-client push envelope from a transport frame.
+        /// </summary>
+        /// <param name="data">Encoded push frame.</param>
+        /// <returns>A decoded push frame whose payload slice references <paramref name="data"/>.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the frame type or envelope length is invalid.</exception>
         public static RpcPushFrame DecodePush(TransportFrame data)
         {
             var offset = 0;
@@ -164,6 +224,12 @@ namespace ULinkRPC.Core
             return new RpcPushFrame(serviceId, methodId, payload);
         }
 
+        /// <summary>
+        /// Encodes a keepalive ping envelope into a transport frame.
+        /// </summary>
+        /// <param name="ping">Ping timestamp data.</param>
+        /// <returns>An owned transport frame containing the encoded keepalive ping.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="ping"/> is <see langword="null"/>.</exception>
         public static TransportFrame EncodeKeepAlivePing(RpcKeepAlivePingEnvelope ping)
         {
             if (ping is null) throw new ArgumentNullException(nameof(ping));
@@ -176,6 +242,12 @@ namespace ULinkRPC.Core
             return frame;
         }
 
+        /// <summary>
+        /// Decodes a keepalive ping envelope.
+        /// </summary>
+        /// <param name="data">Encoded keepalive ping bytes.</param>
+        /// <returns>The decoded keepalive ping envelope.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the frame type or envelope length is invalid.</exception>
         public static RpcKeepAlivePingEnvelope DecodeKeepAlivePing(ReadOnlySpan<byte> data)
         {
             var offset = 0;
@@ -193,6 +265,12 @@ namespace ULinkRPC.Core
             };
         }
 
+        /// <summary>
+        /// Encodes a keepalive pong envelope into a transport frame.
+        /// </summary>
+        /// <param name="pong">Pong timestamp data.</param>
+        /// <returns>An owned transport frame containing the encoded keepalive pong.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="pong"/> is <see langword="null"/>.</exception>
         public static TransportFrame EncodeKeepAlivePong(RpcKeepAlivePongEnvelope pong)
         {
             if (pong is null) throw new ArgumentNullException(nameof(pong));
@@ -205,6 +283,12 @@ namespace ULinkRPC.Core
             return frame;
         }
 
+        /// <summary>
+        /// Decodes a keepalive pong envelope.
+        /// </summary>
+        /// <param name="data">Encoded keepalive pong bytes.</param>
+        /// <returns>The decoded keepalive pong envelope.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the frame type or envelope length is invalid.</exception>
         public static RpcKeepAlivePongEnvelope DecodeKeepAlivePong(ReadOnlySpan<byte> data)
         {
             var offset = 0;

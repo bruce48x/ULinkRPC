@@ -8,6 +8,10 @@ WebSocket client/server transport implementations for ULinkRPC.
 dotnet add package ULinkRPC.Transport.WebSocket
 ```
 
+## Documentation
+
+API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
+
 ## Includes
 
 - `WsTransport`

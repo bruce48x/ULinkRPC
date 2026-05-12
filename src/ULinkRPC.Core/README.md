@@ -11,6 +11,10 @@ Use it together with `ULinkRPC.Client` / `ULinkRPC.Server` and optional serializ
 dotnet add package ULinkRPC.Core
 ```
 
+## Documentation
+
+API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
+
 ## Includes
 
 - RPC attributes: `RpcServiceAttribute`, `RpcMethodAttribute`

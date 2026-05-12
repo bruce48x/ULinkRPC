@@ -7,6 +7,46 @@ This page is generated from C# XML documentation comments. Update the source com
 
 ## ULinkRPC.Core
 
+### Field `ULinkRPC.Core.RpcEnvelopeCodec.MaxPayloadSize`
+
+Maximum payload length accepted by envelope decoders.
+
+### Field `ULinkRPC.Core.RpcFrameType.KeepAlivePing`
+
+A keepalive ping frame.
+
+### Field `ULinkRPC.Core.RpcFrameType.KeepAlivePong`
+
+A keepalive pong frame.
+
+### Field `ULinkRPC.Core.RpcFrameType.Push`
+
+A server-to-client push notification.
+
+### Field `ULinkRPC.Core.RpcFrameType.Request`
+
+A client-to-server RPC request.
+
+### Field `ULinkRPC.Core.RpcFrameType.Response`
+
+A server-to-client RPC response.
+
+### Field `ULinkRPC.Core.RpcStatus.Exception`
+
+The server failed while handling the request.
+
+### Field `ULinkRPC.Core.RpcStatus.NotFound`
+
+The target service or method was not found.
+
+### Field `ULinkRPC.Core.RpcStatus.Ok`
+
+The request completed successfully and the payload contains the serialized return value.
+
+### Field `ULinkRPC.Core.RpcVoid.Instance`
+
+Shared void marker instance.
+
 ### Method `ULinkRPC.Core.IRpcClient.CallAsync(ULinkRPC.Core.RpcMethod<T0,T1>,T0,System.Threading.CancellationToken)`
 
 Sends one RPC request and waits for the matching response.
@@ -106,6 +146,150 @@ Parameters:
 - `frame`: Frame bytes to send. The transport must not retain this memory after the call completes.
 - `ct`: Cancellation token for the send operation.
 
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.DecodeKeepAlivePing(System.ReadOnlySpan<System.Byte>)`
+
+Decodes a keepalive ping envelope.
+
+Parameters:
+- `data`: Encoded keepalive ping bytes.
+
+Returns: The decoded keepalive ping envelope.
+
+Exceptions:
+- `System.InvalidOperationException`: Thrown when the frame type or envelope length is invalid.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.DecodeKeepAlivePong(System.ReadOnlySpan<System.Byte>)`
+
+Decodes a keepalive pong envelope.
+
+Parameters:
+- `data`: Encoded keepalive pong bytes.
+
+Returns: The decoded keepalive pong envelope.
+
+Exceptions:
+- `System.InvalidOperationException`: Thrown when the frame type or envelope length is invalid.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.DecodePush(ULinkRPC.Core.TransportFrame)`
+
+Decodes a server-to-client push envelope from a transport frame.
+
+Parameters:
+- `data`: Encoded push frame.
+
+Returns: A decoded push frame whose payload slice references `data`.
+
+Exceptions:
+- `System.InvalidOperationException`: Thrown when the frame type or envelope length is invalid.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.DecodeRequest(ULinkRPC.Core.TransportFrame)`
+
+Decodes a request envelope from a transport frame.
+
+Parameters:
+- `data`: Encoded request frame.
+
+Returns: A decoded request frame whose payload slice references `data`.
+
+Exceptions:
+- `System.InvalidOperationException`: Thrown when the frame type or envelope length is invalid.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.DecodeResponse(ULinkRPC.Core.TransportFrame)`
+
+Decodes a response envelope from a transport frame.
+
+Parameters:
+- `data`: Encoded response frame.
+
+Returns: A decoded response frame whose payload slice references `data`.
+
+Exceptions:
+- `System.InvalidOperationException`: Thrown when the frame type or envelope length is invalid.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.EncodeKeepAlivePing(ULinkRPC.Core.RpcKeepAlivePingEnvelope)`
+
+Encodes a keepalive ping envelope into a transport frame.
+
+Parameters:
+- `ping`: Ping timestamp data.
+
+Returns: An owned transport frame containing the encoded keepalive ping.
+
+Exceptions:
+- `System.ArgumentNullException`: Thrown when `ping` is `null`.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.EncodeKeepAlivePong(ULinkRPC.Core.RpcKeepAlivePongEnvelope)`
+
+Encodes a keepalive pong envelope into a transport frame.
+
+Parameters:
+- `pong`: Pong timestamp data.
+
+Returns: An owned transport frame containing the encoded keepalive pong.
+
+Exceptions:
+- `System.ArgumentNullException`: Thrown when `pong` is `null`.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.EncodePush(ULinkRPC.Core.RpcPushEnvelope)`
+
+Encodes a server-to-client push envelope into a transport frame.
+
+Parameters:
+- `push`: Push metadata and serialized method payload.
+
+Returns: An owned transport frame containing the encoded push envelope.
+
+Exceptions:
+- `System.ArgumentNullException`: Thrown when `push` is `null`.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.EncodeRequest(ULinkRPC.Core.RpcRequestEnvelope)`
+
+Encodes a request envelope into a transport frame.
+
+Parameters:
+- `req`: Request metadata and serialized method payload.
+
+Returns: An owned transport frame containing the encoded request envelope.
+
+Exceptions:
+- `System.ArgumentNullException`: Thrown when `req` is `null`.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.EncodeResponse(System.UInt32,ULinkRPC.Core.RpcStatus,System.ReadOnlyMemory<System.Byte>,System.String)`
+
+Encodes response fields into a transport frame.
+
+Parameters:
+- `requestId`: Identifier of the request being answered.
+- `status`: Response status.
+- `payload`: Serialized return payload or empty bytes for non-success responses.
+- `errorMessage`: Optional UTF-8 error text included with the response.
+
+Returns: An owned transport frame containing the encoded response envelope.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.EncodeResponse(ULinkRPC.Core.RpcResponseEnvelope)`
+
+Encodes a response envelope into a transport frame.
+
+Parameters:
+- `resp`: Response metadata, status, serialized payload, and optional error message.
+
+Returns: An owned transport frame containing the encoded response envelope.
+
+Exceptions:
+- `System.ArgumentNullException`: Thrown when `resp` is `null`.
+
+### Method `ULinkRPC.Core.RpcEnvelopeCodec.PeekFrameType(System.ReadOnlySpan<System.Byte>)`
+
+Reads the frame type byte from an encoded RPC envelope without decoding the full frame.
+
+Parameters:
+- `data`: Encoded envelope bytes.
+
+Returns: The frame type stored in the first byte.
+
+Exceptions:
+- `System.InvalidOperationException`: Thrown when `data` is empty.
+
 ### Method `ULinkRPC.Core.RpcMethod.constructor(System.Int32,System.Int32)`
 
 Creates a method descriptor from stable protocol ids.
@@ -114,6 +298,19 @@ Parameters:
 - `serviceId`: Stable service id declared by `ULinkRPC.Core.RpcServiceAttribute`.
 - `methodId`: Stable method id declared by `ULinkRPC.Core.RpcMethodAttribute`.
 
+### Method `ULinkRPC.Core.RpcPushFrame.constructor(System.Int32,System.Int32,ULinkRPC.Core.TransportFrame)`
+
+Initializes a decoded push frame.
+
+Parameters:
+- `serviceId`: Generated numeric identifier for the target client service.
+- `methodId`: Generated numeric identifier for the target client method.
+- `payload`: Serialized push payload.
+
+### Method `ULinkRPC.Core.RpcPushFrame.Dispose`
+
+Releases the underlying payload frame.
+
 ### Method `ULinkRPC.Core.RpcPushMethod.constructor(System.Int32,System.Int32)`
 
 Creates a push descriptor from stable protocol ids.
@@ -121,6 +318,34 @@ Creates a push descriptor from stable protocol ids.
 Parameters:
 - `serviceId`: Stable service id declared by `ULinkRPC.Core.RpcServiceAttribute`.
 - `methodId`: Stable push method id declared by `ULinkRPC.Core.RpcPushAttribute`.
+
+### Method `ULinkRPC.Core.RpcRequestFrame.constructor(System.UInt32,System.Int32,System.Int32,ULinkRPC.Core.TransportFrame)`
+
+Initializes a decoded request frame.
+
+Parameters:
+- `requestId`: Client-assigned request identifier.
+- `serviceId`: Generated numeric identifier for the target service.
+- `methodId`: Generated numeric identifier for the target method.
+- `payload`: Serialized method argument payload.
+
+### Method `ULinkRPC.Core.RpcRequestFrame.Dispose`
+
+Releases the underlying payload frame.
+
+### Method `ULinkRPC.Core.RpcResponseFrame.constructor(System.UInt32,ULinkRPC.Core.RpcStatus,ULinkRPC.Core.TransportFrame,System.String)`
+
+Initializes a decoded response frame.
+
+Parameters:
+- `requestId`: Identifier of the request being answered.
+- `status`: Response status.
+- `payload`: Serialized return payload.
+- `errorMessage`: Optional server error message.
+
+### Method `ULinkRPC.Core.RpcResponseFrame.Dispose`
+
+Releases the underlying payload frame.
 
 ### Method `ULinkRPC.Core.TransportSecurityConfig.ResolveKey`
 
@@ -155,6 +380,14 @@ Measures round-trip time from keepalive ping/pong timestamps when enabled.
 
 Maximum time to wait for an inbound frame after a ping before disconnecting the session.
 
+### Property `ULinkRPC.Core.RpcKeepAlivePingEnvelope.TimestampTicksUtc`
+
+UTC timestamp ticks captured by the sender.
+
+### Property `ULinkRPC.Core.RpcKeepAlivePongEnvelope.TimestampTicksUtc`
+
+UTC timestamp ticks copied from the matching ping.
+
 ### Property `ULinkRPC.Core.RpcMethod.MethodId`
 
 Stable method id used on the wire.
@@ -163,6 +396,30 @@ Stable method id used on the wire.
 
 Stable service id used on the wire.
 
+### Property `ULinkRPC.Core.RpcPushEnvelope.MethodId`
+
+Generated numeric identifier for the target client method.
+
+### Property `ULinkRPC.Core.RpcPushEnvelope.Payload`
+
+Serialized push payload.
+
+### Property `ULinkRPC.Core.RpcPushEnvelope.ServiceId`
+
+Generated numeric identifier for the target client service.
+
+### Property `ULinkRPC.Core.RpcPushFrame.MethodId`
+
+Generated numeric identifier for the target client method.
+
+### Property `ULinkRPC.Core.RpcPushFrame.Payload`
+
+Serialized push payload.
+
+### Property `ULinkRPC.Core.RpcPushFrame.ServiceId`
+
+Generated numeric identifier for the target client service.
+
 ### Property `ULinkRPC.Core.RpcPushMethod.MethodId`
 
 Stable push method id used on the wire.
@@ -170,6 +427,70 @@ Stable push method id used on the wire.
 ### Property `ULinkRPC.Core.RpcPushMethod.ServiceId`
 
 Stable service id used on the wire.
+
+### Property `ULinkRPC.Core.RpcRequestEnvelope.MethodId`
+
+Generated numeric identifier for the target method.
+
+### Property `ULinkRPC.Core.RpcRequestEnvelope.Payload`
+
+Serialized method argument payload.
+
+### Property `ULinkRPC.Core.RpcRequestEnvelope.RequestId`
+
+Client-assigned request identifier used to correlate the response.
+
+### Property `ULinkRPC.Core.RpcRequestEnvelope.ServiceId`
+
+Generated numeric identifier for the target service.
+
+### Property `ULinkRPC.Core.RpcRequestFrame.MethodId`
+
+Generated numeric identifier for the target method.
+
+### Property `ULinkRPC.Core.RpcRequestFrame.Payload`
+
+Serialized method argument payload.
+
+### Property `ULinkRPC.Core.RpcRequestFrame.RequestId`
+
+Client-assigned request identifier used to correlate the response.
+
+### Property `ULinkRPC.Core.RpcRequestFrame.ServiceId`
+
+Generated numeric identifier for the target service.
+
+### Property `ULinkRPC.Core.RpcResponseEnvelope.ErrorMessage`
+
+Optional server error message associated with non-success responses.
+
+### Property `ULinkRPC.Core.RpcResponseEnvelope.Payload`
+
+Serialized return payload.
+
+### Property `ULinkRPC.Core.RpcResponseEnvelope.RequestId`
+
+Identifier of the request being answered.
+
+### Property `ULinkRPC.Core.RpcResponseEnvelope.Status`
+
+Response status.
+
+### Property `ULinkRPC.Core.RpcResponseFrame.ErrorMessage`
+
+Optional server error message associated with non-success responses.
+
+### Property `ULinkRPC.Core.RpcResponseFrame.Payload`
+
+Serialized return payload.
+
+### Property `ULinkRPC.Core.RpcResponseFrame.RequestId`
+
+Identifier of the request being answered.
+
+### Property `ULinkRPC.Core.RpcResponseFrame.Status`
+
+Response status.
 
 ### Property `ULinkRPC.Core.TransportSecurityConfig.CompressionThresholdBytes`
 
@@ -231,9 +552,27 @@ Network framing: uint32 length prefix (big-endian) + payload bytes. Matches Unit
 
 Marks an interface as the callback contract for a specific RPC service.
 
+### Type `ULinkRPC.Core.RpcEnvelopeCodec`
+
+Encodes and decodes ULinkRPC wire envelopes.
+
+Remarks: The codec serializes only the transport envelope fields. RPC method payloads are opaque bytes produced by an `ULinkRPC.Core.IRpcSerializer`.
+
+### Type `ULinkRPC.Core.RpcFrameType`
+
+Identifies the kind of RPC envelope stored in a transport frame.
+
 ### Type `ULinkRPC.Core.RpcKeepAliveOptions`
 
 Peer liveness probing for RPC transports. Only inbound traffic proves the remote peer is alive; outbound sends do not suppress probes.
+
+### Type `ULinkRPC.Core.RpcKeepAlivePingEnvelope`
+
+Keepalive ping envelope sent to measure liveness and optional round-trip time.
+
+### Type `ULinkRPC.Core.RpcKeepAlivePongEnvelope`
+
+Keepalive pong envelope sent in response to a keepalive ping.
 
 ### Type `ULinkRPC.Core.RpcMethod`
 
@@ -255,6 +594,14 @@ Central defaults for RPC protocol payload, transport frame, and security transfo
 
 Marks an interface method as a server-to-client push callback. MethodId must be stable within a callback contract.
 
+### Type `ULinkRPC.Core.RpcPushEnvelope`
+
+Mutable push envelope used before encoding a server-to-client notification.
+
+### Type `ULinkRPC.Core.RpcPushFrame`
+
+Decoded push envelope with an owned payload frame slice.
+
 ### Type `ULinkRPC.Core.RpcPushMethod`
 
 Typed descriptor for a server-to-client push method.
@@ -262,9 +609,33 @@ Typed descriptor for a server-to-client push method.
 Type parameters:
 - `TArg`: Push DTO type.
 
+### Type `ULinkRPC.Core.RpcRequestEnvelope`
+
+Mutable request envelope used before encoding a client-to-server RPC request.
+
+### Type `ULinkRPC.Core.RpcRequestFrame`
+
+Decoded request envelope with an owned payload frame slice.
+
+### Type `ULinkRPC.Core.RpcResponseEnvelope`
+
+Mutable response envelope used before encoding a server-to-client RPC response.
+
+### Type `ULinkRPC.Core.RpcResponseFrame`
+
+Decoded response envelope with an owned payload frame slice.
+
 ### Type `ULinkRPC.Core.RpcServiceAttribute`
 
 Marks an interface as an RPC service. ServiceId must be stable across versions.
+
+### Type `ULinkRPC.Core.RpcStatus`
+
+Describes the outcome of an RPC response.
+
+### Type `ULinkRPC.Core.RpcVoid`
+
+Singleton marker value used for RPC methods with no return payload.
 
 ### Type `ULinkRPC.Core.TransportSecurityConfig`
 
