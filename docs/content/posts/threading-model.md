@@ -1,5 +1,6 @@
 +++
 title = "线程模型"
+date = 2026-05-12T09:15:00+08:00
 +++
 
 ULinkRPC 运行时使用后台 `Task` 处理 receive、push、request dispatch 和 keepalive。它不会自动切回 Unity、团结或 Godot 的主线程。

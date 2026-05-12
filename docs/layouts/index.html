@@ -24,7 +24,7 @@
   </section>
   <section class="post-list">
     <h2>Latest Posts</h2>
-    {{ range first 5 (where site.RegularPages "Section" "posts") }}
+    {{ range first 5 ((where site.RegularPages "Section" "posts").ByDate.Reverse) }}
       <article class="post-card">
         <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
         <p class="meta">{{ .Date.Format "2006-01-02" }}</p>

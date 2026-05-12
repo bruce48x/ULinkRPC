@@ -1,5 +1,6 @@
 +++
 title = "DTO 版本演进"
+date = 2026-05-12T09:30:00+08:00
 +++
 
 ULinkRPC 的契约源头是共享 C# 接口和 DTO。codegen 根据 `[RpcService]`、`[RpcMethod]` 以及 DTO 类型生成两端胶水代码。版本演进的核心原则是：先保持 wire shape 兼容，再滚动部署，再删除旧字段或旧方法。

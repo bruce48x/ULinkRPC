@@ -1,5 +1,6 @@
 +++
 title = "连接生命周期"
+date = 2026-05-12T09:10:00+08:00
 +++
 
 ULinkRPC 把连接生命周期分成两层：底层 `ITransport` 负责连接和 frame I/O，`RpcClientRuntime` / `RpcSession` 负责 RPC request、response、push、keepalive 和关闭。

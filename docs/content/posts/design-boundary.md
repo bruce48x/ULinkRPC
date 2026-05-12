@@ -1,5 +1,6 @@
 +++
 title = "设计边界"
+date = 2026-05-12T09:05:00+08:00
 +++
 
 ULinkRPC 的职责边界是通信框架，而不是完整的应用服务器框架。
@@ -44,8 +45,8 @@ ULinkRPC 的职责边界是通信框架，而不是完整的应用服务器框�
 
 上线前应把下面几类策略放在应用层或上层框架中：
 
-- [错误处理](/ULinkRPC/guides/error-handling/)
-- [安全模型](/ULinkRPC/guides/security-model/)
-- [DTO 版本演进](/ULinkRPC/guides/dto-versioning/)
-- [连接生命周期](/ULinkRPC/guides/connection-lifecycle/)
-- [线程模型](/ULinkRPC/guides/threading-model/)
+- [错误处理](/ULinkRPC/posts/error-handling/)
+- [安全模型](/ULinkRPC/posts/security-model/)
+- [DTO 版本演进](/ULinkRPC/posts/dto-versioning/)
+- [连接生命周期](/ULinkRPC/posts/connection-lifecycle/)
+- [线程模型](/ULinkRPC/posts/threading-model/)

@@ -1,5 +1,6 @@
 +++
 title = "安全模型"
+date = 2026-05-12T09:25:00+08:00
 +++
 
 ULinkRPC 的安全配置位于 frame 层，主要入口是 `TransportSecurityConfig`。它可以启用压缩和对称加密，但它不是完整的身份认证、授权或 TLS 替代方案。

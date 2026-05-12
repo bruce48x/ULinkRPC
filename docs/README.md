@@ -6,17 +6,13 @@ This directory contains a Hugo site for GitHub Pages deployment.
 
 The site is organized around stable entry points:
 
-- [Getting Started](content/getting-started/_index.md)
-- [Concepts](content/concepts/_index.md)
-- [Guides](content/guides/_index.md)
+- [Posts](content/posts/)
 - [Reference](content/reference/_index.md)
-- [Samples](content/samples/_index.md)
-- [Troubleshooting](content/troubleshooting/_index.md)
-- [Contributing](content/contributing/_index.md)
 
 Canonical pages that package READMEs and root docs should link to instead of duplicating long explanations:
 
-- [Design boundary](content/concepts/design-boundary.md)
+- [Getting Started](content/posts/ulinkrpc-getting-started.md)
+- [Design boundary](content/posts/design-boundary.md)
 - [Generated RpcClient](content/reference/generated-client.md)
 
 ## Local usage

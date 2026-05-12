@@ -595,14 +595,14 @@ Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 
 默认 `Ping` 跑通以后，真实项目还需要补齐连接、错误、安全、版本和性能策略。建议继续看这些指南：
 
-- [错误处理](/ULinkRPC/guides/error-handling/)
-- [安全模型](/ULinkRPC/guides/security-model/)
-- [DTO 版本演进](/ULinkRPC/guides/dto-versioning/)
-- [连接生命周期](/ULinkRPC/guides/connection-lifecycle/)
-- [线程模型](/ULinkRPC/guides/threading-model/)
-- [性能调优](/ULinkRPC/guides/performance-tuning/)
-- [Godot 接入指南](/ULinkRPC/guides/godot-guide/)
-- [技术选型指南](/ULinkRPC/guides/selection-guide/)
+- [错误处理](/ULinkRPC/posts/error-handling/)
+- [安全模型](/ULinkRPC/posts/security-model/)
+- [DTO 版本演进](/ULinkRPC/posts/dto-versioning/)
+- [连接生命周期](/ULinkRPC/posts/connection-lifecycle/)
+- [线程模型](/ULinkRPC/posts/threading-model/)
+- [性能调优](/ULinkRPC/posts/performance-tuning/)
+- [Godot 接入指南](/ULinkRPC/posts/godot-guide/)
+- [技术选型指南](/ULinkRPC/posts/selection-guide/)
 
 ## 最后总结
 

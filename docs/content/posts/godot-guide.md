@@ -1,5 +1,6 @@
 +++
 title = "Godot 接入指南"
+date = 2026-05-12T09:40:00+08:00
 +++
 
 ULinkRPC.Starter 已经支持生成 Godot 4.x C# 客户端。Godot 路径和 Unity 路径共用同一套 `Shared` 契约、服务端项目和 codegen 流程。
@@ -71,7 +72,7 @@ Client/Scripts/Rpc/Generated/
 
 Godot starter 当前支持 `tcp`、`websocket`、`kcp`，以及 `json`、`memorypack`。如果第一次接入，先用 `websocket + json`。确认连接、codegen 和服务端实现稳定后，再切换到 MemoryPack 或其他 transport。
 
-MemoryPack 模式下，Shared DTO 会包含 MemoryPack 标记，相关依赖由 starter 写入项目。DTO 版本演进需要更谨慎，详见 [DTO 版本演进](/ULinkRPC/guides/dto-versioning/)。
+MemoryPack 模式下，Shared DTO 会包含 MemoryPack 标记，相关依赖由 starter 写入项目。DTO 版本演进需要更谨慎，详见 [DTO 版本演进](/ULinkRPC/posts/dto-versioning/)。
 
 ## 线程和生命周期
 
