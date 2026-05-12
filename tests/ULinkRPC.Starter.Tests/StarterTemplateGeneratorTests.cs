@@ -797,7 +797,7 @@ public sealed class StarterTemplateGeneratorTests
 
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "ARCHITECTURE_REVIEW_AND_DEVELOPMENT_PLAN.md")))
+            if (File.Exists(Path.Combine(directory.FullName, "CONTRIBUTING.md")))
             {
                 return directory.FullName;
             }
