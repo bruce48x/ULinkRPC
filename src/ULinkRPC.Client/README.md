@@ -12,6 +12,10 @@ dotnet add package ULinkRPC.Client
 
 API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
 
+Generated RpcClient reference: https://bruce48x.github.io/ULinkRPC/reference/generated-client/
+
+Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
+
 ## Dependencies
 
 - `ULinkRPC.Core`

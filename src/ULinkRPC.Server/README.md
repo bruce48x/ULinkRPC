@@ -12,6 +12,8 @@ dotnet add package ULinkRPC.Server
 
 API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
 
+Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
+
 ## Dependencies
 
 - `ULinkRPC.Core`
@@ -67,14 +69,9 @@ When `ownsTransport` is `true`, disposing the session also disposes the transpor
 
 ## Authentication And Authorization Boundary
 
-`ULinkRPC.Server` is intentionally focused on RPC session management, transport integration, request dispatch, and connection-level concerns such as framing, keepalive, and transport security.
-
+`ULinkRPC.Server` is focused on RPC session management, transport integration, request dispatch, and connection-level concerns such as framing, keepalive, and transport security.
 Request-level authorization is not built into the server runtime by design.
 
-- Transport security belongs in the RPC layer because it protects the connection itself.
-- Authentication may be integrated at the application boundary, but the concrete identity model is application-specific.
-- Authorization is expected to live in an upper application/business layer because access rules depend on domain concepts such as users, roles, tenants, resources, and policies.
+See the canonical design boundary page for the production integration boundary:
 
-This boundary is intentional: the RPC runtime should carry calls correctly and safely, but it should not hard-code business authorization semantics into the communication layer.
-
-Future evolution may add authentication / authorization extension points, but the core runtime is not intended to become a built-in policy engine.
+- https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/

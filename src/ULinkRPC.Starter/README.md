@@ -2,6 +2,13 @@
 
 Project management tool for ULinkRPC workspaces. It can scaffold a runnable project and later regenerate project codegen output from the same CLI.
 
+Workflow guidance lives in the docs site:
+
+- Getting started: https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
+- Godot guide: https://bruce48x.github.io/ULinkRPC/guides/godot-guide/
+- Generated RpcClient reference: https://bruce48x.github.io/ULinkRPC/reference/generated-client/
+- Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
+
 Generated projects use these fixed folders:
 
 - `Shared` (netstandard2.1 + net10.0)
@@ -147,7 +154,11 @@ Starter dependency ownership is documented separately:
 
 ## Next Steps
 
-After generation:
+For the full workflow, use the docs site getting-started tutorial:
+
+- https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
+
+Minimal CLI smoke test after generation:
 
 ```bash
 cd MyGame

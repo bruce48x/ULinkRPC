@@ -12,6 +12,8 @@ dotnet add package ULinkRPC.Transport.Tcp
 
 API reference: https://bruce48x.github.io/ULinkRPC/reference/api/
 
+Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
+
 ## Includes
 
 - `TcpTransport` (client)

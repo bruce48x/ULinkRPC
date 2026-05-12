@@ -40,15 +40,11 @@ flowchart LR
 
 ## 设计边界
 
-ULinkRPC 目前刻意把职责边界收在“通信框架”这一层：
+ULinkRPC 刻意把职责边界收在“通信框架”这一层。传输层、安全帧处理、会话管理、请求分发和 keepalive 属于框架职责；身份认证、请求级授权、重连策略和业务错误语义属于应用层。
 
-- 传输层、安全帧处理、会话管理、请求分发、keepalive，属于框架职责。
-- 身份认证可以在应用接入层完成，但具体身份模型不由框架内建。
-- 请求级别授权不内建在 ULinkRPC 中，这是刻意的设计选择，而不是缺失实现。
+生产接入前建议先看 canonical 边界说明：
 
-原因很简单：授权规则天然依赖业务语义，例如用户、角色、租户、资源归属、策略组合等。这些规则更适合放在上层业务框架或应用层统一处理，而不是固化进底层 RPC 通信层。
-
-后续如果需要，ULinkRPC 可以增加认证 / 授权扩展点，但核心运行时不会直接演变成内建的权限策略引擎。
+- https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
 
 ## 快速开始
 
@@ -206,6 +202,8 @@ flowchart TB
 ## 文档
 
 - API Reference：https://bruce48x.github.io/ULinkRPC/reference/api/
+- Generated RpcClient reference：https://bruce48x.github.io/ULinkRPC/reference/generated-client/
+- 设计边界：https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
 - 入门教程：https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
 - 架构深入解析：https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-design-and-implementation/
 - 项目文档站点：https://bruce48x.github.io/ULinkRPC/

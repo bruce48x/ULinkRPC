@@ -14,6 +14,11 @@ The site is organized around stable entry points:
 - [Troubleshooting](content/troubleshooting/_index.md)
 - [Contributing](content/contributing/_index.md)
 
+Canonical pages that package READMEs and root docs should link to instead of duplicating long explanations:
+
+- [Design boundary](content/concepts/design-boundary.md)
+- [Generated RpcClient](content/reference/generated-client.md)
+
 ## Local usage
 
 ```bash

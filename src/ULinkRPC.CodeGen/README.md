@@ -2,6 +2,10 @@
 
 Command-line code generator for ULinkRPC.
 
+Generated client reference: https://bruce48x.github.io/ULinkRPC/reference/generated-client/
+
+Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
+
 ## Install (dotnet tool)
 
 ```bash
