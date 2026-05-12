@@ -205,6 +205,7 @@ Code generation:
 
 ## Documentation
 
+- API Reference: https://bruce48x.github.io/ULinkRPC/reference/api/
 - Getting started tutorial: https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
 - Architecture deep dive: https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-design-and-implementation/
 - Project docs site: https://bruce48x.github.io/ULinkRPC/
