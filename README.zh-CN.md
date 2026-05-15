@@ -204,6 +204,7 @@ flowchart TB
 - API Reference：https://bruce48x.github.io/ULinkRPC/reference/api/
 - Generated RpcClient reference：https://bruce48x.github.io/ULinkRPC/reference/generated-client/
 - 设计边界：https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
+- API 稳定性路线图：https://bruce48x.github.io/ULinkRPC/posts/api-stability-roadmap/
 - 入门教程：https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
 - 架构深入解析：https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-design-and-implementation/
 - 项目文档站点：https://bruce48x.github.io/ULinkRPC/

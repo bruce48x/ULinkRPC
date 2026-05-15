@@ -36,8 +36,10 @@ No circular dependencies between assemblies.
 
 ## 2. Unity / IL2CPP Constraints
 
+Allowed Unity-compatible runtime dependencies:
+- `System.Threading.Channels` is intentionally used by ULinkRPC runtime packages and Unity samples. Keep it as an explicit package dependency when runtime code needs async producer/consumer queues.
+
 Forbidden in Unity client code (including tests):
-- `System.Threading.Channels`
 - `System.IO.Pipelines`
 - `System.Reflection.Emit`
 - Runtime code generation
