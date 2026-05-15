@@ -14,11 +14,12 @@ internal static class CliParser
         Console.WriteLine("  --namespace <ns>        Namespace for generated client code");
         Console.WriteLine("  --server-output <path>  Output directory for server binders");
         Console.WriteLine("  --server-namespace <ns> Namespace for server binders");
-        Console.WriteLine("  --mode <unity|godot|server> Generation mode (optional if current directory can be auto-detected)");
+        Console.WriteLine("  --mode <unity|godot|stride3d|server> Generation mode (optional if current directory can be auto-detected)");
         Console.WriteLine();
         Console.WriteLine("Defaults:");
         Console.WriteLine("  unity: output defaults to Assets/Scripts/Rpc/Generated under Unity project root.");
         Console.WriteLine("  godot: output defaults to Scripts/Rpc/Generated under Godot project root.");
+        Console.WriteLine("  stride3d: output defaults to Scripts/Rpc/Generated under Stride3D project root.");
         Console.WriteLine("  client modes: namespace defaults to value derived from output path.");
         Console.WriteLine("  server: output defaults to ./Generated");
     }
@@ -92,7 +93,7 @@ internal static class CliParser
             mode = DetectModeFromCurrentDirectory(cwd);
             if (mode == OutputMode.Unknown)
             {
-                error = "Missing option: --mode <unity|godot|server>. Auto-detection only works inside a Unity project, a Godot project, or a server project directory.";
+                error = "Missing option: --mode <unity|godot|stride3d|server>. Auto-detection only works inside a Unity project, a Godot project, a Stride3D project, or a server project directory.";
                 return false;
             }
         }
@@ -103,16 +104,20 @@ internal static class CliParser
         var serverOutputPath = string.Empty;
         var serverNamespace = string.Empty;
 
-        if (mode is OutputMode.Unity or OutputMode.Godot)
+        if (mode is OutputMode.Unity or OutputMode.Godot or OutputMode.Stride3D)
         {
             if (string.IsNullOrWhiteSpace(raw.OutputPath))
             {
                 var clientRoot = PathHelper.FindClientProjectRoot(cwd, mode);
                 if (clientRoot == null)
                 {
-                    error = mode == OutputMode.Unity
-                        ? "Unity mode requires --output when current directory is not inside a Unity project."
-                        : "Godot mode requires --output when current directory is not inside a Godot project.";
+                    error = mode switch
+                    {
+                        OutputMode.Unity => "Unity mode requires --output when current directory is not inside a Unity project.",
+                        OutputMode.Godot => "Godot mode requires --output when current directory is not inside a Godot project.",
+                        OutputMode.Stride3D => "Stride3D mode requires --output when current directory is not inside a Stride3D project.",
+                        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
+                    };
                     return false;
                 }
                 outputPath = Path.Combine(clientRoot, PathHelper.GetDefaultClientOutputRelativePath(mode));
@@ -166,6 +171,9 @@ internal static class CliParser
         if (PathHelper.FindGodotProjectRoot(currentDirectory) is not null)
             return OutputMode.Godot;
 
+        if (PathHelper.FindStride3DProjectRoot(currentDirectory) is not null)
+            return OutputMode.Stride3D;
+
         if (PathHelper.FindServerProjectRoot(currentDirectory) is not null)
             return OutputMode.Server;
 
@@ -200,6 +208,11 @@ internal static class CliParser
                 return true;
             case "godot":
                 mode = OutputMode.Godot;
+                return true;
+            case "stride":
+            case "stride3d":
+            case "stride-3d":
+                mode = OutputMode.Stride3D;
                 return true;
             case "server":
                 mode = OutputMode.Server;

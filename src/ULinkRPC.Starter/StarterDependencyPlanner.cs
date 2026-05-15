@@ -5,7 +5,8 @@ internal enum StarterProjectRole
     Shared,
     Server,
     UnityClient,
-    GodotClient
+    GodotClient,
+    StrideClient
 }
 
 internal sealed record StarterPackageReference(
@@ -27,6 +28,7 @@ internal static class StarterDependencyPlanner
             StarterProjectRole.Server => CreateServerPlan(context),
             StarterProjectRole.UnityClient => CreateUnityClientPlan(context),
             StarterProjectRole.GodotClient => CreateGodotClientPlan(context),
+            StarterProjectRole.StrideClient => CreateStrideClientPlan(context),
             _ => throw new ArgumentOutOfRangeException(nameof(role), role, null)
         };
 
@@ -70,6 +72,21 @@ internal static class StarterDependencyPlanner
     {
         var references = new List<StarterPackageReference>
         {
+            new("ULinkRPC.Core", context.Versions.Core),
+            new("ULinkRPC.Client", context.Versions.Client),
+            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)
+        };
+
+        AddSdkSerializerReferenceIfNeeded(context, references);
+        return references;
+    }
+
+    private static IReadOnlyList<StarterPackageReference> CreateStrideClientPlan(StarterTemplateContext context)
+    {
+        var references = new List<StarterPackageReference>
+        {
+            new("Stride.CommunityToolkit.Windows", StridePackageVersions.CommunityToolkitWindows),
+            new("Stride.CommunityToolkit.Bepu", StridePackageVersions.CommunityToolkitBepu),
             new("ULinkRPC.Core", context.Versions.Core),
             new("ULinkRPC.Client", context.Versions.Client),
             new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)

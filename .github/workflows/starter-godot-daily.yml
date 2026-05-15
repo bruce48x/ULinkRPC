@@ -1,4 +1,4 @@
-name: Starter Godot Daily
+name: Starter Client Daily
 
 on:
   schedule:
@@ -66,3 +66,30 @@ jobs:
           STARTER_TRANSPORT: ${{ matrix.transport }}
           STARTER_SERIALIZER: ${{ matrix.serializer }}
         run: bash ./scripts/ci/verify-starter-godot.sh
+
+  verify-stride-starter:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - transport: websocket
+            serializer: json
+    name: Verify Stride3D starter (${{ matrix.transport }} + ${{ matrix.serializer }})
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify starter-generated Stride3D project
+        env:
+          STARTER_TRANSPORT: ${{ matrix.transport }}
+          STARTER_SERIALIZER: ${{ matrix.serializer }}
+        shell: pwsh
+        run: ./scripts/ci/verify-starter-stride.ps1

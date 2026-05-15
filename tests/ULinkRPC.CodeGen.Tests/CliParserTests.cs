@@ -32,6 +32,18 @@ public class CliParserTests
     }
 
     [Fact]
+    public void Parse_Stride3DMode_AllOptions()
+    {
+        var args = new[] { "--contracts", "/c", "--mode", "stride3d", "--output", "/o", "--namespace", "My.Ns" };
+
+        Assert.True(CliParser.TryParseCliArguments(args, out var opt, out _));
+        Assert.Equal("/c", opt.ContractsPath);
+        Assert.Equal(OutputMode.Stride3D, opt.Mode);
+        Assert.Equal("/o", opt.OutputPath);
+        Assert.Equal("My.Ns", opt.ClientNamespace);
+    }
+
+    [Fact]
     public void Parse_ServerMode_AllOptions()
     {
         var args = new[] { "--contracts", "/c", "--mode", "server", "--server-output", "/so", "--server-namespace", "S.Ns" };
@@ -79,6 +91,10 @@ public class CliParserTests
     [InlineData("godot", "Godot")]
     [InlineData("Godot", "Godot")]
     [InlineData("GODOT", "Godot")]
+    [InlineData("stride", "Stride3D")]
+    [InlineData("stride3d", "Stride3D")]
+    [InlineData("Stride3D", "Stride3D")]
+    [InlineData("STRIDE-3D", "Stride3D")]
     [InlineData("server", "Server")]
     [InlineData("Server", "Server")]
     [InlineData("SERVER", "Server")]
@@ -102,6 +118,15 @@ public class CliParserTests
     public void Parse_MinimalGodotArgs()
     {
         var args = new[] { "--contracts", "/c", "--mode", "godot" };
+        Assert.True(CliParser.TryParseCliArguments(args, out var opt, out _));
+        Assert.Equal(string.Empty, opt.OutputPath);
+        Assert.Equal(string.Empty, opt.ClientNamespace);
+    }
+
+    [Fact]
+    public void Parse_MinimalStride3DArgs()
+    {
+        var args = new[] { "--contracts", "/c", "--mode", "stride3d" };
         Assert.True(CliParser.TryParseCliArguments(args, out var opt, out _));
         Assert.Equal(string.Empty, opt.OutputPath);
         Assert.Equal(string.Empty, opt.ClientNamespace);
@@ -279,6 +304,24 @@ public class CliParserTests
     }
 
     [Fact]
+    public void Resolve_Stride3DMode_ExplicitOutputAndNamespace()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"test_contracts_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var raw = new RawOptions(tempDir, "/out", "Custom.Ns", "", "", OutputMode.Stride3D);
+            Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _));
+            Assert.Equal(Path.GetFullPath("/out"), opt.OutputPath);
+            Assert.Equal("Custom.Ns", opt.ClientNamespace);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void Resolve_AutoDetectsGodotMode_FromCurrentDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), $"godot_codegen_{Guid.NewGuid():N}");
@@ -294,6 +337,31 @@ public class CliParserTests
             Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _, currentDirectory: cwd));
             Assert.Equal(OutputMode.Godot, opt.Mode);
             Assert.Equal(Path.Combine(root, PathHelper.DefaultGodotOutputRelativePath), opt.OutputPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_AutoDetectsStride3DMode_FromCurrentDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"stride_codegen_{Guid.NewGuid():N}");
+        var cwd = Path.Combine(root, "Scripts", "Gameplay");
+        var contracts = Path.Combine(root, "Contracts");
+        try
+        {
+            Directory.CreateDirectory(cwd);
+            Directory.CreateDirectory(contracts);
+            File.WriteAllText(
+                Path.Combine(root, "Client.csproj"),
+                "<Project><ItemGroup><PackageReference Include=\"Stride.CommunityToolkit.Windows\" Version=\"1.0.0-preview.62\" /></ItemGroup></Project>");
+
+            var raw = new RawOptions(contracts, "", "", "", "", OutputMode.Unknown);
+            Assert.True(CliParser.TryResolveGenerationOptions(raw, out var opt, out _, currentDirectory: cwd));
+            Assert.Equal(OutputMode.Stride3D, opt.Mode);
+            Assert.Equal(Path.Combine(root, PathHelper.DefaultStride3DOutputRelativePath), opt.OutputPath);
         }
         finally
         {

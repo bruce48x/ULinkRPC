@@ -30,9 +30,12 @@ internal static class StarterSharedTemplate
 
     private static string BuildSharedProjectFile(StarterTemplateContext context)
     {
-        var targetFrameworks = context.ClientEngine == ClientEngineKind.Godot
-            ? "net8.0;net10.0"
-            : "netstandard2.1;net10.0";
+        var targetFrameworks = context.ClientEngine switch
+        {
+            ClientEngineKind.Godot => "net8.0;net10.0",
+            ClientEngineKind.Stride3D => "net10.0",
+            _ => "netstandard2.1;net10.0"
+        };
 
         var packageReferences = RenderPackageReferences(StarterDependencyPlanner.Create(context, StarterProjectRole.Shared));
 

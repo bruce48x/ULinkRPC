@@ -12,10 +12,11 @@ Date: 2026-05-09
 - `Server/Server/Server.csproj`
 - Unity / Tuanjie client `Assets/packages.config`
 - Godot client `Client.csproj`
+- Stride3D client `Client.csproj`
 
 Those projects do not consume dependencies through the same mechanism.
 
-- Server and Godot consume `Shared` through SDK-style `.csproj` `ProjectReference`.
+- Server, Godot, and Stride3D consume `Shared` through SDK-style `.csproj` `ProjectReference`.
 - Unity and Tuanjie consume `Shared` as a local UPM source package and restore runtime DLLs through NuGetForUnity `packages.config`.
 
 This means dependency ownership is not purely feature-based. It also depends on the consumer model.
@@ -23,10 +24,10 @@ This means dependency ownership is not purely feature-based. It also depends on 
 The immediate issue found in `memorypack` projects was:
 
 - `Shared.csproj` directly references `ULinkRPC.Serializer.MemoryPack`.
-- Server and Godot also referenced `ULinkRPC.Serializer.MemoryPack`.
-- Because Server and Godot reference `Shared.csproj`, those serializer references were redundant.
+- Server, Godot, and Stride3D also referenced `ULinkRPC.Serializer.MemoryPack`.
+- Because Server, Godot, and Stride3D reference `Shared.csproj`, those serializer references were redundant.
 
-The current fix removes the redundant `memorypack` serializer references from Server and Godot while keeping JSON references explicit where `Shared.csproj` does not provide them.
+The current fix removes the redundant `memorypack` serializer references from Server, Godot, and Stride3D while keeping JSON references explicit where `Shared.csproj` does not provide them.
 
 ## Current Rules
 
@@ -75,6 +76,24 @@ When `json` is selected, Godot also directly references:
 
 When `memorypack` is selected, Godot does not repeat the serializer/runtime packages already provided by `Shared.csproj`.
 
+### Stride3D Client
+
+Stride3D consumes `Shared.csproj` through `ProjectReference`.
+
+Stride3D directly references:
+
+- `Stride.CommunityToolkit.Windows`
+- `Stride.CommunityToolkit.Bepu`
+- `ULinkRPC.Core`
+- `ULinkRPC.Client`
+- selected transport package
+
+When `json` is selected, Stride3D also directly references:
+
+- `ULinkRPC.Serializer.Json`
+
+When `memorypack` is selected, Stride3D does not repeat the serializer/runtime packages already provided by `Shared.csproj`.
+
 ### Unity / Tuanjie Client
 
 Unity and Tuanjie consume `Shared` through a local UPM source package, not through SDK-style transitive restore.
@@ -87,7 +106,7 @@ Their `Assets/packages.config` must keep explicit runtime packages needed by Uni
 - selected serializer package
 - serializer-specific Unity runtime dependencies
 
-This is intentionally different from Server and Godot. Do not remove Unity/Tuanjie serializer entries just because `Shared.csproj` contains a matching package reference.
+This is intentionally different from Server, Godot, and Stride3D. Do not remove Unity/Tuanjie serializer entries just because `Shared.csproj` contains a matching package reference.
 
 ## Problem With Scattered Template Logic
 
@@ -96,6 +115,7 @@ The current implementation still expresses these rules inside individual templat
 - `StarterTemplateGenerator.Shared.cs`
 - `StarterTemplateGenerator.Server.cs`
 - `StarterGodotTemplate.cs`
+- `StarterStrideTemplate.cs`
 - `StarterTemplateGenerator.Unity.cs`
 
 That is serviceable for the current two serializers, but it has clear maintenance risks:
@@ -103,7 +123,7 @@ That is serviceable for the current two serializers, but it has clear maintenanc
 - Adding a new serializer requires touching multiple templates.
 - It is easy to accidentally duplicate a dependency in one generated project but not another.
 - Tests mostly verify rendered strings instead of the dependency ownership model.
-- Unity-specific package rules can leak into Server/Godot if the distinction is not explicit.
+- Unity-specific package rules can leak into Server/Godot/Stride3D if the distinction is not explicit.
 
 ## Proposed Design
 
@@ -117,7 +137,8 @@ internal enum StarterProjectRole
     Shared,
     Server,
     UnityClient,
-    GodotClient
+    GodotClient,
+    StrideClient
 }
 
 internal sealed record StarterPackageReference(
@@ -156,6 +177,8 @@ Add focused unit tests for the planner before further template expansion:
 - `Server + json` includes `ULinkRPC.Serializer.Json`.
 - `Godot + memorypack` does not include `ULinkRPC.Serializer.MemoryPack`, `MemoryPack`, or `MemoryPack.Core`.
 - `Godot + json` includes `ULinkRPC.Serializer.Json`.
+- `Stride3D + memorypack` does not include `ULinkRPC.Serializer.MemoryPack`, `MemoryPack`, or `MemoryPack.Core`.
+- `Stride3D + json` includes `ULinkRPC.Serializer.Json`.
 - `Unity/Tuanjie + memorypack` still includes explicit serializer and Unity runtime dependencies.
 - `Unity/Tuanjie + json` still includes explicit JSON serializer and JSON runtime dependencies.
 
@@ -164,7 +187,7 @@ Rendered template tests should remain, but they should verify integration rather
 ## Acceptance Criteria
 
 - Dependency ownership rules live in one planner instead of scattered template switches.
-- Server and Godot continue to avoid redundant `memorypack` package declarations.
+- Server, Godot, and Stride3D continue to avoid redundant `memorypack` package declarations.
 - Unity and Tuanjie continue to receive all packages needed by NuGetForUnity restore.
 - Existing starter template tests pass.
 - New planner tests describe the expected dependency matrix directly.

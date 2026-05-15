@@ -103,6 +103,40 @@ public class PathHelperTests
         }
     }
 
+    [Fact]
+    public void IsStride3DProject_TrueWhenStridePackageReferenceExists()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"stride_test_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(
+                Path.Combine(dir, "Client.csproj"),
+                "<Project><ItemGroup><PackageReference Include=\"Stride.CommunityToolkit.Windows\" Version=\"1.0.0-preview.62\" /></ItemGroup></Project>");
+            Assert.True(PathHelper.IsStride3DProject(dir));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void IsStride3DProject_FalseWhenStridePackageReferenceMissing()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"stride_test_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "Client.csproj"), "<Project />");
+            Assert.False(PathHelper.IsStride3DProject(dir));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     #endregion
 
     #region FindUnityProjectRoot
@@ -170,6 +204,43 @@ public class PathHelperTests
         {
             Directory.CreateDirectory(dir);
             Assert.Null(PathHelper.FindGodotProjectRoot(dir));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void FindStride3DProjectRoot_FindsRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"stride_root_{Guid.NewGuid():N}");
+        var nested = Path.Combine(root, "Scripts", "Rpc");
+        try
+        {
+            Directory.CreateDirectory(nested);
+            File.WriteAllText(
+                Path.Combine(root, "Client.csproj"),
+                "<Project><ItemGroup><PackageReference Include=\"Stride.Engine\" Version=\"4.3.0.2507\" /></ItemGroup></Project>");
+
+            var found = PathHelper.FindStride3DProjectRoot(nested);
+            Assert.NotNull(found);
+            Assert.Equal(Path.GetFullPath(root), Path.GetFullPath(found));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void FindStride3DProjectRoot_ReturnsNullWhenNotFound()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"no_stride_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            Assert.Null(PathHelper.FindStride3DProjectRoot(dir));
         }
         finally
         {
@@ -259,6 +330,14 @@ public class PathHelperTests
     public void DeriveNamespaceFromOutputPath_GodotScripts_SkipsPrefix()
     {
         var path = Path.Combine("C:", "MyGodot", "Scripts", "Rpc", "Generated");
+        var result = PathHelper.DeriveNamespaceFromOutputPath(path);
+        Assert.Equal("Rpc.Generated", result);
+    }
+
+    [Fact]
+    public void DeriveNamespaceFromOutputPath_StrideScripts_SkipsPrefix()
+    {
+        var path = Path.Combine("C:", "MyStride", "Scripts", "Rpc", "Generated");
         var result = PathHelper.DeriveNamespaceFromOutputPath(path);
         Assert.Equal("Rpc.Generated", result);
     }

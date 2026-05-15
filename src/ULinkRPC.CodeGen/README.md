@@ -22,6 +22,7 @@ ulinkrpc-codegen [options]
 
 - `unity`: generate Unity client + binder code.
 - `godot`: generate Godot 4.x C# client + binder code.
+- `stride3d`: generate Stride3D C# client + binder code.
 - `server`: generate server binders + `AllServicesBinder`.
 
 Generated client stubs now depend on `ULinkRPC.Core.IRpcClient`.
@@ -62,7 +63,7 @@ var player = client.Api.Game.Player;
 ### Options
 
 - `--contracts <path>` Path to contract sources (required).
-- `--mode <unity|godot|server>` Generation mode. If omitted, the tool will try to infer it from the current directory.
+- `--mode <unity|godot|stride3d|server>` Generation mode. If omitted, the tool will try to infer it from the current directory.
 - `--output <path>` Output directory for generated files.
 - `--namespace <ns>` Namespace for generated client code.
 - `--server-output <path>` Output directory for server binders.
@@ -72,11 +73,13 @@ var player = client.Api.Game.Player;
 
 - Unity mode defaults output to `Assets/Scripts/Rpc/Generated` under detected Unity project root.
 - Godot mode defaults output to `Scripts/Rpc/Generated` under detected Godot project root.
+- Stride3D mode defaults output to `Scripts/Rpc/Generated` under detected Stride3D project root.
 - If Unity project root cannot be detected, pass `--output` explicitly.
 - If Godot project root cannot be detected, pass `--output` explicitly.
+- If Stride3D project root cannot be detected, pass `--output` explicitly.
 - Client namespace defaults to value derived from output path unless `--namespace` is provided.
 - Server mode defaults output to `Generated` under the detected server project root. If no server project root can be detected, it falls back to `./Generated`.
 - Server namespace defaults to `<contracts namespace>.Server.Generated` unless `--server-namespace` is provided.
-- If `--mode` is omitted, the tool auto-detects `unity` when the current directory is inside a Unity project, `godot` when the current directory is inside a Godot project, and `server` when the current directory is inside a directory tree that contains a `.csproj` server project.
+- If `--mode` is omitted, the tool auto-detects `unity` when the current directory is inside a Unity project, `godot` when the current directory is inside a Godot project, `stride3d` when the current directory is inside a Stride3D project, and `server` when the current directory is inside a directory tree that contains a `.csproj` server project.
 
 Paths can be overridden via options.

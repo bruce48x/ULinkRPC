@@ -11,7 +11,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     {
         var context = CreateContext(rootPath, projectName, clientEngine, transport, serializer, nuGetForUnitySource, versions);
 
-        GenerateGitIgnore(context.Paths.RootPath);
+        GenerateGitIgnore(context);
         GenerateGitAttributes(context);
         StarterSharedTemplate.Generate(context);
         StarterServerTemplate.Generate(context);
@@ -66,6 +66,9 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
             case ClientEngineKind.Godot:
                 StarterGodotTemplate.Generate(context);
                 return;
+            case ClientEngineKind.Stride3D:
+                StarterStrideTemplate.Generate(context);
+                return;
             default:
                 throw new ArgumentOutOfRangeException(nameof(context.ClientEngine), context.ClientEngine, null);
         }
@@ -93,7 +96,10 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     private void GenerateCodeGenToolManifest(StarterTemplateContext context)
     {
         runDotNet(context.Paths.RootPath, "new tool-manifest");
-        runDotNet(context.Paths.RootPath, $"tool install ULinkRPC.CodeGen --version {context.Versions.CodeGen}");
+        if (GetLocalCodeGenProjectPath() is null)
+        {
+            runDotNet(context.Paths.RootPath, $"tool install ULinkRPC.CodeGen --version {context.Versions.CodeGen}");
+        }
     }
 
     private void RunCodeGen(StarterTemplateContext context)
@@ -108,14 +114,56 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     }
 
     private static string BuildServerCodeGenCommand(StarterTemplateContext context) =>
-        $"tool run ulinkrpc-codegen -- --contracts \"{context.Paths.SharedPath}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"";
+        BuildCodeGenCommand($"--contracts \"{context.Paths.SharedPath}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"");
 
     private static string BuildClientCodeGenCommand(StarterTemplateContext context) =>
-        $"tool run ulinkrpc-codegen -- --contracts \"{context.Paths.SharedPath}\" --mode {context.ClientCodeGenMode} --output \"{context.ClientCodeGenOutput}\" --namespace \"Rpc.Generated\"";
+        BuildCodeGenCommand($"--contracts \"{context.Paths.SharedPath}\" --mode {context.ClientCodeGenMode} --output \"{context.ClientCodeGenOutput}\" --namespace \"Rpc.Generated\"");
 
-    private static void GenerateGitIgnore(string rootPath)
+    private static string BuildCodeGenCommand(string arguments)
     {
-        var gitIgnore = """
+        var localCodeGenProjectPath = GetLocalCodeGenProjectPath();
+        return localCodeGenProjectPath is null
+            ? $"tool run ulinkrpc-codegen -- {arguments}"
+            : $"run --project \"{localCodeGenProjectPath}\" -- {arguments}";
+    }
+
+    private static string? GetLocalCodeGenProjectPath()
+    {
+        var projectPath = Environment.GetEnvironmentVariable("ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT");
+        return string.IsNullOrWhiteSpace(projectPath) ? null : Path.GetFullPath(projectPath);
+    }
+
+    private static void GenerateGitIgnore(StarterTemplateContext context)
+    {
+        var unityProjectFiles = context.ClientEngine.IsUnityCompatible()
+            ? """
+
+# Unity generated project/IDE files
+/Client/*.csproj
+/Client/*.sln
+/Client/*.slnx
+/Client/*.unityproj
+/Client/*.pidb
+/Client/*.booproj
+/Client/*.svd
+/Client/*.pdb
+/Client/*.mdb
+/Client/*.opendb
+/Client/*.VC.db
+"""
+            : string.Empty;
+
+        var godotGeneratedFiles = context.ClientEngine == ClientEngineKind.Godot
+            ? """
+
+# Godot generated files
+/Client/.mono/
+/Client/export_presets.cfg
+/Client/*.sln
+"""
+            : string.Empty;
+
+        var gitIgnore = $$"""
 # OS / Editor
 .DS_Store
 Thumbs.db
@@ -142,39 +190,22 @@ Thumbs.db
 /Client/[Bb]uilds/
 /Client/[Mm]emoryCaptures/
 /Client/[Rr]ecordings/
-
-# Unity generated project/IDE files
-/Client/*.csproj
-/Client/*.sln
-/Client/*.slnx
-/Client/*.unityproj
-/Client/*.pidb
-/Client/*.booproj
-/Client/*.svd
-/Client/*.pdb
-/Client/*.mdb
-/Client/*.opendb
-/Client/*.VC.db
+{{unityProjectFiles}}
 
 # NuGetForUnity restored packages
 /Client/Assets/Packages/
-
-# Godot generated files
-/Client/.mono/
-/Client/export_presets.cfg
-/Client/*.csproj
-/Client/*.sln
+{{godotGeneratedFiles}}
 
 # Logs
 *.log
 """;
 
-        StarterFileWriter.Write(Path.Combine(rootPath, ".gitignore"), gitIgnore);
+        StarterFileWriter.Write(Path.Combine(context.Paths.RootPath, ".gitignore"), gitIgnore);
     }
 
     private static void GenerateGitAttributes(StarterTemplateContext context)
     {
-        if (context.ClientEngine != ClientEngineKind.Godot)
+        if (context.ClientEngine is not (ClientEngineKind.Godot or ClientEngineKind.Stride3D))
             return;
 
         var gitAttributes = """

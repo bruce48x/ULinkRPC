@@ -77,7 +77,7 @@ internal static class Program
 
     private static int GenerateFiles(List<RpcServiceInfo> services, ResolvedOptions options)
     {
-        if (options.Mode is OutputMode.Unity or OutputMode.Godot)
+        if (options.Mode is OutputMode.Unity or OutputMode.Godot or OutputMode.Stride3D)
             Directory.CreateDirectory(options.OutputPath);
 
         if (options.Mode == OutputMode.Server)
@@ -86,7 +86,7 @@ internal static class Program
         var generated = 0;
         foreach (var svc in services)
         {
-            if (options.Mode is OutputMode.Unity or OutputMode.Godot)
+            if (options.Mode is OutputMode.Unity or OutputMode.Godot or OutputMode.Stride3D)
             {
                 var client = ClientEmitter.GenerateClient(svc, options.ClientNamespace, CoreRuntimeUsing);
                 var clientTypeName = NamingHelper.GetClientTypeName(svc.InterfaceName);
@@ -119,7 +119,7 @@ internal static class Program
             }
         }
 
-        if (options.Mode is OutputMode.Unity or OutputMode.Godot)
+        if (options.Mode is OutputMode.Unity or OutputMode.Godot or OutputMode.Stride3D)
         {
             var facade = FacadeEmitter.GenerateClientFacade(
                 services,

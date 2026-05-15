@@ -66,6 +66,18 @@ internal static class StarterWorkspace
             return true;
         }
 
+        var clientProjectPath = Path.Combine(clientPath, "Client.csproj");
+        if (File.Exists(clientProjectPath))
+        {
+            var clientProject = File.ReadAllText(clientProjectPath);
+            if (clientProject.Contains("Stride.CommunityToolkit", StringComparison.Ordinal) ||
+                clientProject.Contains("Stride.Engine", StringComparison.Ordinal))
+            {
+                clientEngine = ClientEngineKind.Stride3D;
+                return true;
+            }
+        }
+
         var projectVersionPath = Path.Combine(clientPath, "ProjectSettings", "ProjectVersion.txt");
         if (File.Exists(projectVersionPath))
         {
@@ -97,7 +109,7 @@ internal sealed record StarterProjectContext(
     string ClientPath,
     ClientEngineKind ClientEngine)
 {
-    public string ClientCodeGenMode => ClientEngine.IsUnityCompatible() ? "unity" : "godot";
+    public string ClientCodeGenMode => ClientEngine.GetClientCodeGenMode();
     public string ClientCodeGenOutput => ClientEngine.IsUnityCompatible()
         ? $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated"
         : $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated";

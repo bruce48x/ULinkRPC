@@ -12,11 +12,11 @@ Date: 2026-04-21
 - `Server`
 - `Client`
 
-For Godot and server, `Shared` is consumed through the normal `.csproj` build path.
+For Godot, Stride3D, and server, `Shared` is consumed through the normal `.csproj` build path.
 
 For Unity, the current starter design uses a local UPM package reference so the Unity client consumes `Shared` source code directly. This means Unity recompiles shared DTO/contracts when the shared source changes.
 
-During Unity + `memorypack` validation, the problematic area was not the server or Godot pipeline. The instability came from Unity's script compilation path when `MemoryPack.Generator` participates in compilation. Formatter registration/runtime shape was not exposed consistently enough to rely on one fixed registration entry shape.
+During Unity + `memorypack` validation, the problematic area was not the server, Godot, or Stride3D pipeline. The instability came from Unity's script compilation path when `MemoryPack.Generator` participates in compilation. Formatter registration/runtime shape was not exposed consistently enough to rely on one fixed registration entry shape.
 
 ## Decision
 
@@ -26,7 +26,7 @@ Specifically:
 
 - Unity continues to consume `Shared` through the local UPM package source link.
 - Server continues to reference `Shared.csproj`.
-- Godot continues to reference `Shared.csproj`.
+- Godot and Stride3D continue to reference `Shared.csproj`.
 - We do not switch Unity to a prebuilt `Shared.dll` workflow at this time.
 
 ## Why
@@ -49,7 +49,7 @@ We intentionally chose option 1.
 ### Why the chosen approach is acceptable
 
 - The instability is Unity-specific, so the compatibility handling should stay Unity-specific.
-- Server and Godot already use the healthier standard .NET build path and should remain untouched.
+- Server, Godot, and Stride3D already use the healthier standard .NET build path and should remain untouched.
 - Keeping Unity source-linked preserves the simpler authoring model for shared contracts and DTOs.
 
 ## Consequences
@@ -58,7 +58,7 @@ We intentionally chose option 1.
 
 - Unity shared development stays source-linked.
 - Editing `Shared` remains the default workflow.
-- Server and Godot architecture stay unchanged.
+- Server, Godot, and Stride3D architecture stay unchanged.
 - Future hot-update design remains less constrained than with a precompiled shared DLL layer.
 
 ### Negative
@@ -71,7 +71,7 @@ We intentionally chose option 1.
 When working on starter architecture in the future:
 
 - Treat "Unity precompiled shared DLL" as a rejected alternative unless requirements change substantially.
-- Do not broaden Unity-specific fixes into server or Godot unless there is separate evidence they need the same change.
+- Do not broaden Unity-specific fixes into server, Godot, or Stride3D unless there is separate evidence they need the same change.
 - Prefer preserving Unity source-link behavior over introducing explicit rebuild/sync steps.
 - If revisiting this decision, evaluate HybridCLR/hot-update requirements before proposing any Unity shared prebuild workflow.
 

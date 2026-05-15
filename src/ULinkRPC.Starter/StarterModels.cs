@@ -18,7 +18,8 @@ internal enum ClientEngineKind
     Unity,
     UnityCn,
     Tuanjie,
-    Godot
+    Godot,
+    Stride3D
 }
 
 internal enum NuGetForUnitySourceKind
@@ -35,6 +36,7 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.UnityCn => true,
         ClientEngineKind.Tuanjie => true,
         ClientEngineKind.Godot => false,
+        ClientEngineKind.Stride3D => false,
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -44,6 +46,7 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.UnityCn => "Unity CN",
         ClientEngineKind.Tuanjie => "Tuanjie",
         ClientEngineKind.Godot => "Godot",
+        ClientEngineKind.Stride3D => "Stride3D",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -53,6 +56,7 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.UnityCn => "Unity 2022 LTS (China-friendly defaults)",
         ClientEngineKind.Tuanjie => "Tuanjie (Unity-compatible)",
         ClientEngineKind.Godot => "Godot 4.6",
+        ClientEngineKind.Stride3D => "Stride 4.3 code-only",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -62,6 +66,17 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.UnityCn => NuGetForUnitySourceKind.Embedded,
         ClientEngineKind.Tuanjie => NuGetForUnitySourceKind.Embedded,
         ClientEngineKind.Godot => NuGetForUnitySourceKind.Embedded,
+        ClientEngineKind.Stride3D => NuGetForUnitySourceKind.Embedded,
+        _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
+    };
+
+    public static string GetClientCodeGenMode(this ClientEngineKind clientEngine) => clientEngine switch
+    {
+        ClientEngineKind.Unity => "unity",
+        ClientEngineKind.UnityCn => "unity",
+        ClientEngineKind.Tuanjie => "unity",
+        ClientEngineKind.Godot => "godot",
+        ClientEngineKind.Stride3D => "stride3d",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 }
@@ -121,7 +136,7 @@ internal sealed record StarterTemplateContext(
 {
     public string SharedProjectName => Path.GetFileName(Paths.SharedPath);
     public string ServerProjectName => Path.GetFileName(Paths.ServerAppPath);
-    public string ClientCodeGenMode => ClientEngine.IsUnityCompatible() ? "unity" : "godot";
+    public string ClientCodeGenMode => ClientEngine.GetClientCodeGenMode();
     public string ClientCodeGenOutput => ClientEngine.IsUnityCompatible()
         ? $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated"
         : $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated";
@@ -162,4 +177,10 @@ internal static class UnityPackageVersions
     public const string SystemThreadingTasksExtensionsForKcp = "4.5.4";
     public const string SystemRuntimeCompilerServicesUnsafe = "6.1.2";
     public const string SystemIoPipelines = "10.0.6";
+}
+
+internal static class StridePackageVersions
+{
+    public const string CommunityToolkitWindows = "1.0.0-preview.62";
+    public const string CommunityToolkitBepu = "1.0.0-preview.62";
 }

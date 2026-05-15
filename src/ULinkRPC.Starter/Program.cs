@@ -63,9 +63,14 @@ internal static class Program
         Console.WriteLine("Next steps:");
         Console.WriteLine($"  1) cd \"{rootPath}\"");
         Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
-        Console.WriteLine(clientEngine.IsUnityCompatible()
-            ? $"  3) Open \"Client\" with {clientEngine.GetStarterClientLabel()}."
-            : "  3) Open \"Client\" with Godot 4.6 and build the C# solution.");
+        Console.WriteLine(clientEngine switch
+        {
+            ClientEngineKind.Unity or ClientEngineKind.UnityCn or ClientEngineKind.Tuanjie =>
+                $"  3) Open \"Client\" with {clientEngine.GetStarterClientLabel()}.",
+            ClientEngineKind.Godot => "  3) Open \"Client\" with Godot 4.6 and build the C# solution.",
+            ClientEngineKind.Stride3D => "  3) Run \"dotnet run --project Client/Client.csproj\" to start the Stride3D client.",
+            _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
+        });
         Console.WriteLine("  4) After changing Shared contracts, run `ulinkrpc-starter codegen` from the project root.");
         return 0;
     }

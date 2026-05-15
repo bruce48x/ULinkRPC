@@ -6,7 +6,7 @@ internal static class StarterCli
     {
         Console.WriteLine("Usage:");
         Console.WriteLine("  ulinkrpc-starter [--help|-h|--version]");
-        Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]");
+        Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]");
         Console.WriteLine("  ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]");
     }
 
@@ -218,6 +218,7 @@ internal static class StarterCli
         Console.WriteLine("  2) Unity CN");
         Console.WriteLine("  3) Tuanjie");
         Console.WriteLine("  4) Godot");
+        Console.WriteLine("  5) Stride3D");
         while (true)
         {
             Console.Write("> ");
@@ -228,9 +229,10 @@ internal static class StarterCli
                 case "2": return ClientEngineKind.UnityCn;
                 case "3": return ClientEngineKind.Tuanjie;
                 case "4": return ClientEngineKind.Godot;
+                case "5": return ClientEngineKind.Stride3D;
             }
 
-            Console.WriteLine("Please enter 1-4.");
+            Console.WriteLine("Please enter 1-5.");
         }
     }
 
@@ -313,6 +315,11 @@ internal static class StarterCli
                 clientEngine = ClientEngineKind.Tuanjie;
                 return true;
             case "godot": clientEngine = ClientEngineKind.Godot; return true;
+            case "stride":
+            case "stride3d":
+            case "stride-3d":
+                clientEngine = ClientEngineKind.Stride3D;
+                return true;
             default: clientEngine = default; return false;
         }
     }

@@ -6,6 +6,7 @@ internal static class PathHelper
 {
     public const string DefaultUnityOutputRelativePath = "Assets/Scripts/Rpc/Generated";
     public const string DefaultGodotOutputRelativePath = "Scripts/Rpc/Generated";
+    public const string DefaultStride3DOutputRelativePath = "Scripts/Rpc/Generated";
     public const string DefaultClientRuntimeNamespace = "Rpc.Generated";
 
     public static bool IsUnityProject(string path) =>
@@ -15,8 +16,20 @@ internal static class PathHelper
     public static bool IsGodotProject(string path) =>
         File.Exists(Path.Combine(path, "project.godot"));
 
+    public static bool IsStride3DProject(string path)
+    {
+        if (!Directory.Exists(path))
+            return false;
+
+        return Directory
+            .EnumerateFiles(path, "*.csproj", SearchOption.TopDirectoryOnly)
+            .Any(IsStride3DProjectFile);
+    }
+
     public static bool IsServerProjectDirectory(string path) =>
         !IsUnityProject(path) &&
+        !IsGodotProject(path) &&
+        !IsStride3DProject(path) &&
         Directory.Exists(path) &&
         Directory.EnumerateFiles(path, "*.csproj", SearchOption.TopDirectoryOnly).Any();
 
@@ -45,10 +58,24 @@ internal static class PathHelper
         return null;
     }
 
+    public static string? FindStride3DProjectRoot(string startPath)
+    {
+        var dir = new DirectoryInfo(startPath);
+        while (dir != null)
+        {
+            if (IsStride3DProject(dir.FullName))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+
+        return null;
+    }
+
     public static string? FindClientProjectRoot(string startPath, OutputMode mode) => mode switch
     {
         OutputMode.Unity => FindUnityProjectRoot(startPath),
         OutputMode.Godot => FindGodotProjectRoot(startPath),
+        OutputMode.Stride3D => FindStride3DProjectRoot(startPath),
         _ => null
     };
 
@@ -56,6 +83,7 @@ internal static class PathHelper
     {
         OutputMode.Unity => DefaultUnityOutputRelativePath,
         OutputMode.Godot => DefaultGodotOutputRelativePath,
+        OutputMode.Stride3D => DefaultStride3DOutputRelativePath,
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unsupported client mode.")
     };
 
@@ -196,5 +224,23 @@ internal static class PathHelper
         }
 
         return null;
+    }
+
+    private static bool IsStride3DProjectFile(string projectPath)
+    {
+        try
+        {
+            var project = File.ReadAllText(projectPath);
+            return project.Contains("Stride.CommunityToolkit", StringComparison.Ordinal) ||
+                   project.Contains("Stride.Engine", StringComparison.Ordinal);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 }

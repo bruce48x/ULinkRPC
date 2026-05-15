@@ -68,7 +68,7 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal("0.11.4", jsonVersions.Client);
         Assert.Equal("0.11.6", jsonVersions.Transport);
         Assert.Equal("0.11.1", jsonVersions.Serializer);
-        Assert.Equal("0.16.8", jsonVersions.CodeGen);
+        Assert.Equal("0.16.9", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
@@ -560,6 +560,55 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
+    public void GenerateTemplate_CreatesStrideClientFiles_AndRunsStrideCodeGen()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var commands = new List<string>();
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Stride-Test", ClientEngineKind.Stride3D, TransportKind.WebSocket, SerializerKind.Json, Versions);
+
+            var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
+            var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.csproj"));
+            var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
+            var program = File.ReadAllText(Path.Combine(root, "Client", "Program.cs"));
+            var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
+            var generatedClientApi = Path.Combine(root, "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
+
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+            Assert.Contains("<TargetFrameworks>net10.0</TargetFrameworks>", sharedCsproj);
+            Assert.Contains("<Project Sdk=\"Microsoft.NET.Sdk\">", clientCsproj);
+            Assert.Contains("<OutputType>Exe</OutputType>", clientCsproj);
+            Assert.Contains("<TargetFramework>net10.0</TargetFramework>", clientCsproj);
+            Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"Stride.CommunityToolkit.Windows\" Version=\"1.0.0-preview.62\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"Stride.CommunityToolkit.Bepu\" Version=\"1.0.0-preview.62\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
+            Assert.Contains("Stride3D Client Starter", clientReadme);
+            Assert.Contains("dotnet run --project Client.csproj", clientReadme);
+            Assert.Contains("using Stride.Engine;", program);
+            Assert.Contains("game.SetupBase3DScene();", program);
+            Assert.Contains("_ = tester.ConnectAndPingAsync();", program);
+            Assert.Contains("namespace Client.Rpc.Testing;", testerScript);
+            Assert.Contains("using Rpc.Generated;", testerScript);
+            Assert.Contains("using Shared.Interfaces;", testerScript);
+            Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
+            Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
+            Assert.Contains("new WsTransport($\"ws://{_host}:{_port}{NormalizePath(_path)}\")", testerScript);
+            Assert.Contains("new JsonRpcSerializer()", testerScript);
+            Assert.Contains("Console.WriteLine($\"Ping ok:", testerScript);
+            Assert.True(File.Exists(generatedClientApi));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void GenerateTemplate_CreatesTuanjieClientFiles_UsingUnityCompatibleTemplateAndCodeGen()
     {
         var root = CreateTempRoot();
@@ -661,6 +710,22 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal(ClientEngineKind.UnityCn, options.NewCommand!.ClientEngine);
     }
 
+    [Theory]
+    [InlineData("stride")]
+    [InlineData("stride3d")]
+    [InlineData("stride-3d")]
+    public void TryParseArgs_ParsesStrideClientEngineAliases(string rawClientEngine)
+    {
+        var ok = StarterCli.TryParseArgs(
+            ["--client-engine", rawClientEngine],
+            out var options,
+            out var error);
+
+        Assert.True(ok);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(ClientEngineKind.Stride3D, options.NewCommand!.ClientEngine);
+    }
+
     [Fact]
     public void TryParseArgs_ParsesNuGetForUnitySource()
     {
@@ -739,6 +804,27 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
+    public void StarterWorkspace_DetectsStrideStarterProject()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+            generator.GenerateTemplate(root, "Stride-Test", ClientEngineKind.Stride3D, TransportKind.Tcp, SerializerKind.Json, Versions);
+
+            var found = StarterWorkspace.TryResolveProjectContext(Path.Combine(root, "Client"), out var context, out var error);
+
+            Assert.True(found, error);
+            Assert.Equal(ClientEngineKind.Stride3D, context.ClientEngine);
+            Assert.Equal(Path.Combine(root, "Client"), context.ClientPath);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void StarterProjectTool_RunsRestoreAndBothCodeGenTargets()
     {
         var root = CreateTempRoot();
@@ -764,11 +850,37 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
+    public void StarterProjectTool_RunsStrideCodeGenTarget()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+            generator.GenerateTemplate(root, "Stride-Test", ClientEngineKind.Stride3D, TransportKind.WebSocket, SerializerKind.Json, Versions);
+
+            var commands = new List<string>();
+            var tool = new StarterProjectTool(CreateFakeDotNetRunner(commands));
+            Assert.True(StarterWorkspace.TryResolveProjectContext(root, out var context, out var error), error);
+
+            tool.RunCodeGen(context, noRestore: false);
+
+            Assert.Contains("tool restore", commands);
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ClientEngine_DefaultNuGetForUnitySource_MatchesExpected()
     {
         Assert.Equal(NuGetForUnitySourceKind.OpenUpm, ClientEngineKind.Unity.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.UnityCn.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Tuanjie.GetDefaultNuGetForUnitySource());
+        Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Stride3D.GetDefaultNuGetForUnitySource());
     }
 
 
@@ -928,6 +1040,14 @@ public sealed class StarterTemplateGeneratorTests
                 }
 
                 if (arguments.Contains("--mode godot", StringComparison.Ordinal))
+                {
+                    var outputDir = Path.Combine(workingDirectory, "Scripts", "Rpc", "Generated");
+                    Directory.CreateDirectory(outputDir);
+                    File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
+                    return;
+                }
+
+                if (arguments.Contains("--mode stride3d", StringComparison.Ordinal))
                 {
                     var outputDir = Path.Combine(workingDirectory, "Scripts", "Rpc", "Generated");
                     Directory.CreateDirectory(outputDir);

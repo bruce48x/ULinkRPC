@@ -146,5 +146,6 @@ internal enum OutputMode
     Unknown,
     Unity,
     Godot,
+    Stride3D,
     Server
 }

@@ -13,7 +13,7 @@ Generated projects use these fixed folders:
 
 - `Shared` (netstandard2.1 + net10.0)
 - `Server` (.NET 10)
-- `Client` (Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6 C# skeleton)
+- `Client` (Unity 2022 LTS, Unity CN, Tuanjie, Godot 4.6, or Stride3D 4.3 code-only skeleton)
 
 The tool asks for transport and serializer before generating files.
 
@@ -29,7 +29,7 @@ dotnet tool install -g ULinkRPC.Starter
 
 ```bash
 ulinkrpc-starter [--help|-h|--version]
-ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]
+ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]
 ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]
 ```
 
@@ -39,7 +39,7 @@ For `new`:
 
 - `--name` Project root folder name. Default is `ULinkApp`.
 - `--output` Parent directory for the generated project. Default is the current working directory.
-- `--client-engine` Client engine to scaffold: `unity`, `unity-cn`, `tuanjie`, `godot`.
+- `--client-engine` Client engine to scaffold: `unity`, `unity-cn`, `tuanjie`, `godot`, `stride3d`.
 - `--transport` Transport package to use: `tcp`, `websocket`, `kcp`.
 - `--serializer` Serializer package to use: `json`, `memorypack`.
 - `--nugetforunity-source` For Unity-compatible clients only: `embedded` or `openupm`. This overrides the client engine default.
@@ -100,7 +100,7 @@ flowchart LR
     Input["Starter Inputs<br/>name / engine / transport / serializer"] --> Tool["ULinkRPC.Starter"]
     Tool --> Shared["Shared<br/>contracts / DTOs / UPM package"]
     Tool --> Server["Server<br/>solution / host / services"]
-    Tool --> Client["Client<br/>Unity / Tuanjie / Godot skeleton"]
+    Tool --> Client["Client<br/>Unity / Tuanjie / Godot / Stride3D skeleton"]
     Tool --> Tooling["Local Tooling<br/>tool manifest / .gitignore / git init"]
 
     Shared --> CodeGen["Run ULinkRPC.CodeGen"]
@@ -113,8 +113,8 @@ flowchart LR
 - `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, `Directory.Build.props` redirects `obj/bin` to `../_artifacts/Shared/`, and the generated `.csproj` uses `LangVersion=latest` so MemoryPack source generation can compile.
 - `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and wires the selected serializer and acceptor explicitly.
-- `Client/`: Unity 2022 LTS / Unity CN / Tuanjie-compatible skeleton with `packages.config`, a local reference to `Shared`, and either an OpenUPM or embedded `NuGetForUnity` setup depending on the selected client engine, or a Godot 4.6 C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node.
-- `.gitignore`: ignore rules for .NET build outputs, editor files, Unity/Godot generated folders, and NuGetForUnity restored packages.
+- `Client/`: Unity 2022 LTS / Unity CN / Tuanjie-compatible skeleton with `packages.config`, a local reference to `Shared`, and either an OpenUPM or embedded `NuGetForUnity` setup depending on the selected client engine; a Godot 4.6 C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node; or a Stride3D 4.3 code-only `Client.csproj` with a minimal 3D scene and RPC ping tester.
+- `.gitignore`: ignore rules for .NET build outputs, editor files, Unity/Godot/Stride generated folders, and NuGetForUnity restored packages.
 
 The tool uses a bundled, release-tested package manifest for:
 
@@ -139,7 +139,7 @@ Unity intentionally keeps `Shared` as a source-linked local UPM package instead 
 
 This is a deliberate architecture decision:
 
-- Server and Godot stay on the normal `.csproj` path.
+- Server, Godot, and Stride3D stay on the normal `.csproj` path.
 - Unity keeps the source-linked shared workflow even for `memorypack`.
 - We do not currently accept the workflow tradeoff of requiring an explicit rebuild/sync step after every shared change.
 - We also want to avoid adding avoidable friction to future Unity hot-update work such as `HybridCLR`.
@@ -165,7 +165,7 @@ cd MyGame
 dotnet run --project Server/Server/Server.csproj
 ```
 
-Then open `Client/` with Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6, depending on the selected client engine.
+Then open `Client/` with Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6, or run `dotnet run --project Client/Client.csproj` for Stride3D, depending on the selected client engine.
 
 After editing DTOs or service contracts under `Shared/`, rerun:
 
