@@ -53,6 +53,8 @@ internal static class StarterGodotTemplate
     <ProjectReference Include="..\Shared\Shared.csproj" />
 {{packageReferences}}
   </ItemGroup>
+
+{{StarterCodeGenBuildTargets.RenderClientTargets("godot")}}
 </Project>
 """;
     }

@@ -225,6 +225,7 @@ public sealed class StarterTemplateGeneratorTests
             var testerScriptMeta = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs.meta"));
             var scene = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scenes", "ConnectionTest.unity"));
             var autoOpenSceneScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Editor", "AutoOpenConnectionScene.cs"));
+            var codeGenEditorScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Editor", "ULinkRPCCodeGenEditor.cs"));
             var editorBuildSettings = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "EditorBuildSettings.asset"));
             var starterGeneratedAsmdefPath = Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "ULinkRPC.Generated.asmdef");
             var embeddedNuGetForUnity = Path.Combine(root, "Client", "Packages", "com.github-glitchenzo.nugetforunity", "package.json");
@@ -253,6 +254,13 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<RootNamespace>Server</RootNamespace>", serverCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", serverCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", serverCsproj);
+            Assert.Contains("<ULinkRPCContractsPath>../../Shared</ULinkRPCContractsPath>", serverCsproj);
+            Assert.Contains("<ULinkRPCCodeGenMode>server</ULinkRPCCodeGenMode>", serverCsproj);
+            Assert.Contains("<ULinkRPCServerNamespace>Server.Generated</ULinkRPCServerNamespace>", serverCsproj);
+            Assert.Contains("Name=\"ULinkRPCGenerateCode\"", serverCsproj);
+            Assert.Contains("<ULinkRPCCodeGenCommand Condition=\"'$(ULinkRPCCodeGenCommand)' == ''\">dotnet tool run ulinkrpc-codegen --</ULinkRPCCodeGenCommand>", serverCsproj);
+            Assert.Contains("<Exec Command=\"$(ULinkRPCCodeGenCommand) --contracts", serverCsproj);
+            Assert.Contains("--mode server --server-output", serverCsproj);
             Assert.Contains("<package id=\"ULinkRPC.Core\" version=\"1.2.3\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Transport.WebSocket\" version=\"4.5.6\" manuallyInstalled=\"true\" />", packagesConfig);
             Assert.Contains("<package id=\"ULinkRPC.Serializer.Json\" version=\"5.6.7\" manuallyInstalled=\"true\" />", packagesConfig);
@@ -292,6 +300,12 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("[InitializeOnLoad]", autoOpenSceneScript);
             Assert.Contains("EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);", autoOpenSceneScript);
             Assert.Contains("SessionState.GetBool(SessionStateKey, false)", autoOpenSceneScript);
+            Assert.Contains("[MenuItem(\"ULinkRPC/Regenerate RPC Code\")]", codeGenEditorScript);
+            Assert.Contains("private const string SharedPackageName = \"com.ulinkrpc.badprojectname.shared\";", codeGenEditorScript);
+            Assert.Contains("private const string ContractsAssetPrefix = \"Packages/\" + SharedPackageName + \"/\";", codeGenEditorScript);
+            Assert.Contains("private const string GeneratedOutputPath = \"Assets/Scripts/Rpc/Generated\";", codeGenEditorScript);
+            Assert.Contains("tool run ulinkrpc-codegen --", codeGenEditorScript);
+            Assert.Contains("AssetDatabase.Refresh();", codeGenEditorScript);
             Assert.Contains("Assets/Scenes/ConnectionTest.unity", editorBuildSettings);
             Assert.Contains("guid: d4d2d5faafe942e58a33f4a41e3b7cf2", editorBuildSettings);
             Assert.True(File.Exists(starterGeneratedAsmdefPath));
@@ -449,6 +463,11 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
+            Assert.Contains("<ULinkRPCContractsPath>../Shared</ULinkRPCContractsPath>", clientCsproj);
+            Assert.Contains("<ULinkRPCCodeGenMode>godot</ULinkRPCCodeGenMode>", clientCsproj);
+            Assert.Contains("<ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>", clientCsproj);
+            Assert.Contains("Name=\"ULinkRPCGenerateCode\"", clientCsproj);
+            Assert.Contains("--mode $(ULinkRPCCodeGenMode) --output", clientCsproj);
             Assert.Contains("<add key=\"godot-local\" value=\"" + sdkSource + "\" />", nugetConfig);
             Assert.Contains("<TargetFrameworks>net8.0;net10.0</TargetFrameworks>", File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj")));
             Assert.Contains("Godot 4.6", clientReadme);
@@ -587,6 +606,11 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<PackageReference Include=\"Stride.CommunityToolkit.Bepu\" Version=\"1.0.0-preview.62\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
+            Assert.Contains("<ULinkRPCContractsPath>../Shared</ULinkRPCContractsPath>", clientCsproj);
+            Assert.Contains("<ULinkRPCCodeGenMode>stride3d</ULinkRPCCodeGenMode>", clientCsproj);
+            Assert.Contains("<ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>", clientCsproj);
+            Assert.Contains("Name=\"ULinkRPCGenerateCode\"", clientCsproj);
+            Assert.Contains("--mode $(ULinkRPCCodeGenMode) --output", clientCsproj);
             Assert.Contains("Stride3D Client Starter", clientReadme);
             Assert.Contains("dotnet run --project Client.csproj", clientReadme);
             Assert.Contains("using Stride.Engine;", program);
@@ -881,6 +905,18 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.UnityCn.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Tuanjie.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Stride3D.GetDefaultNuGetForUnitySource());
+    }
+
+    [Fact]
+    public void StarterReadme_DocumentsAutomaticCodeGenHooks()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var readme = File.ReadAllText(Path.Combine(repositoryRoot, "src", "ULinkRPC.Starter", "README.md"));
+
+        Assert.Contains("Generated projects also include automatic codegen hooks:", readme);
+        Assert.Contains("Server, Godot, and Stride3D projects run `ULinkRPC.CodeGen` from MSBuild before compilation.", readme);
+        Assert.Contains("Unity, Unity CN, and Tuanjie projects include an Editor-only `ULinkRPC/Regenerate RPC Code` menu item", readme);
+        Assert.Contains("keep this command as the fallback", readme);
     }
 
 

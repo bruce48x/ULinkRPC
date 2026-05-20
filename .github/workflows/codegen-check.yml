@@ -1,0 +1,42 @@
+name: CodeGen Check
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/codegen-check.yml
+      - src/ULinkRPC.CodeGen/**
+      - samples/**
+      - scripts/sample.ps1
+      - scripts/check-generated-code.ps1
+  pull_request:
+    paths:
+      - .github/workflows/codegen-check.yml
+      - src/ULinkRPC.CodeGen/**
+      - samples/**
+      - scripts/sample.ps1
+      - scripts/check-generated-code.ps1
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  codegen:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check generated code
+        run: pwsh -NoProfile -File scripts/check-generated-code.ps1 -Configuration Release

@@ -126,7 +126,13 @@ The tool uses a bundled, release-tested package manifest for:
 - `ULinkRPC.CodeGen`
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
-Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and the selected client engine automatically. Later, you rerun both sides with `ulinkrpc-starter codegen`.
+Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and the selected client engine automatically.
+Generated projects also include automatic codegen hooks:
+
+- Server, Godot, and Stride3D projects run `ULinkRPC.CodeGen` from MSBuild before compilation.
+- Unity, Unity CN, and Tuanjie projects include an Editor-only `ULinkRPC/Regenerate RPC Code` menu item and asset-change trigger for shared contract sources.
+
+You can still rerun both sides explicitly with `ulinkrpc-starter codegen`; keep this command as the fallback for troubleshooting and CI repair.
 When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.

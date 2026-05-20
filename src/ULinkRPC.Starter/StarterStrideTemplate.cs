@@ -39,6 +39,8 @@ internal static class StarterStrideTemplate
     <ProjectReference Include="..\Shared\Shared.csproj" />
 {{packageReferences}}
   </ItemGroup>
+
+{{StarterCodeGenBuildTargets.RenderClientTargets("stride3d")}}
 </Project>
 """;
     }

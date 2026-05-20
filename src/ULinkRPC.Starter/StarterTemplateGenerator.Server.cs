@@ -35,6 +35,8 @@ internal static class StarterServerTemplate
   <ItemGroup>
 {{packageReferences}}
   </ItemGroup>
+
+{{StarterCodeGenBuildTargets.RenderServerTargets()}}
 </Project>
 """;
     }

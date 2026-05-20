@@ -107,6 +107,34 @@ Source generators remain a possible later optimization, but they are not the low
 
 If source generation is revisited, first extract a shared `ULinkRPC.CodeGen.Core` library so the CLI, MSBuild integration, Unity Editor integration, and any future source generator can reuse the parser/emitter logic.
 
+## Development Plan
+
+| Status | Task | Notes |
+| --- | --- | --- |
+| 已完成 | Record the automatic-codegen boundary | Captured in this design note. |
+| 已完成 | Move internal planning out of public Hugo content | Internal design notes live under `design/`; public Hugo content lives under `blog/`. |
+| 已完成 | Add stale generated-output checks in CI | `scripts/check-generated-code.ps1` runs sample codegen and `.github/workflows/codegen-check.yml` fails when generated files differ from committed output. |
+| 已完成 | Keep `ulinkrpc-starter codegen` as the explicit fallback command | Existing explicit regeneration command remains available while automatic triggers are added. |
+| 已完成 | Add .NET build integration | Starter-generated server, Godot, and Stride3D `.csproj` files include a pre-compile `ULinkRPCGenerateCode` target. |
+| 已完成 | Add Unity/Tuanjie Editor integration | Starter-generated Unity-compatible clients include an Editor-only `ULinkRPCCodeGenEditor` asset postprocessor and menu command. |
+| 已完成 | Evaluate source generator support | Deferred. Source generators remain a possible future optimization after `ULinkRPC.CodeGen.Core` extraction and compatibility validation. |
+
+## Source Generator Evaluation
+
+Source Generator support is explicitly deferred.
+
+The current automatic-codegen milestone is complete when starter-generated projects can regenerate ordinary C# from build/editor hooks and CI can detect stale output. That path preserves generated files, Unity `.asmdef` output, server binder discovery, and the existing `ulinkrpc-starter codegen` repair workflow.
+
+A future Source Generator effort must start with a separate design and at least these prerequisites:
+
+- extract parser/emitter code into a shared `ULinkRPC.CodeGen.Core` library;
+- define how Unity `.asmdef` and project-local generated directories are handled when source generators cannot create assets;
+- validate Unity 2022/Tuanjie Roslyn analyzer package constraints separately from current `net10.0` tool dependencies;
+- decide whether generated files remain checked in or become compiler-only output;
+- preserve server binder discovery semantics without adding runtime code generation.
+
+Until those questions are resolved, do not add a `ULinkRPC.CodeGen.SourceGenerator` package or analyzer reference to starter-generated projects.
+
 ## Phases
 
 ### Phase 1: Design and stale checks
