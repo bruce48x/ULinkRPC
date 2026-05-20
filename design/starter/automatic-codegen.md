@@ -1,6 +1,6 @@
-# Automatic CodeGen Design
+# Starter-Generated CodeGen Hooks
 
-Status: proposed
+Status: implemented as starter scaffolding
 
 Date: 2026-05-20
 
@@ -21,11 +21,11 @@ ulinkrpc-codegen --contracts ./Shared --mode server
 ulinkrpc-codegen --contracts ./Shared --mode unity
 ```
 
-This works, but contract edits require a manual regeneration step. The goal is to make regeneration automatic without moving code generation into any runtime path.
+This works, but contract edits require a manual regeneration step unless the project has build/editor hooks. The goal for this milestone is to have `ULinkRPC.Starter` scaffold those hooks into generated projects without moving code generation into any runtime path.
 
 ## Decision
 
-Automatic codegen is feasible without runtime overhead.
+Starter-generated automatic codegen hooks are feasible without runtime overhead.
 
 The first implementation should keep the existing CLI model and add build/editor triggers around it:
 
@@ -35,9 +35,23 @@ The first implementation should keep the existing CLI model and add build/editor
 
 Do not start by replacing the CLI with a C# Source Generator. Source generators are compile-time tools and can avoid runtime overhead, but they introduce Unity/Roslyn version constraints, assembly definition boundaries, cross-project output questions, and migration risk that are not needed for the first automatic-codegen milestone.
 
+## Ownership Boundary
+
+`ULinkRPC.Server` and `ULinkRPC.Client` are runtime packages. They should consume generated binders and generated clients, but they should not own code generation or automatic generation triggers.
+
+Ownership is split this way:
+
+- `ULinkRPC.CodeGen`: owns parser, validation, and emitter behavior.
+- `ULinkRPC.Starter`: currently scaffolds project-local hooks because it knows starter-generated project layout.
+- future `ULinkRPC.CodeGen.Build`: should own reusable MSBuild integration for non-starter projects.
+- future `ULinkRPC.CodeGen.Unity.Editor`: should own reusable Unity/Tuanjie editor integration.
+- `ULinkRPC.Server` / `ULinkRPC.Client`: remain runtime-only and do not reference Roslyn, MSBuild, dotnet tool APIs, or Unity Editor APIs.
+
+The current starter implementation is therefore a bridge: starter writes the hooks into new projects, but it is not the long-term owner of build/editor integration logic.
+
 ## Runtime Boundary
 
-Automatic codegen must preserve these rules:
+Starter-generated hooks must preserve these rules:
 
 - Runtime packages do not reference `ULinkRPC.CodeGen`.
 - Unity client runtime assemblies do not reference Roslyn.
@@ -45,7 +59,7 @@ Automatic codegen must preserve these rules:
 - No generated proxy creation during connection, call dispatch, serialization, or service dispatch.
 - Generated output remains normal C# compiled by the target project.
 
-The automation changes when codegen runs, not what runtime code does.
+The hooks change when codegen runs, not what runtime code does.
 
 ## Current Shape
 
@@ -57,11 +71,11 @@ The automation changes when codegen runs, not what runtime code does.
 - Client modes generate `RpcApi.cs`, service clients, callback binders, and Unity's default `ULinkRPC.Generated.asmdef`.
 - `ULinkRPC.Starter` knows the generated workspace layout and can regenerate server + client output in one command.
 
-The missing pieces are trigger integration and stale-output validation.
+The missing pieces were trigger integration and stale-output validation.
 
 ## Recommended Implementation
 
-For .NET project based clients and servers, add MSBuild integration to starter-generated projects.
+For .NET project based clients and servers, starter-generated projects include MSBuild integration.
 
 A minimal shape is:
 
@@ -71,14 +85,14 @@ A minimal shape is:
 </Target>
 ```
 
-The production implementation should not stop at this minimal target. It needs:
+The current starter-scaffolded implementation includes the core shape, but the long-term reusable implementation should move into a dedicated `ULinkRPC.CodeGen.Build` package. That future package should provide:
 
 - explicit properties such as `ULinkRPCContractsPath`, `ULinkRPCCodeGenMode`, `ULinkRPCOutputPath`, and `ULinkRPCGeneratedNamespace`;
 - declared inputs and outputs so builds do not run codegen unconditionally;
 - a clear restore policy so ordinary builds do not unexpectedly access NuGet feeds;
 - actionable errors that point users to `dotnet tool restore` or `ulinkrpc-starter codegen`.
 
-For Unity and Tuanjie, do not rely on Unity-generated `.csproj` files. Add an Editor-only integration instead:
+For Unity and Tuanjie, do not rely on Unity-generated `.csproj` files. Starter-generated projects include an Editor-only integration instead:
 
 - watch the shared contracts package, such as `Packages/com.samples.contracts/**/*.cs`;
 - run before script compilation or from an asset-change callback;
@@ -111,19 +125,20 @@ If source generation is revisited, first extract a shared `ULinkRPC.CodeGen.Core
 
 | Status | Task | Notes |
 | --- | --- | --- |
-| 已完成 | Record the automatic-codegen boundary | Captured in this design note. |
+| 已完成 | Record the starter-generated codegen hook boundary | Captured in this design note. |
 | 已完成 | Move internal planning out of public Hugo content | Internal design notes live under `design/`; public Hugo content lives under `blog/`. |
 | 已完成 | Add stale generated-output checks in CI | `scripts/check-generated-code.ps1` runs sample codegen and `.github/workflows/codegen-check.yml` fails when generated files differ from committed output. |
 | 已完成 | Keep `ulinkrpc-starter codegen` as the explicit fallback command | Existing explicit regeneration command remains available while automatic triggers are added. |
-| 已完成 | Add .NET build integration | Starter-generated server, Godot, and Stride3D `.csproj` files include a pre-compile `ULinkRPCGenerateCode` target. |
-| 已完成 | Add Unity/Tuanjie Editor integration | Starter-generated Unity-compatible clients include an Editor-only `ULinkRPCCodeGenEditor` asset postprocessor and menu command. |
+| 已完成 | Add starter-scaffolded .NET build integration | Starter-generated server, Godot, and Stride3D `.csproj` files include a pre-compile `ULinkRPCGenerateCode` target. |
+| 已完成 | Add starter-scaffolded Unity/Tuanjie Editor integration | Starter-generated Unity-compatible clients include an Editor-only `ULinkRPCCodeGenEditor` asset postprocessor and menu command. |
+| 待办 | Extract reusable build/editor integration ownership | Move common integration out of starter into future `ULinkRPC.CodeGen.Build` and `ULinkRPC.CodeGen.Unity.Editor` packages. |
 | 已完成 | Evaluate source generator support | Deferred. Source generators remain a possible future optimization after `ULinkRPC.CodeGen.Core` extraction and compatibility validation. |
 
 ## Source Generator Evaluation
 
 Source Generator support is explicitly deferred.
 
-The current automatic-codegen milestone is complete when starter-generated projects can regenerate ordinary C# from build/editor hooks and CI can detect stale output. That path preserves generated files, Unity `.asmdef` output, server binder discovery, and the existing `ulinkrpc-starter codegen` repair workflow.
+The current starter-generated hook milestone is complete when starter-generated projects can regenerate ordinary C# from build/editor hooks and CI can detect stale output. That path preserves generated files, Unity `.asmdef` output, server binder discovery, and the existing `ulinkrpc-starter codegen` repair workflow.
 
 A future Source Generator effort must start with a separate design and at least these prerequisites:
 
@@ -139,24 +154,25 @@ Until those questions are resolved, do not add a `ULinkRPC.CodeGen.SourceGenerat
 
 ### Phase 1: Design and stale checks
 
-- Record the automatic-codegen boundary.
+- Record the starter-generated hook boundary.
 - Add stale generated-output checks in CI.
 - Keep `ulinkrpc-starter codegen` as the explicit fallback command.
 
-### Phase 2: .NET build integration
+### Phase 2: Starter-scaffolded .NET build integration
 
 - Generate MSBuild properties and targets in starter projects.
 - Enable automatic codegen for server, Godot, and Stride3D builds.
 - Avoid network restore during normal builds.
 
-### Phase 3: Unity Editor integration
+### Phase 3: Starter-scaffolded Unity Editor integration
 
 - Add an Editor-only auto-generation entry point.
 - Add a menu item for manual regeneration.
 - Keep all generator and Roslyn references out of runtime assemblies.
 
-### Phase 4: Source generator evaluation
+### Phase 4: Reusable integration and source generator evaluation
 
+- Extract reusable MSBuild and Unity Editor integration packages from starter-scaffolded templates.
 - Extract shared codegen core.
 - Prototype `ULinkRPC.CodeGen.SourceGenerator` only after the build/editor integration is stable.
 - Decide whether removing checked-in generated files is worth the extra support burden.

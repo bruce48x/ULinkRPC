@@ -54,7 +54,7 @@ internal static class StarterGodotTemplate
 {{packageReferences}}
   </ItemGroup>
 
-{{StarterCodeGenBuildTargets.RenderClientTargets("godot")}}
+{{StarterCodeGenHookTemplates.RenderClientTargets("godot")}}
 </Project>
 """;
     }

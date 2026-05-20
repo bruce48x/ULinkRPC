@@ -127,7 +127,7 @@ The tool uses a bundled, release-tested package manifest for:
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
 Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and the selected client engine automatically.
-Generated projects also include automatic codegen hooks:
+Generated projects also include starter-scaffolded codegen hooks:
 
 - Server, Godot, and Stride3D projects run `ULinkRPC.CodeGen` from MSBuild before compilation.
 - Unity, Unity CN, and Tuanjie projects include an Editor-only `ULinkRPC/Regenerate RPC Code` menu item and asset-change trigger for shared contract sources.
@@ -158,7 +158,7 @@ Starter dependency ownership is documented separately:
 
 - [`design/starter/starter-dependency-planning.md`](../../design/starter/starter-dependency-planning.md)
 
-Automatic codegen planning is tracked here:
+Starter-scaffolded codegen hook planning is tracked here:
 
 - [`design/starter/automatic-codegen.md`](../../design/starter/automatic-codegen.md)
 

@@ -1,6 +1,6 @@
 namespace ULinkRPC.Starter;
 
-internal static class StarterCodeGenBuildTargets
+internal static class StarterCodeGenHookTemplates
 {
     public static string RenderServerTargets() =>
         Render(

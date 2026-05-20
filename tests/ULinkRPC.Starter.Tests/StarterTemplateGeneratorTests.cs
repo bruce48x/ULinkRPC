@@ -913,7 +913,7 @@ public sealed class StarterTemplateGeneratorTests
         var repositoryRoot = FindRepositoryRoot();
         var readme = File.ReadAllText(Path.Combine(repositoryRoot, "src", "ULinkRPC.Starter", "README.md"));
 
-        Assert.Contains("Generated projects also include automatic codegen hooks:", readme);
+        Assert.Contains("Generated projects also include starter-scaffolded codegen hooks:", readme);
         Assert.Contains("Server, Godot, and Stride3D projects run `ULinkRPC.CodeGen` from MSBuild before compilation.", readme);
         Assert.Contains("Unity, Unity CN, and Tuanjie projects include an Editor-only `ULinkRPC/Regenerate RPC Code` menu item", readme);
         Assert.Contains("keep this command as the fallback", readme);

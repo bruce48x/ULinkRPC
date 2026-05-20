@@ -40,7 +40,7 @@ internal static class StarterStrideTemplate
 {{packageReferences}}
   </ItemGroup>
 
-{{StarterCodeGenBuildTargets.RenderClientTargets("stride3d")}}
+{{StarterCodeGenHookTemplates.RenderClientTargets("stride3d")}}
 </Project>
 """;
     }
