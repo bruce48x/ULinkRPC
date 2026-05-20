@@ -35,7 +35,7 @@ internal static class StarterCodeGenHookTemplates
     <ULinkRPCGeneratedCompilePath>{{generatedCompilePath}}</ULinkRPCGeneratedCompilePath>
     <ULinkRPCCodeGenExpectedOutput>{{expectedOutput}}</ULinkRPCCodeGenExpectedOutput>
     <ULinkRPCCodeGenStampFile>$(IntermediateOutputPath)ULinkRPCCodeGen.stamp</ULinkRPCCodeGenStampFile>
-    <ULinkRPCCodeGenCommand Condition="'$(ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT)' != ''">dotnet run --project &quot;$(ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT)&quot; --</ULinkRPCCodeGenCommand>
+    <ULinkRPCCodeGenCommand Condition="'$(ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT)' != ''">dotnet run --no-restore --no-build --project &quot;$(ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT)&quot; --</ULinkRPCCodeGenCommand>
     <ULinkRPCCodeGenCommand Condition="'$(ULinkRPCCodeGenCommand)' == ''">dotnet tool run ulinkrpc-codegen --</ULinkRPCCodeGenCommand>
 {{extraProperties}}
   </PropertyGroup>

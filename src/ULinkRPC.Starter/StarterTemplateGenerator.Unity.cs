@@ -470,7 +470,7 @@ internal sealed class ULinkRPCCodeGenEditor : AssetPostprocessor
         var localCodeGenProject = Environment.GetEnvironmentVariable(LocalCodeGenProjectEnv);
         var commandPrefix = string.IsNullOrWhiteSpace(localCodeGenProject)
             ? "tool run ulinkrpc-codegen --"
-            : "run --project " + Quote(localCodeGenProject) + " --";
+            : "run --no-restore --no-build --project " + Quote(localCodeGenProject) + " --";
 
         var arguments = commandPrefix +
             " --contracts " + Quote(contractsPath) +

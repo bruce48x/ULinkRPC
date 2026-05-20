@@ -124,7 +124,7 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         var localCodeGenProjectPath = GetLocalCodeGenProjectPath();
         return localCodeGenProjectPath is null
             ? $"tool run ulinkrpc-codegen -- {arguments}"
-            : $"run --project \"{localCodeGenProjectPath}\" -- {arguments}";
+            : $"run --no-restore --no-build --project \"{localCodeGenProjectPath}\" -- {arguments}";
     }
 
     private static string? GetLocalCodeGenProjectPath()

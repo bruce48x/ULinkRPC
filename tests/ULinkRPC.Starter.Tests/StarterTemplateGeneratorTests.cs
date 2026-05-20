@@ -196,6 +196,32 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
+    public void GenerateTemplate_UsesNoRestoreNoBuild_WhenLocalCodeGenProjectIsConfigured()
+    {
+        var root = CreateTempRoot();
+        var localCodeGenProject = Path.Combine(root, "ULinkRPC.CodeGen.csproj");
+        var previous = Environment.GetEnvironmentVariable("ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT");
+
+        try
+        {
+            Environment.SetEnvironmentVariable("ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT", localCodeGenProject);
+            var commands = new List<string>();
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Local-CodeGen", ClientEngineKind.Stride3D, TransportKind.WebSocket, SerializerKind.Json, Versions);
+
+            Assert.DoesNotContain(commands, static command => command.StartsWith("tool install ULinkRPC.CodeGen", StringComparison.Ordinal));
+            Assert.Contains($"run --no-restore --no-build --project \"{localCodeGenProject}\" -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
+            Assert.Contains($"run --no-restore --no-build --project \"{localCodeGenProject}\" -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT", previous);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void GenerateTemplate_CreatesUnityClientFiles_WithOpenUpmByDefault()
     {
         var root = CreateTempRoot();
@@ -1050,9 +1076,10 @@ public sealed class StarterTemplateGeneratorTests
                 return;
             }
 
-            if (arguments.StartsWith("tool run ulinkrpc-codegen -- ", StringComparison.Ordinal))
+            var codeGenArguments = GetCodeGenArguments(arguments);
+            if (codeGenArguments is not null)
             {
-                if (arguments.Contains("--mode server", StringComparison.Ordinal))
+                if (codeGenArguments.Contains("--mode server", StringComparison.Ordinal))
                 {
                     var outputDir = Path.Combine(workingDirectory, "Generated");
                     Directory.CreateDirectory(outputDir);
@@ -1060,7 +1087,7 @@ public sealed class StarterTemplateGeneratorTests
                     return;
                 }
 
-                if (arguments.Contains("--mode unity", StringComparison.Ordinal))
+                if (codeGenArguments.Contains("--mode unity", StringComparison.Ordinal))
                 {
                     var outputDir = Path.Combine(workingDirectory, "Assets", "Scripts", "Rpc", "Generated");
                     Directory.CreateDirectory(outputDir);
@@ -1075,7 +1102,7 @@ public sealed class StarterTemplateGeneratorTests
                     return;
                 }
 
-                if (arguments.Contains("--mode godot", StringComparison.Ordinal))
+                if (codeGenArguments.Contains("--mode godot", StringComparison.Ordinal))
                 {
                     var outputDir = Path.Combine(workingDirectory, "Scripts", "Rpc", "Generated");
                     Directory.CreateDirectory(outputDir);
@@ -1083,7 +1110,7 @@ public sealed class StarterTemplateGeneratorTests
                     return;
                 }
 
-                if (arguments.Contains("--mode stride3d", StringComparison.Ordinal))
+                if (codeGenArguments.Contains("--mode stride3d", StringComparison.Ordinal))
                 {
                     var outputDir = Path.Combine(workingDirectory, "Scripts", "Rpc", "Generated");
                     Directory.CreateDirectory(outputDir);
@@ -1094,6 +1121,26 @@ public sealed class StarterTemplateGeneratorTests
 
             throw new InvalidOperationException($"Unexpected dotnet command in test: {arguments}");
         };
+    }
+
+    private static string? GetCodeGenArguments(string arguments)
+    {
+        const string toolRunPrefix = "tool run ulinkrpc-codegen -- ";
+        if (arguments.StartsWith(toolRunPrefix, StringComparison.Ordinal))
+        {
+            return arguments[toolRunPrefix.Length..];
+        }
+
+        const string localRunPrefix = "run --no-restore --no-build --project ";
+        if (!arguments.StartsWith(localRunPrefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var codeGenSeparatorIndex = arguments.IndexOf(" -- --contracts ", StringComparison.Ordinal);
+        return codeGenSeparatorIndex < 0
+            ? null
+            : arguments[(codeGenSeparatorIndex + " -- ".Length)..];
     }
 
     private static Action<string, string> CreateFakeGitRunner(List<string>? commands = null)
