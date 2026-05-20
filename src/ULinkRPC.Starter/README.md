@@ -146,11 +146,15 @@ This is a deliberate architecture decision:
 
 The long-form decision record is here:
 
-- [`docs/starter-unity-shared-source-link.md`](./docs/starter-unity-shared-source-link.md)
+- [`design/starter/starter-unity-shared-source-link.md`](../../design/starter/starter-unity-shared-source-link.md)
 
 Starter dependency ownership is documented separately:
 
-- [`docs/starter-dependency-planning.md`](./docs/starter-dependency-planning.md)
+- [`design/starter/starter-dependency-planning.md`](../../design/starter/starter-dependency-planning.md)
+
+Automatic codegen planning is tracked here:
+
+- [`design/starter/automatic-codegen.md`](../../design/starter/automatic-codegen.md)
 
 ## Next Steps
 

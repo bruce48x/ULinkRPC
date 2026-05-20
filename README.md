@@ -214,7 +214,8 @@ Code generation:
 
 - `src/ULinkRPC.*`: runtime, transports, serializers, and code generator
 - `samples/`: runnable client + .NET samples
-- `docs/`: Hugo documentation site for GitHub Pages
+- `blog/`: Hugo documentation/blog site for GitHub Pages
+- `design/`: internal design notes and decision records
 
 ## For Contributors
 

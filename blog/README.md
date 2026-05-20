@@ -1,4 +1,4 @@
-# ULinkRPC Docs
+# ULinkRPC Blog
 
 This directory contains a Hugo site for GitHub Pages deployment.
 
@@ -31,9 +31,9 @@ hugo
 
 ## GitHub Pages
 
-The repository workflow builds this site from `docs/` and deploys the generated `docs/public/` artifact to GitHub Pages.
+The repository workflow builds this site from `blog/` and deploys the generated `blog/public/` artifact to GitHub Pages.
 
-The site base URL is configured in `docs/hugo.toml` for the repository project site:
+The site base URL is configured in `blog/hugo.toml` for the repository project site:
 
 - `https://bruce48x.github.io/ULinkRPC/`
 

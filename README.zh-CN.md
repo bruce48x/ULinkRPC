@@ -213,7 +213,8 @@ flowchart TB
 
 - `src/ULinkRPC.*`：运行时、传输层、序列化器和代码生成器
 - `samples/`：可直接运行的客户端 + .NET 示例
-- `docs/`：用于 GitHub Pages 的 Hugo 文档站点
+- `blog/`：用于 GitHub Pages 的 Hugo 文档/博客站点
+- `design/`：内部设计说明和决策记录
 
 ## 给贡献者
 

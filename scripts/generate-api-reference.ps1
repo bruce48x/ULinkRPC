@@ -1,7 +1,7 @@
 param(
     [string]$Configuration = "Release",
     [string]$Framework = "net10.0",
-    [string]$OutputPath = "docs/content/reference/api.md"
+    [string]$OutputPath = "blog/content/reference/api.md"
 )
 
 $ErrorActionPreference = "Stop"

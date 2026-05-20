@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - docs/**
+      - blog/**
       - scripts/check-docs-consistency.ps1
   workflow_dispatch:
 
@@ -42,7 +42,7 @@ jobs:
         run: pwsh -NoProfile -File scripts/check-docs-consistency.ps1
 
       - name: Build Hugo site
-        working-directory: docs
+        working-directory: blog
         run: |
           hugo --minify
           test -d public
@@ -54,7 +54,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: ./docs/public
+          path: ./blog/public
 
   deploy:
     environment:

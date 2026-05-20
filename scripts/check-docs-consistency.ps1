@@ -9,7 +9,8 @@ $markdownTargets = @(
     "README.md",
     "README.zh-CN.md",
     "CONTRIBUTING.md",
-    "docs"
+    "blog",
+    "design"
 )
 
 $forbiddenSnippets = @(

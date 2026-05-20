@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - docs/**
+      - blog/**
       - README.md
       - README.zh-CN.md
       - CONTRIBUTING.md
       - scripts/check-docs-consistency.ps1
   pull_request:
     paths:
-      - docs/**
+      - blog/**
       - README.md
       - README.zh-CN.md
       - CONTRIBUTING.md
@@ -43,5 +43,5 @@ jobs:
         run: pwsh -NoProfile -File scripts/check-docs-consistency.ps1
 
       - name: Build Hugo site
-        working-directory: docs
+        working-directory: blog
         run: hugo --printPathWarnings
