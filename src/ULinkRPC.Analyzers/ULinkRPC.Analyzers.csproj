@@ -9,7 +9,7 @@
     <AssemblyName>ULinkRPC.Analyzers</AssemblyName>
     <RootNamespace>ULinkRPC.Analyzers</RootNamespace>
     <PackageId>ULinkRPC.Analyzers</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>ULinkRPC</Authors>
     <Description>Roslyn analyzers for ULinkRPC contract IDs.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
