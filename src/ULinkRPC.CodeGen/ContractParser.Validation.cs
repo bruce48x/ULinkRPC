@@ -25,6 +25,10 @@ internal static partial class ContractParser
         var seen = new Dictionary<int, string>();
         foreach (var svc in services)
         {
+            if (svc.ServiceId <= 0)
+                throw new InvalidOperationException(
+                    $"Invalid ServiceId {svc.ServiceId} found on '{svc.InterfaceName}'. Each [RpcService] id must be greater than 0.");
+
             if (seen.TryGetValue(svc.ServiceId, out var existingName))
                 throw new InvalidOperationException(
                     $"Duplicate ServiceId {svc.ServiceId} found on '{existingName}' and '{svc.InterfaceName}'. Each [RpcService] must have a unique id.");
@@ -37,6 +41,10 @@ internal static partial class ContractParser
         var seen = new Dictionary<int, string>();
         foreach (var m in methods)
         {
+            if (m.MethodId <= 0)
+                throw new InvalidOperationException(
+                    $"Invalid MethodId {m.MethodId} found on '{m.Name}' in {interfaceName}. Each [RpcMethod] id must be greater than 0.");
+
             if (seen.TryGetValue(m.MethodId, out var existingName))
                 throw new InvalidOperationException(
                     $"Duplicate MethodId {m.MethodId} found on '{existingName}' and '{m.Name}' in {interfaceName}. Each [RpcMethod] within a service must have a unique id.");
@@ -49,9 +57,13 @@ internal static partial class ContractParser
         var seen = new Dictionary<int, string>();
         foreach (var m in methods)
         {
+            if (m.MethodId <= 0)
+                throw new InvalidOperationException(
+                    $"Invalid PushId {m.MethodId} found on '{m.Name}' in {interfaceName}. Each [RpcPush] id must be greater than 0.");
+
             if (seen.TryGetValue(m.MethodId, out var existingName))
                 throw new InvalidOperationException(
-                    $"Duplicate MethodId {m.MethodId} found on '{existingName}' and '{m.Name}' in {interfaceName}. Each [RpcMethod] within a callback interface must have a unique id.");
+                    $"Duplicate PushId {m.MethodId} found on '{existingName}' and '{m.Name}' in {interfaceName}. Each [RpcPush] within a callback interface must have a unique id.");
             seen[m.MethodId] = m.Name;
         }
     }

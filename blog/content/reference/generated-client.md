@@ -58,10 +58,9 @@ Callback handler 的线程模型与 `RpcClientRuntime` 一致：handler 在 runt
 
 ## 不要手改 generated 文件
 
-generated client、service proxies、callback binders 和 server binders 都由 `ULinkRPC.CodeGen` 生成。修改契约后重新运行：
+generated client、service proxies、callback binders 和 server binders 都由 `ULinkRPC.CodeGen` 生成。starter 项目会通过 build/editor hook 自动刷新这些文件：
 
-```bash
-ulinkrpc-starter codegen
-```
+- Server、Godot、Stride3D 在编译前运行 `ULinkRPCGenerateCode`。
+- Unity、Unity CN、Tuanjie 通过 Editor asset-change trigger 或 `ULinkRPC/Regenerate RPC Code` 菜单刷新。
 
-或直接运行 `ULinkRPC.CodeGen`。不要手动编辑 generated 目录；这些文件会被下一次生成覆盖。
+不要手动编辑 generated 目录；这些文件会被下一次生成覆盖。`ulinkrpc-starter codegen` 和直接运行 `ULinkRPC.CodeGen` 仍可作为显式修复入口。

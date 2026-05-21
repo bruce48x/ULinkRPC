@@ -72,7 +72,7 @@ Create a project non-interactively:
 ulinkrpc-starter new --name MyGame --output ./samples --transport kcp --serializer memorypack
 ```
 
-Regenerate both server and client generated code after changing `Shared/` contracts:
+Generated projects refresh server and client generated code from normal build/editor hooks after changing `Shared/` contracts. If you need an explicit repair command, run:
 
 ```bash
 cd MyGame
@@ -132,7 +132,7 @@ Generated projects also include starter-scaffolded codegen hooks:
 - Server, Godot, and Stride3D projects run `ULinkRPC.CodeGen` from MSBuild before compilation.
 - Unity, Unity CN, and Tuanjie projects include an Editor-only `ULinkRPC/Regenerate RPC Code` menu item and asset-change trigger for shared contract sources.
 
-You can still rerun both sides explicitly with `ulinkrpc-starter codegen`; keep this command as the fallback for troubleshooting and CI repair.
+`ulinkrpc-starter codegen` remains available as a fallback for troubleshooting, CI repair, and non-standard project layouts.
 When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
@@ -177,8 +177,9 @@ dotnet run --project Server/Server/Server.csproj
 
 Then open `Client/` with Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6, or run `dotnet run --project Client/Client.csproj` for Stride3D, depending on the selected client engine.
 
-After editing DTOs or service contracts under `Shared/`, rerun:
+After editing DTOs or service contracts under `Shared/`, use the normal build/editor flow:
 
-```bash
-ulinkrpc-starter codegen
-```
+- Server, Godot, and Stride3D builds run `ULinkRPC.CodeGen` before compilation.
+- Unity, Unity CN, and Tuanjie refresh from the Editor-only asset-change trigger or the `ULinkRPC/Regenerate RPC Code` menu item.
+
+Use `ulinkrpc-starter codegen` only when you need an explicit fallback repair command.

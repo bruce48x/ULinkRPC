@@ -20,7 +20,7 @@ categories:
 它现在的定位不只是“初始化脚手架”，而是 ULinkRPC 的项目工具：
 
 - 用 `ulinkrpc-starter new` 创建新项目
-- 用 `ulinkrpc-starter codegen` 重新生成双端胶水代码
+- 生成项目自带 build/editor codegen hook，后续改契约会自动刷新双端胶水代码
 
 它会一次性帮你生成：
 
@@ -196,19 +196,18 @@ starter 不只是“建几个空目录”，而是会直接做完这些事情：
 
 所以它的目标不是“给你一个空模板”，而是“给你一个可直接启动的起点”。
 
-## 日常怎么重新生成代码
+## 日常怎么让代码自动更新
 
 starter 第一次生成项目时，会自动帮你安装并跑好 `ULinkRPC.CodeGen`。
 
 所以 `CodeGen` 真正重要的地方，不是在“第一次建项目”，而是在你后续做新功能的时候。
 
-但日常入口已经不是手敲两次 `dotnet tool run ulinkrpc-codegen` 了，而是直接用 starter 的项目命令：
+日常入口已经不是手敲两次 `dotnet tool run ulinkrpc-codegen`，也不是每次都先跑 starter 命令。starter 生成的项目会自带自动触发点：
 
-```bash
-ulinkrpc-starter codegen
-```
+- Server、Godot、Stride3D：编译前自动运行 `ULinkRPCGenerateCode`。
+- Unity、Unity CN、团结：Editor 检测 Shared 契约变化后自动刷新，也可以从 `ULinkRPC/Regenerate RPC Code` 菜单手动触发。
 
-如果你当前不在项目根目录，也可以显式指定：
+如果自动流程被中断，或者你在非标准项目布局里需要显式修复，仍然可以使用 starter 的兜底命令：
 
 ```bash
 ulinkrpc-starter codegen --project-root ./MyGame
@@ -223,18 +222,18 @@ ulinkrpc-starter codegen --no-restore
 最常见的真实开发顺序其实是这样的：
 
 1. 先在 `Shared/Interfaces/` 里定义新的接口和 DTO
-2. 重新运行 `ulinkrpc-starter codegen`
-3. 让 server / client 两侧更新胶水代码
+2. 正常构建 server / client，或在 Unity / 团结 Editor 里等待自动刷新
+3. 让 server / client 两侧的 generated 胶水代码更新
 4. 再去补服务端实现
 5. 最后在客户端里调用新的 generated API
 
 你可以把它记成一句话：
 
-**Shared 契约变了，就先跑 `ulinkrpc-starter codegen`；胶水代码更新完，再继续写业务逻辑。**
+**Shared 契约变了，正常 build/editor 流程会刷新胶水代码；generated 目录更新完，再继续写业务逻辑。**
 
 ```mermaid
 flowchart LR
-    A["修改 Shared/Interfaces<br/>接口与 DTO"] --> B["运行 ulinkrpc-starter codegen"]
+    A["修改 Shared/Interfaces<br/>接口与 DTO"] --> B["build/editor hook 运行 CodeGen"]
     B --> C["更新 Server 生成代码"]
     B --> D["更新 Client 生成代码"]
     C --> E["补服务端实现"]
@@ -300,20 +299,22 @@ namespace Shared.Interfaces
 
 ### 这时候该做什么
 
-这时候就应该立刻重新跑 starter 的项目级 codegen。
+这时候需要让 starter 生成的自动 codegen hook 跑一次。
 
-在 starter 生成的项目里，直接这样做：
+对 Server、Godot、Stride3D，正常构建对应项目即可：
 
 ```bash
 cd MyGame
-ulinkrpc-starter codegen
+dotnet build Server/Server/Server.csproj
 ```
 
-它会自动恢复本地 tool manifest，并根据项目结构同时更新 server 和 client 的生成代码。Godot、Unity、Unity CN、团结都走同一个入口。
+Unity、Unity CN、团结项目则在 Editor 里自动检测 Shared 包变化；如果需要立即触发，可以使用菜单 `ULinkRPC/Regenerate RPC Code`。
+
+`ulinkrpc-starter codegen` 仍然保留，但现在是兜底修复入口，而不是日常主流程。
 
 ### 跑完之后会发生什么
 
-跑完以后，`ULinkRPC.CodeGen` 会根据你刚才写的 `IInventoryService` 和 DTO 自动更新两边的胶水代码，而 starter 负责替你把 server / client 两次调用都编排好。
+自动 hook 跑完以后，`ULinkRPC.CodeGen` 会根据你刚才写的 `IInventoryService` 和 DTO 更新两边的胶水代码。
 
 server 侧会更新：
 
@@ -395,9 +396,9 @@ foreach (var item in reply.Items)
 - 服务端实现只关心接口
 - 客户端调用只关心生成后的强类型 API
 
-### 什么时候一定要重跑 `ulinkrpc-starter codegen`
+### 什么时候一定会触发 CodeGen
 
-只要你改了这些内容，就应该立刻重跑：
+只要你改了这些内容，下一次 build/editor 刷新就应该更新 generated 代码：
 
 - 新增 / 删除 / 修改 RPC 接口
 - 新增 / 删除 / 修改 DTO
@@ -409,7 +410,7 @@ foreach (var item in reply.Items)
 - `InventoryService` 里换了一套数据库查询
 - 客户端 UI 从按钮点击改成页面打开自动刷新
 
-这种不涉及 Shared 契约变化的改动，就不需要重新跑 `CodeGen`。
+这种不涉及 Shared 契约变化的改动，就不需要刷新 `CodeGen` 输出。
 
 ### 一个很实用的判断方法
 
@@ -417,7 +418,7 @@ foreach (var item in reply.Items)
 
 **这次改动有没有动 `Shared/Interfaces/` 里的契约定义？**
 
-如果答案是“有”，那下一步就不是继续写别的代码，而是先跑 `ulinkrpc-starter codegen`。
+如果答案是“有”，那下一步就应该让 build/editor hook 先刷新 generated 代码。
 
 如果答案是“没有”，那通常可以继续改服务实现或客户端逻辑。
 
@@ -584,7 +585,7 @@ Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 当 starter 生成的默认 `Ping` 示例已经跑通后，后续开发就按前面的 `Inventory` 例子那条线往前走：
 
 1. 先在 `Shared/Interfaces/` 里定义功能契约
-2. 立刻重新运行 `ulinkrpc-starter codegen`
+2. 通过 build/editor hook 刷新 generated 代码
 3. 再补服务端实现和客户端业务接入
 
 日常开发里真正的源头始终是：

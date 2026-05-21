@@ -17,6 +17,18 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="..\ULinkRPC.Analyzers\bin\$(Configuration)\netstandard2.0\ULinkRPC.Analyzers.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false"
+          Condition="Exists('..\ULinkRPC.Analyzers\bin\$(Configuration)\netstandard2.0\ULinkRPC.Analyzers.dll')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ULinkRPC.Analyzers\ULinkRPC.Analyzers.csproj"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Analyzer"
+                      PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

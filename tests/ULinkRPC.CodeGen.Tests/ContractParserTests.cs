@@ -524,6 +524,30 @@ public class ContractParserTests : IDisposable
         Assert.Contains("ISvcB", ex.Message);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void InvalidServiceId_ThrowsInvalidOperation(int serviceId)
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, $$"""
+            using System.Threading.Tasks;
+
+            public class DoRequest { }
+
+            [RpcService({{serviceId}})]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask Do(DoRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains($"Invalid ServiceId {serviceId}", ex.Message);
+        Assert.Contains("must be greater than 0", ex.Message);
+    }
+
     [Fact]
     public void DuplicateMethodId_ThrowsInvalidOperation()
     {
@@ -548,6 +572,127 @@ public class ContractParserTests : IDisposable
         Assert.Contains("Duplicate MethodId 1", ex.Message);
         Assert.Contains("DoA", ex.Message);
         Assert.Contains("DoB", ex.Message);
+    }
+
+    [Fact]
+    public void SameMethodIdAcrossDifferentServices_IsAllowed()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            public class DoRequest { }
+
+            [RpcService(1)]
+            public interface ISvcA
+            {
+                [RpcMethod(1)]
+                ValueTask DoA(DoRequest request);
+            }
+
+            [RpcService(2)]
+            public interface ISvcB
+            {
+                [RpcMethod(1)]
+                ValueTask DoB(DoRequest request);
+            }
+            """);
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+
+        Assert.Equal(2, services.Count);
+        Assert.All(services, service => Assert.Equal(1, Assert.Single(service.Methods).MethodId));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void InvalidMethodId_ThrowsInvalidOperation(int methodId)
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, $$"""
+            using System.Threading.Tasks;
+
+            public class DoRequest { }
+
+            [RpcService(1)]
+            public interface ISvc
+            {
+                [RpcMethod({{methodId}})]
+                ValueTask Do(DoRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains($"Invalid MethodId {methodId}", ex.Message);
+        Assert.Contains("must be greater than 0", ex.Message);
+    }
+
+    [Fact]
+    public void DuplicateCallbackPushId_ThrowsInvalidOperation()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System;
+            using System.Threading.Tasks;
+
+            public class DoRequest { }
+            public class NotifyRequest { }
+
+            [RpcCallback(typeof(ISvc))]
+            public interface INotify
+            {
+                [RpcPush(1)]
+                void OnA(NotifyRequest request);
+
+                [RpcPush(1)]
+                void OnB(NotifyRequest request);
+            }
+
+            [RpcService(1, Callback = typeof(INotify))]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask Do(DoRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains("Duplicate PushId 1", ex.Message);
+        Assert.Contains("OnA", ex.Message);
+        Assert.Contains("OnB", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void InvalidCallbackPushId_ThrowsInvalidOperation(int pushId)
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, $$"""
+            using System;
+            using System.Threading.Tasks;
+
+            public class DoRequest { }
+            public class NotifyRequest { }
+
+            [RpcCallback(typeof(ISvc))]
+            public interface INotify
+            {
+                [RpcPush({{pushId}})]
+                void OnNotify(NotifyRequest request);
+            }
+
+            [RpcService(1, Callback = typeof(INotify))]
+            public interface ISvc
+            {
+                [RpcMethod(1)]
+                ValueTask Do(DoRequest request);
+            }
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => ContractParser.FindRpcServicesFromSource(dir));
+        Assert.Contains($"Invalid PushId {pushId}", ex.Message);
+        Assert.Contains("must be greater than 0", ex.Message);
     }
 
     #endregion

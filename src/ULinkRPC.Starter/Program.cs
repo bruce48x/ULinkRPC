@@ -71,7 +71,7 @@ internal static class Program
             ClientEngineKind.Stride3D => "  3) Run \"dotnet run --project Client/Client.csproj\" to start the Stride3D client.",
             _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
         });
-        Console.WriteLine("  4) After changing Shared contracts, run `ulinkrpc-starter codegen` from the project root.");
+        Console.WriteLine("  4) After changing Shared contracts, build the server/client or use the editor menu; codegen runs automatically.");
         return 0;
     }
 

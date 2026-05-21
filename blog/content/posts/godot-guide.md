@@ -54,10 +54,10 @@ starter 会尝试寻找本机 Godot Mono SDK 的 `Godot.NET.Sdk.*.nupkg`。如�
 
 ## 日常开发流程
 
-契约仍然只改 `Shared/Interfaces/`。修改 RPC 接口或 DTO 后，在项目根目录运行：
+契约仍然只改 `Shared/Interfaces/`。修改 RPC 接口或 DTO 后，正常构建 Godot C# 项目即可触发 starter 生成的 MSBuild codegen hook：
 
 ```bash
-ulinkrpc-starter codegen
+dotnet build Client/Client.csproj
 ```
 
 Godot 侧生成代码会更新到：
@@ -67,6 +67,8 @@ Client/Scripts/Rpc/Generated/
 ```
 
 不要手改 generated 目录。服务端实现放在 `Server/Server/Services/`，Godot 业务脚本放在 `Client/Scripts/` 下你自己的目录中。
+
+如果你只想显式刷新生成代码，也可以在项目根目录运行 `dotnet msbuild Client/Client.csproj /t:ULinkRPCGenerateCode`；`ulinkrpc-starter codegen` 只作为兜底修复入口保留。
 
 ## Transport 和 serializer
 

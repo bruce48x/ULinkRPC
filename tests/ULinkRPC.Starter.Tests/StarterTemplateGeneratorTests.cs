@@ -942,7 +942,8 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Contains("Generated projects also include starter-scaffolded codegen hooks:", readme);
         Assert.Contains("Server, Godot, and Stride3D projects run `ULinkRPC.CodeGen` from MSBuild before compilation.", readme);
         Assert.Contains("Unity, Unity CN, and Tuanjie projects include an Editor-only `ULinkRPC/Regenerate RPC Code` menu item", readme);
-        Assert.Contains("keep this command as the fallback", readme);
+        Assert.Contains("use the normal build/editor flow", readme);
+        Assert.Contains("Use `ulinkrpc-starter codegen` only when you need an explicit fallback repair command.", readme);
     }
 
 

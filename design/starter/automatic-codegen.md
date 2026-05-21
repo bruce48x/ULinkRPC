@@ -148,7 +148,7 @@ A future Source Generator effort must start with a separate design and at least 
 - decide whether generated files remain checked in or become compiler-only output;
 - preserve server binder discovery semantics without adding runtime code generation.
 
-Until those questions are resolved, do not add a `ULinkRPC.CodeGen.SourceGenerator` package or analyzer reference to starter-generated projects.
+Until those questions are resolved, do not add a `ULinkRPC.CodeGen.SourceGenerator` package or source-generator analyzer reference to starter-generated projects. This does not block lightweight contract analyzers that validate explicit ids without generating code.
 
 ## Phases
 

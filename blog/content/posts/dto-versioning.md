@@ -9,6 +9,8 @@ ULinkRPC 的契约源头是共享 C# 接口和 DTO。codegen 根据 `[RpcService
 
 `[RpcService(id)]` 和 `[RpcMethod(id)]` 是协议路由的一部分。不要复用已经发布过的 service id 或 method id。删除方法后，也应保留该 id 的历史记录，避免旧客户端把请求路由到新的含义上。
 
+CodeGen 会拒绝非正数 id、重复 service id、同一 service 内重复 method id，以及 callback interface 内重复 push id。`ULinkRPC.Core` 包也会携带 analyzer，让这些错误在普通 C# 编辑和构建阶段提前暴露。
+
 方法签名变化会影响生成代码和 payload 类型。对已发布方法，优先新增方法 id，例如 `GetInventoryV2Async`，等旧客户端下线后再清理旧方法。
 
 ## JSON DTO
