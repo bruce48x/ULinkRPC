@@ -73,6 +73,9 @@ Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Server/ULinkRPC.Server.cspro
 Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Transport.WebSocket/ULinkRPC.Transport.WebSocket.csproj")
 Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Serializer.Json/ULinkRPC.Serializer.Json.csproj")
 
+Write-Host "Building local CodeGen tool for no-build starter runs"
+Invoke-LoggedCommand -FilePath "dotnet" -Arguments @("build", $env:ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT, "-c", "Debug", "--nologo")
+
 Write-Host "Generating starter project at $projectDir ($transport + $serializer)"
 Invoke-LoggedCommand -FilePath "dotnet" -Arguments @(
     "run",

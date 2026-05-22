@@ -217,6 +217,9 @@ esac
 export ULINKRPC_GODOT_NUPKGS="$GODOT_NUPKGS"
 export ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT="$ROOT_DIR/src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj"
 
+echo "Building local CodeGen tool for no-build starter runs"
+dotnet build "$ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT" -c Debug --nologo
+
 echo "Generating starter project at $PROJECT_DIR ($TRANSPORT + $SERIALIZER)"
 dotnet run --project "$ROOT_DIR/src/ULinkRPC.Starter/ULinkRPC.Starter.csproj" -- \
   --name "$PROJECT_NAME" \
