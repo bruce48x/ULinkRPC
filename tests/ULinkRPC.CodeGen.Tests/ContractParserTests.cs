@@ -24,6 +24,16 @@ public class ContractParserTests : IDisposable
         return dir;
     }
 
+    private string CreateTempContractsWithNames(params (string Name, string Source)[] files)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"ulinkrpc_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        _tempDirs.Add(dir);
+        foreach (var (name, source) in files)
+            File.WriteAllText(Path.Combine(dir, name), source);
+        return dir;
+    }
+
     private const string AttributeDefinitions = """
         using System;
         using System.Threading.Tasks;
@@ -255,6 +265,37 @@ public class ContractParserTests : IDisposable
         Assert.Equal(2, services.Count);
         Assert.Contains(services, s => s.InterfaceName == "IFileOneService");
         Assert.Contains(services, s => s.InterfaceName == "IFileTwoService");
+    }
+
+    [Fact]
+    public void ServicesAcrossMultipleFiles_AreLoadedInStablePathOrder()
+    {
+        var dir = CreateTempContractsWithNames(
+            ("ZAttributes.cs", AttributeDefinitions),
+            ("BSecondService.cs", """
+            using System.Threading.Tasks;
+            public class SecondRequest { }
+            [RpcService(2)]
+            public interface ISecondService
+            {
+                [RpcMethod(1)]
+                ValueTask DoSecond(SecondRequest request);
+            }
+            """),
+            ("AFirstService.cs", """
+            using System.Threading.Tasks;
+            public class FirstRequest { }
+            [RpcService(1)]
+            public interface IFirstService
+            {
+                [RpcMethod(1)]
+                ValueTask DoFirst(FirstRequest request);
+            }
+            """));
+
+        var services = ContractParser.FindRpcServicesFromSource(dir);
+
+        Assert.Equal(["IFirstService", "ISecondService"], services.Select(static service => service.InterfaceName));
     }
 
     #endregion

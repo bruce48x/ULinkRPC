@@ -39,6 +39,7 @@ internal static partial class ContractParser
     {
         var files = Directory.GetFiles(contractsPath, "*.cs", SearchOption.AllDirectories);
         return files
+            .OrderBy(file => file, StringComparer.Ordinal)
             .Select(file => CSharpSyntaxTree.ParseText(File.ReadAllText(file), path: file))
             .ToList();
     }
