@@ -38,9 +38,9 @@ No circular dependencies between assemblies.
 
 Allowed Unity-compatible runtime dependencies:
 - `System.Threading.Channels` is intentionally used by ULinkRPC runtime packages and Unity samples. Keep it as an explicit package dependency when runtime code needs async producer/consumer queues.
+- `System.IO.Pipelines` may appear through transport or serializer package dependency chains. Do not treat its presence alone as a Unity / IL2CPP violation; validate the affected package path on Unity 2022 LTS, iOS, IL2CPP, and HybridCLR before expanding support claims.
 
 Forbidden in Unity client code (including tests):
-- `System.IO.Pipelines`
 - `System.Reflection.Emit`
 - Runtime code generation
 - APIs relying on JIT-only behavior

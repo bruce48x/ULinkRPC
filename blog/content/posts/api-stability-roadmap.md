@@ -129,9 +129,10 @@ generated `RpcApi` 当前根据 contract namespace 和 service interface 推导 
 
 `System.Threading.Channels` 是当前 runtime 和 Unity samples 已采用的显式依赖，应保留在允许列表中。
 
+`System.IO.Pipelines` 可能通过 transport 或 serializer 依赖链进入 Unity 侧包集合；它的出现本身不再视为违规。新增或扩大相关使用前，应基于 Unity 2022 LTS、iOS、IL2CPP、HybridCLR 做实际验证。
+
 仍应避免 Unity client 依赖以下能力：
 
-- `System.IO.Pipelines`
 - `System.Reflection.Emit`
 - runtime code generation
 - JIT-only API
