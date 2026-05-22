@@ -20,6 +20,15 @@ internal static class StarterCodeGenHookTemplates
             commandArguments: "--contracts &quot;$(ULinkRPCContractsPath)&quot; --mode $(ULinkRPCCodeGenMode) --output &quot;$(ULinkRPCOutputPath)&quot; --namespace &quot;$(ULinkRPCGeneratedNamespace)&quot;",
             extraProperties: "    <ULinkRPCOutputPath>Scripts/Rpc/Generated</ULinkRPCOutputPath>\n    <ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>");
 
+    public static string RenderStrideClientTargets() =>
+        Render(
+            mode: "stride3d",
+            contractsPath: "../../Shared",
+            generatedCompilePath: "Scripts/Rpc/Generated",
+            expectedOutput: "Scripts/Rpc/Generated/RpcApi.cs",
+            commandArguments: "--contracts &quot;$(ULinkRPCContractsPath)&quot; --mode $(ULinkRPCCodeGenMode) --output &quot;$(ULinkRPCOutputPath)&quot; --namespace &quot;$(ULinkRPCGeneratedNamespace)&quot;",
+            extraProperties: "    <ULinkRPCOutputPath>Scripts/Rpc/Generated</ULinkRPCOutputPath>\n    <ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>");
+
     private static string Render(
         string mode,
         string contractsPath,

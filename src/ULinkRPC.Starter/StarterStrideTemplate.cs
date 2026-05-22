@@ -6,28 +6,55 @@ internal static class StarterStrideTemplate
     {
         EnsureClientDirectories(context.Paths.ClientPath);
 
-        StarterFileWriter.Write(Path.Combine(context.Paths.ClientPath, "Client.csproj"), BuildClientProject(context));
+        var gameProjectPath = Path.Combine(context.Paths.ClientPath, "Client");
+        var windowsProjectPath = Path.Combine(context.Paths.ClientPath, "Client.Windows");
+
+        StarterFileWriter.Write(Path.Combine(context.Paths.ClientPath, "Client.sln"), BuildSolution());
         StarterFileWriter.Write(Path.Combine(context.Paths.ClientPath, "README.md"), BuildReadme(context));
-        StarterFileWriter.Write(Path.Combine(context.Paths.ClientPath, "Program.cs"), BuildProgram());
-        StarterFileWriter.Write(Path.Combine(context.Paths.ClientPath, "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"), BuildTesterScript(context));
+        StarterFileWriter.Write(Path.Combine(gameProjectPath, "Client.csproj"), BuildGameProject(context));
+        StarterFileWriter.Write(Path.Combine(gameProjectPath, "Client.sdpkg"), BuildStridePackage("Client", includeEffects: true));
+        StarterFileWriter.Write(Path.Combine(gameProjectPath, "Assets", "GameSettings.sdgamesettings"), BuildGameSettings());
+        StarterFileWriter.Write(Path.Combine(gameProjectPath, "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"), BuildTesterScript(context));
+        StarterFileWriter.Write(Path.Combine(windowsProjectPath, "Client.Windows.csproj"), BuildWindowsProject());
+        StarterFileWriter.Write(Path.Combine(windowsProjectPath, "Client.Windows.sdpkg"), BuildStridePackage("Client.Windows", includeEffects: false));
+        StarterFileWriter.Write(Path.Combine(windowsProjectPath, "Program.cs"), BuildProgram());
     }
 
     private static void EnsureClientDirectories(string clientPath)
     {
-        Directory.CreateDirectory(Path.Combine(clientPath, "Scripts"));
-        Directory.CreateDirectory(Path.Combine(clientPath, "Scripts", "Rpc", "Generated"));
-        Directory.CreateDirectory(Path.Combine(clientPath, "Scripts", "Rpc", "Testing"));
+        var gameProjectPath = Path.Combine(clientPath, "Client");
+        var windowsProjectPath = Path.Combine(clientPath, "Client.Windows");
+
+        Directory.CreateDirectory(Path.Combine(gameProjectPath, "Assets"));
+        Directory.CreateDirectory(Path.Combine(gameProjectPath, "Effects"));
+        Directory.CreateDirectory(Path.Combine(gameProjectPath, "Resources"));
+        Directory.CreateDirectory(Path.Combine(gameProjectPath, "Scripts", "Rpc", "Generated"));
+        Directory.CreateDirectory(Path.Combine(gameProjectPath, "Scripts", "Rpc", "Testing"));
+        Directory.CreateDirectory(Path.Combine(windowsProjectPath, "Assets"));
+        Directory.CreateDirectory(Path.Combine(windowsProjectPath, "Resources"));
     }
 
-    private static string BuildClientProject(StarterTemplateContext context)
+    private static string BuildSolution() => """
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 16
+VisualStudioVersion = 16.0.0.0
+MinimumVisualStudioVersion = 16.0.0.0
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client.Windows", "Client.Windows\Client.Windows.csproj", "{FA0CB295-B1D1-4C10-B7EF-3426C186432B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{6752B930-1A1A-465B-9B09-4E804BA69C2B}"
+EndProject
+Global
+EndGlobal
+""";
+
+    private static string BuildGameProject(StarterTemplateContext context)
     {
         var packageReferences = RenderPackageReferences(StarterDependencyPlanner.Create(context, StarterProjectRole.StrideClient));
 
         return $$"""
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0-windows</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Client</RootNamespace>
@@ -36,55 +63,156 @@ internal static class StarterStrideTemplate
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Shared\Shared.csproj" />
+    <ProjectReference Include="..\..\Shared\Shared.csproj" />
 {{packageReferences}}
   </ItemGroup>
 
-{{StarterCodeGenHookTemplates.RenderClientTargets("stride3d")}}
+{{StarterCodeGenHookTemplates.RenderStrideClientTargets()}}
 </Project>
 """;
     }
 
+    private static string BuildWindowsProject() => """
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Client</RootNamespace>
+    <OutputPath>..\Bin\Windows\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Client\Client.csproj" />
+  </ItemGroup>
+</Project>
+""";
+
     private static string RenderPackageReferences(StarterDependencyPlan plan) =>
-        string.Join(Environment.NewLine, plan.PackageReferences.Select(static reference =>
-            $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\" />"));
+        string.Join(Environment.NewLine, plan.PackageReferences.Select(RenderPackageReference));
+
+    private static string RenderPackageReference(StarterPackageReference reference)
+    {
+        if (reference.PrivateAssets is null && reference.IncludeAssets is null)
+        {
+            return $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\" />";
+        }
+
+        var metadata = new List<string>();
+        if (reference.PrivateAssets is not null)
+        {
+            metadata.Add($"      <PrivateAssets>{reference.PrivateAssets}</PrivateAssets>");
+        }
+
+        if (reference.IncludeAssets is not null)
+        {
+            metadata.Add($"      <IncludeAssets>{reference.IncludeAssets}</IncludeAssets>");
+        }
+
+        return string.Join(
+            Environment.NewLine,
+            $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\">",
+            string.Join(Environment.NewLine, metadata),
+            "    </PackageReference>");
+    }
+
+    private static string BuildStridePackage(string name, bool includeEffects)
+    {
+        var effectFolders = includeEffects ? "    -   Path: !dir Effects\n" : string.Empty;
+        return $$"""
+!Package
+SerializedVersion: {Assets: 3.1.0.0}
+Meta:
+    Name: {{name}}
+    Version: 1.0.0
+    Authors: []
+    Owners: []
+    Dependencies: null
+AssetFolders:
+    -   Path: !dir Assets
+{{effectFolders}}ResourceFolders:
+    - !dir Resources
+OutputGroupDirectories: {}
+ExplicitFolders: []
+Bundles: []
+TemplateFolders: []
+RootAssets: []
+""";
+    }
+
+    private static string BuildGameSettings() => """
+!GameSettingsAsset
+Id: 5b22d130-0f4d-4b44-b3bc-52dcb040c5cc
+SerializedVersion: {Stride: 3.1.0.1}
+Tags: []
+Defaults:
+    - !Stride.Audio.AudioEngineSettings,Stride.Audio
+        HrtfSupport: false
+    - !Stride.Assets.EditorSettings,Stride.Assets
+        RenderingMode: HDR
+    - !Stride.Graphics.RenderingSettings,Stride.Graphics
+        DefaultBackBufferWidth: 1280
+        DefaultBackBufferHeight: 720
+        AdaptBackBufferToScreen: false
+        DefaultGraphicsProfile: Level_10_0
+        ColorSpace: Linear
+        DisplayOrientation: LandscapeRight
+    - !Stride.Streaming.StreamingSettings,Stride.Rendering
+        ManagerUpdatesInterval: 0:00:00:00.0330000
+        ResourceLiveTimeout: 0:00:00:08.0000000
+    - !Stride.Assets.Textures.TextureSettings,Stride.Assets
+        TextureQuality: Fast
+Overrides: []
+PlatformFilters: []
+SplashScreenColor: {R: 0, G: 0, B: 0, A: 255}
+""";
 
     private static string BuildReadme(StarterTemplateContext context) => $$"""
-# Stride3D Client Starter (Stride 4.3 code-only)
+# Stride3D Client Starter (Stride 4.3)
 
 1. Install .NET 10 SDK and the Stride 4.3 prerequisites.
-2. Run `dotnet restore Client.csproj`.
+2. Open `Client.sln` from Stride Launcher / Game Studio, or restore it with `dotnet restore Client.sln`.
 3. Start the server from the project root: `dotnet run --project Server/Server/Server.csproj`.
-4. Run this client: `dotnet run --project Client.csproj`.
+4. Run this client: `dotnet run --project Client.Windows/Client.Windows.csproj`.
 
-The generated client uses the Stride Community Toolkit code-only workflow and creates a minimal 3D scene while it runs the RPC ping example.
+The generated client uses the standard Stride solution layout with a game project, a Windows launcher project, and a minimal RPC ping startup hook.
 
 Selected transport: {{context.Transport}}
 Selected serializer: {{context.Serializer}}
 """;
 
     private static string BuildProgram() => """
+using System.Threading.Tasks;
 using Client.Rpc.Testing;
-using Stride.CommunityToolkit.Bepu;
-using Stride.CommunityToolkit.Engine;
-using Stride.CommunityToolkit.Rendering.ProceduralModels;
-using Stride.Core.Mathematics;
 using Stride.Engine;
 
-using var game = new Game();
-await using var tester = new RpcConnectionTester();
+using var game = new RpcStarterGame();
+game.Run();
 
-game.Run(start: Start);
-
-void Start(Scene rootScene)
+internal sealed class RpcStarterGame : Game
 {
-    game.SetupBase3DScene();
+    private readonly RpcConnectionTester _tester = new();
 
-    var entity = game.Create3DPrimitive(PrimitiveModelType.Capsule);
-    entity.Transform.Position = new Vector3(0f, 8f, 0f);
-    entity.Scene = rootScene;
+    protected override async Task LoadContent()
+    {
+        await base.LoadContent();
+        _ = Task.Run(_tester.ConnectAndPingAsync);
+    }
 
-    _ = tester.ConnectAndPingAsync();
+    protected override void Destroy()
+    {
+        try
+        {
+            _tester.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+        finally
+        {
+            base.Destroy();
+        }
+    }
 }
 """;
 
@@ -162,12 +290,12 @@ public sealed class RpcConnectionTester : IAsyncDisposable
                 {{serializerConstruction}})
                 .UseSecurity(ConfigureTransportSecurity));
 
-            await _client.ConnectAsync(_cts.Token);
+            await _client.ConnectAsync(_cts.Token).ConfigureAwait(false);
 
             var reply = await _client.Api.Shared.Ping.PingAsync(new PingRequest
             {
                 Message = _message
-            });
+            }).ConfigureAwait(false);
 
             Console.WriteLine($"Ping ok: message={reply.Message}, serverTimeUtc={reply.ServerTimeUtc}");
         }
@@ -190,7 +318,7 @@ public sealed class RpcConnectionTester : IAsyncDisposable
 
         if (_client is not null)
         {
-            await _client.DisposeAsync();
+            await _client.DisposeAsync().ConfigureAwait(false);
             _client = null;
         }
 

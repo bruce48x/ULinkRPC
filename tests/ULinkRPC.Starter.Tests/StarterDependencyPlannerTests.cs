@@ -73,8 +73,8 @@ public sealed class StarterDependencyPlannerTests
     {
         var ids = CreateIds(StarterProjectRole.StrideClient, SerializerKind.MemoryPack, ClientEngineKind.Stride3D);
 
-        Assert.Contains("Stride.CommunityToolkit.Windows", ids);
-        Assert.Contains("Stride.CommunityToolkit.Bepu", ids);
+        Assert.Contains("Stride.Engine", ids);
+        Assert.Contains("Stride.Core.Assets.CompilerApp", ids);
         Assert.Contains("ULinkRPC.Core", ids);
         Assert.Contains("ULinkRPC.Client", ids);
         Assert.Contains("ULinkRPC.Transport.WebSocket", ids);

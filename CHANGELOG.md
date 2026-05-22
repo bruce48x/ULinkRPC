@@ -1,12 +1,14 @@
 # Changelog
 
-## 0.2.58
+## 0.2.61
 
 - Release packages:
-	- `ULinkRPC.Starter` `0.2.58`
+	- `ULinkRPC.Starter` `0.2.61`
 
 - Centralized starter dependency ownership in `StarterDependencyPlanner` and moved Shared / Server / Unity / Godot package selection through that planner.
 - Added dependency matrix tests for JSON and MemoryPack starter projects across Server, Godot, Unity, and Tuanjie generation paths.
+- Fixed Stride3D starter runtime startup so the generated RPC ping task does not capture Stride's microthread synchronization context before network awaits resume.
+- Changed Stride3D starter output from a single code-only `Client.csproj` to a standard `Client.sln` layout with `Client` and `Client.Windows` projects so Stride Game Studio can recognize the generated project.
 
 ## 0.16.8 / 0.2.57
 

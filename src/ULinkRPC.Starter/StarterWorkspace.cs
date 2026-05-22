@@ -78,6 +78,17 @@ internal static class StarterWorkspace
             }
         }
 
+        var strideGameProjectPath = Path.Combine(clientPath, "Client", "Client.csproj");
+        if (File.Exists(Path.Combine(clientPath, "Client.sln")) && File.Exists(strideGameProjectPath))
+        {
+            var clientProject = File.ReadAllText(strideGameProjectPath);
+            if (clientProject.Contains("Stride.Engine", StringComparison.Ordinal))
+            {
+                clientEngine = ClientEngineKind.Stride3D;
+                return true;
+            }
+        }
+
         var projectVersionPath = Path.Combine(clientPath, "ProjectSettings", "ProjectVersion.txt");
         if (File.Exists(projectVersionPath))
         {
@@ -110,7 +121,14 @@ internal sealed record StarterProjectContext(
     ClientEngineKind ClientEngine)
 {
     public string ClientCodeGenMode => ClientEngine.GetClientCodeGenMode();
-    public string ClientCodeGenOutput => ClientEngine.IsUnityCompatible()
-        ? $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated"
-        : $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated";
+    public string ClientCodeGenOutput => ClientEngine switch
+    {
+        ClientEngineKind.Unity or ClientEngineKind.UnityCn or ClientEngineKind.Tuanjie =>
+            $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
+        ClientEngineKind.Stride3D =>
+            $"Client{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
+        ClientEngineKind.Godot =>
+            $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
+        _ => throw new ArgumentOutOfRangeException(nameof(ClientEngine), ClientEngine, null)
+    };
 }

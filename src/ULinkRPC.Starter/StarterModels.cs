@@ -56,7 +56,7 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.UnityCn => "Unity 2022 LTS (China-friendly defaults)",
         ClientEngineKind.Tuanjie => "Tuanjie (Unity-compatible)",
         ClientEngineKind.Godot => "Godot 4.6",
-        ClientEngineKind.Stride3D => "Stride 4.3 code-only",
+        ClientEngineKind.Stride3D => "Stride 4.3",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -137,9 +137,16 @@ internal sealed record StarterTemplateContext(
     public string SharedProjectName => Path.GetFileName(Paths.SharedPath);
     public string ServerProjectName => Path.GetFileName(Paths.ServerAppPath);
     public string ClientCodeGenMode => ClientEngine.GetClientCodeGenMode();
-    public string ClientCodeGenOutput => ClientEngine.IsUnityCompatible()
-        ? $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated"
-        : $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated";
+    public string ClientCodeGenOutput => ClientEngine switch
+    {
+        ClientEngineKind.Unity or ClientEngineKind.UnityCn or ClientEngineKind.Tuanjie =>
+            $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
+        ClientEngineKind.Stride3D =>
+            $"Client{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
+        ClientEngineKind.Godot =>
+            $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
+        _ => throw new ArgumentOutOfRangeException(nameof(ClientEngine), ClientEngine, null)
+    };
 }
 
 internal sealed record UnityClientArtifacts(
@@ -181,6 +188,5 @@ internal static class UnityPackageVersions
 
 internal static class StridePackageVersions
 {
-    public const string CommunityToolkitWindows = "1.0.0-preview.62";
-    public const string CommunityToolkitBepu = "1.0.0-preview.62";
+    public const string Stride = "4.3.0.2507";
 }

@@ -68,7 +68,7 @@ internal static class Program
             ClientEngineKind.Unity or ClientEngineKind.UnityCn or ClientEngineKind.Tuanjie =>
                 $"  3) Open \"Client\" with {clientEngine.GetStarterClientLabel()}.",
             ClientEngineKind.Godot => "  3) Open \"Client\" with Godot 4.6 and build the C# solution.",
-            ClientEngineKind.Stride3D => "  3) Run \"dotnet run --project Client/Client.csproj\" to start the Stride3D client.",
+            ClientEngineKind.Stride3D => "  3) Open \"Client/Client.sln\" with Stride Game Studio, or run \"dotnet run --project Client/Client.Windows/Client.Windows.csproj\".",
             _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
         });
         Console.WriteLine("  4) After changing Shared contracts, build the server/client or use the editor menu; codegen runs automatically.");

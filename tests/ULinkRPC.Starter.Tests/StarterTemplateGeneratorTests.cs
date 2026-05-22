@@ -212,7 +212,7 @@ public sealed class StarterTemplateGeneratorTests
 
             Assert.DoesNotContain(commands, static command => command.StartsWith("tool install ULinkRPC.CodeGen", StringComparison.Ordinal));
             Assert.Contains($"run --no-restore --no-build --project \"{localCodeGenProject}\" -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
-            Assert.Contains($"run --no-restore --no-build --project \"{localCodeGenProject}\" -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+            Assert.Contains($"run --no-restore --no-build --project \"{localCodeGenProject}\" -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Client{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
         }
         finally
         {
@@ -616,32 +616,50 @@ public sealed class StarterTemplateGeneratorTests
             generator.GenerateTemplate(root, "Stride-Test", ClientEngineKind.Stride3D, TransportKind.WebSocket, SerializerKind.Json, Versions);
 
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
-            var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.csproj"));
+            var solution = File.ReadAllText(Path.Combine(root, "Client", "Client.sln"));
+            var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client", "Client.csproj"));
+            var windowsCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.Windows", "Client.Windows.csproj"));
             var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
-            var program = File.ReadAllText(Path.Combine(root, "Client", "Program.cs"));
-            var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
-            var generatedClientApi = Path.Combine(root, "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
+            var gamePackage = File.ReadAllText(Path.Combine(root, "Client", "Client", "Client.sdpkg"));
+            var gameSettings = File.ReadAllText(Path.Combine(root, "Client", "Client", "Assets", "GameSettings.sdgamesettings"));
+            var windowsPackage = File.ReadAllText(Path.Combine(root, "Client", "Client.Windows", "Client.Windows.sdpkg"));
+            var program = File.ReadAllText(Path.Combine(root, "Client", "Client.Windows", "Program.cs"));
+            var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
+            var generatedClientApi = Path.Combine(root, "Client", "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
 
-            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Client{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
             Assert.Contains("<TargetFrameworks>net10.0</TargetFrameworks>", sharedCsproj);
+            Assert.Contains("Client.Windows\\Client.Windows.csproj", solution);
+            Assert.Contains("Client\\Client.csproj", solution);
             Assert.Contains("<Project Sdk=\"Microsoft.NET.Sdk\">", clientCsproj);
-            Assert.Contains("<OutputType>Exe</OutputType>", clientCsproj);
-            Assert.Contains("<TargetFramework>net10.0</TargetFramework>", clientCsproj);
-            Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"Stride.CommunityToolkit.Windows\" Version=\"1.0.0-preview.62\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"Stride.CommunityToolkit.Bepu\" Version=\"1.0.0-preview.62\" />", clientCsproj);
+            Assert.Contains("<TargetFrameworks>net10.0-windows</TargetFrameworks>", clientCsproj);
+            Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"Stride.Engine\" Version=\"4.3.0.2507\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"Stride.Core.Assets.CompilerApp\" Version=\"4.3.0.2507\">", clientCsproj);
+            Assert.Contains("<IncludeAssets>build;buildTransitive</IncludeAssets>", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
-            Assert.Contains("<ULinkRPCContractsPath>../Shared</ULinkRPCContractsPath>", clientCsproj);
+            Assert.Contains("<ULinkRPCContractsPath>../../Shared</ULinkRPCContractsPath>", clientCsproj);
             Assert.Contains("<ULinkRPCCodeGenMode>stride3d</ULinkRPCCodeGenMode>", clientCsproj);
             Assert.Contains("<ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>", clientCsproj);
             Assert.Contains("Name=\"ULinkRPCGenerateCode\"", clientCsproj);
             Assert.Contains("--mode $(ULinkRPCCodeGenMode) --output", clientCsproj);
+            Assert.Contains("<TargetFramework>net10.0-windows</TargetFramework>", windowsCsproj);
+            Assert.Contains("<OutputType>Exe</OutputType>", windowsCsproj);
+            Assert.Contains("<NuGetAudit>false</NuGetAudit>", windowsCsproj);
+            Assert.Contains("<ProjectReference Include=\"..\\Client\\Client.csproj\" />", windowsCsproj);
+            Assert.Contains("Name: Client", gamePackage);
+            Assert.Contains("Path: !dir Effects", gamePackage);
+            Assert.Contains("!GameSettingsAsset", gameSettings);
+            Assert.Contains("DefaultBackBufferWidth: 1280", gameSettings);
+            Assert.Contains("Name: Client.Windows", windowsPackage);
             Assert.Contains("Stride3D Client Starter", clientReadme);
-            Assert.Contains("dotnet run --project Client.csproj", clientReadme);
+            Assert.Contains("Client.sln", clientReadme);
+            Assert.Contains("dotnet run --project Client.Windows/Client.Windows.csproj", clientReadme);
             Assert.Contains("using Stride.Engine;", program);
-            Assert.Contains("game.SetupBase3DScene();", program);
-            Assert.Contains("_ = tester.ConnectAndPingAsync();", program);
+            Assert.Contains("internal sealed class RpcStarterGame : Game", program);
+            Assert.Contains("protected override async Task LoadContent()", program);
+            Assert.Contains("_ = Task.Run(_tester.ConnectAndPingAsync);", program);
             Assert.Contains("namespace Client.Rpc.Testing;", testerScript);
             Assert.Contains("using Rpc.Generated;", testerScript);
             Assert.Contains("using Shared.Interfaces;", testerScript);
@@ -649,6 +667,9 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
             Assert.Contains("new WsTransport($\"ws://{_host}:{_port}{NormalizePath(_path)}\")", testerScript);
             Assert.Contains("new JsonRpcSerializer()", testerScript);
+            Assert.Contains("await _client.ConnectAsync(_cts.Token).ConfigureAwait(false);", testerScript);
+            Assert.Contains("}).ConfigureAwait(false);", testerScript);
+            Assert.Contains("await _client.DisposeAsync().ConfigureAwait(false);", testerScript);
             Assert.Contains("Console.WriteLine($\"Ping ok:", testerScript);
             Assert.True(File.Exists(generatedClientApi));
         }
@@ -916,7 +937,7 @@ public sealed class StarterTemplateGeneratorTests
 
             Assert.Contains("tool restore", commands);
             Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
-            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
+            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Client{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
         }
         finally
         {
@@ -1113,7 +1134,7 @@ public sealed class StarterTemplateGeneratorTests
 
                 if (codeGenArguments.Contains("--mode stride3d", StringComparison.Ordinal))
                 {
-                    var outputDir = Path.Combine(workingDirectory, "Scripts", "Rpc", "Generated");
+                    var outputDir = Path.Combine(workingDirectory, "Client", "Scripts", "Rpc", "Generated");
                     Directory.CreateDirectory(outputDir);
                     File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
                     return;

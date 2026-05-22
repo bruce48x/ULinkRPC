@@ -85,8 +85,13 @@ internal static class StarterDependencyPlanner
     {
         var references = new List<StarterPackageReference>
         {
-            new("Stride.CommunityToolkit.Windows", StridePackageVersions.CommunityToolkitWindows),
-            new("Stride.CommunityToolkit.Bepu", StridePackageVersions.CommunityToolkitBepu),
+            new("Stride.Engine", StridePackageVersions.Stride),
+            new("Stride.Video", StridePackageVersions.Stride),
+            new("Stride.Physics", StridePackageVersions.Stride),
+            new("Stride.Navigation", StridePackageVersions.Stride),
+            new("Stride.Particles", StridePackageVersions.Stride),
+            new("Stride.UI", StridePackageVersions.Stride),
+            new("Stride.Core.Assets.CompilerApp", StridePackageVersions.Stride, IncludeAssets: "build;buildTransitive"),
             new("ULinkRPC.Core", context.Versions.Core),
             new("ULinkRPC.Client", context.Versions.Client),
             new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)

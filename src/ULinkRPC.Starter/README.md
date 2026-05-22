@@ -13,7 +13,7 @@ Generated projects use these fixed folders:
 
 - `Shared` (netstandard2.1 + net10.0)
 - `Server` (.NET 10)
-- `Client` (Unity 2022 LTS, Unity CN, Tuanjie, Godot 4.6, or Stride3D 4.3 code-only skeleton)
+- `Client` (Unity 2022 LTS, Unity CN, Tuanjie, Godot 4.6, or Stride3D 4.3 skeleton)
 
 The tool asks for transport and serializer before generating files.
 
@@ -113,7 +113,7 @@ flowchart LR
 - `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, `Directory.Build.props` redirects `obj/bin` to `../_artifacts/Shared/`, and the generated `.csproj` uses `LangVersion=latest` so MemoryPack source generation can compile.
 - `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
 - `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and wires the selected serializer and acceptor explicitly.
-- `Client/`: Unity 2022 LTS / Unity CN / Tuanjie-compatible skeleton with `packages.config`, a local reference to `Shared`, and either an OpenUPM or embedded `NuGetForUnity` setup depending on the selected client engine; a Godot 4.6 C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node; or a Stride3D 4.3 code-only `Client.csproj` with a minimal 3D scene and RPC ping tester.
+- `Client/`: Unity 2022 LTS / Unity CN / Tuanjie-compatible skeleton with `packages.config`, a local reference to `Shared`, and either an OpenUPM or embedded `NuGetForUnity` setup depending on the selected client engine; a Godot 4.6 C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node; or a Stride3D 4.3 `Client.sln` with a game project, a Windows launcher project, and an RPC ping tester.
 - `.gitignore`: ignore rules for .NET build outputs, editor files, Unity/Godot/Stride generated folders, and NuGetForUnity restored packages.
 
 The tool uses a bundled, release-tested package manifest for:
@@ -175,7 +175,7 @@ cd MyGame
 dotnet run --project Server/Server/Server.csproj
 ```
 
-Then open `Client/` with Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6, or run `dotnet run --project Client/Client.csproj` for Stride3D, depending on the selected client engine.
+Then open `Client/` with Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6, or open `Client/Client.sln` with Stride Game Studio / run `dotnet run --project Client/Client.Windows/Client.Windows.csproj` for Stride3D, depending on the selected client engine.
 
 After editing DTOs or service contracts under `Shared/`, use the normal build/editor flow:
 
