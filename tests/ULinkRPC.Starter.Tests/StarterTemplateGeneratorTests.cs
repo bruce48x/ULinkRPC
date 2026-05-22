@@ -63,12 +63,12 @@ public sealed class StarterTemplateGeneratorTests
         var jsonVersions = NuGetVersionResolver.ResolveVersions(TransportKind.WebSocket, SerializerKind.Json);
         var memoryPackVersions = NuGetVersionResolver.ResolveVersions(TransportKind.Kcp, SerializerKind.MemoryPack);
 
-        Assert.Equal("0.11.5", jsonVersions.Core);
+        Assert.Equal("0.11.6", jsonVersions.Core);
         Assert.Equal("0.11.9", jsonVersions.Server);
         Assert.Equal("0.11.4", jsonVersions.Client);
         Assert.Equal("0.11.6", jsonVersions.Transport);
         Assert.Equal("0.11.1", jsonVersions.Serializer);
-        Assert.Equal("0.16.9", jsonVersions.CodeGen);
+        Assert.Equal("0.16.11", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
