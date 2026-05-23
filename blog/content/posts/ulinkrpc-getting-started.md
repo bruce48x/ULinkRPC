@@ -286,10 +286,23 @@ using ULinkRPC.Core;
 
 namespace Shared.Interfaces
 {
-    [RpcService(2)]
+    public static partial class RpcContractIds
+    {
+        public static class Services
+        {
+            public const int Inventory = 2;
+        }
+
+        public static class InventoryServiceMethods
+        {
+            public const int GetInventoryAsync = 1;
+        }
+    }
+
+    [RpcService(RpcContractIds.Services.Inventory)]
     public interface IInventoryService
     {
-        [RpcMethod(1)]
+        [RpcMethod(RpcContractIds.InventoryServiceMethods.GetInventoryAsync)]
         ValueTask<GetInventoryReply> GetInventoryAsync(GetInventoryRequest request);
     }
 }

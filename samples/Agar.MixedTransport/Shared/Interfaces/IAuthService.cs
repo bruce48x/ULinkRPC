@@ -3,9 +3,9 @@ using ULinkRPC.Core;
 
 namespace Shared.Interfaces;
 
-[RpcService(1)]
+[RpcService(RpcContractIds.Services.Auth)]
 public interface IAuthService
 {
-    [RpcMethod(1)]
+    [RpcMethod(RpcContractIds.AuthServiceMethods.LoginAsync)]
     ValueTask<LoginReply> LoginAsync(LoginRequest request);
 }

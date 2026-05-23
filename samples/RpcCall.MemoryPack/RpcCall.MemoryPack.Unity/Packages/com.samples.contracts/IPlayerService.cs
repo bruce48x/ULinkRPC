@@ -3,20 +3,20 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
-    [RpcService(1, Callback = typeof(IPlayerCallback))]
+    [RpcService(RpcContractIds.Services.Player, Callback = typeof(IPlayerCallback))]
     public interface IPlayerService
     {
-        [RpcMethod(1)]
+        [RpcMethod(RpcContractIds.PlayerServiceMethods.LoginAsync)]
         ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
-        [RpcMethod(2)]
+        [RpcMethod(RpcContractIds.PlayerServiceMethods.IncrStep)]
         ValueTask<StepReply> IncrStep(StepRequest req);
     }
 
     [RpcCallback(typeof(IPlayerService))]
     public interface IPlayerCallback
     {
-        [RpcPush(1)]
+        [RpcPush(RpcContractIds.PlayerCallbackPushes.OnPlayerNotify)]
         void OnPlayerNotify(PlayerNotify notify);
     }
 }

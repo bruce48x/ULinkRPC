@@ -236,6 +236,43 @@ public class ContractParserTests : IDisposable
     }
 
     [Fact]
+    public void ParsesIdsFromCentralizedConstFields()
+    {
+        var dir = CreateTempContracts(AttributeDefinitions, """
+            using System.Threading.Tasks;
+
+            public static class RpcContractIds
+            {
+                public static class Services
+                {
+                    public const int Login = 10;
+                }
+
+                public static class LoginServiceMethods
+                {
+                    public const int LoginAsync = 5;
+                }
+            }
+
+            public class LoginRequest { }
+            public class LoginReply { }
+
+            [RpcService(RpcContractIds.Services.Login)]
+            public interface ILoginService
+            {
+                [RpcMethod(RpcContractIds.LoginServiceMethods.LoginAsync)]
+                ValueTask<LoginReply> LoginAsync(LoginRequest request);
+            }
+            """);
+
+        var service = Assert.Single(ContractParser.FindRpcServicesFromSource(dir));
+        var method = Assert.Single(service.Methods);
+
+        Assert.Equal(10, service.ServiceId);
+        Assert.Equal(5, method.MethodId);
+    }
+
+    [Fact]
     public void ServicesAcrossMultipleFiles()
     {
         var dir = CreateTempContracts(

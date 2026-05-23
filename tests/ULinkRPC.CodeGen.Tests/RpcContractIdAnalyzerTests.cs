@@ -75,6 +75,33 @@ public sealed class RpcContractIdAnalyzerTests
     }
 
     [Fact]
+    public async Task AllowsIdsFromCentralizedConstFields()
+    {
+        var diagnostics = await AnalyzeAsync("""
+            public static class RpcContractIds
+            {
+                public static class Services
+                {
+                    public const int Login = 10;
+                }
+
+                public static class LoginServiceMethods
+                {
+                    public const int LoginAsync = 5;
+                }
+            }
+
+            [RpcService(RpcContractIds.Services.Login)]
+            public interface ILoginService
+            {
+                [RpcMethod(RpcContractIds.LoginServiceMethods.LoginAsync)] void LoginAsync();
+            }
+            """);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public async Task ReportsDuplicatePushIdsWithinCallbackInterface()
     {
         var diagnostics = await AnalyzeAsync("""

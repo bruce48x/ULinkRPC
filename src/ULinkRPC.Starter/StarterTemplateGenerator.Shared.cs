@@ -13,6 +13,7 @@ internal static class StarterSharedTemplate
         StarterFileWriter.Write(Path.Combine(sharedPath, "Directory.Build.props"), BuildSharedDirectoryBuildProps());
         StarterFileWriter.Write(Path.Combine(sharedPath, $"{projectName}.csproj"), BuildSharedProjectFile(context));
         StarterFileWriter.Write(Path.Combine(sharedPath, "Interfaces", "SharedDtos.cs"), BuildSharedDtos(context.Serializer));
+        StarterFileWriter.Write(Path.Combine(sharedPath, "Interfaces", "RpcContractIds.cs"), BuildSharedContractIds());
         StarterFileWriter.Write(Path.Combine(sharedPath, "Interfaces", "IPingService.cs"), BuildSharedServiceContract());
         StarterFileWriter.Write(Path.Combine(sharedPath, $"{projectName}.asmdef"), BuildSharedAsmdef(context.Serializer));
         StarterFileWriter.Write(Path.Combine(sharedPath, "package.json"), BuildSharedPackageJson(context, projectName));
@@ -125,16 +126,34 @@ namespace Shared.Interfaces
 }
 """;
 
+    private static string BuildSharedContractIds() => """
+namespace Shared.Interfaces
+{
+    public static class RpcContractIds
+    {
+        public static class Services
+        {
+            public const int Ping = 1;
+        }
+
+        public static class PingServiceMethods
+        {
+            public const int PingAsync = 1;
+        }
+    }
+}
+""";
+
     private static string BuildSharedServiceContract() => """
 using System.Threading.Tasks;
 using ULinkRPC.Core;
 
 namespace Shared.Interfaces
 {
-    [RpcService(1)]
+    [RpcService(RpcContractIds.Services.Ping)]
     public interface IPingService
     {
-        [RpcMethod(1)]
+        [RpcMethod(RpcContractIds.PingServiceMethods.PingAsync)]
         ValueTask<PingReply> PingAsync(PingRequest request);
     }
 }

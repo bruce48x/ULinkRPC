@@ -126,7 +126,7 @@ The tool uses a bundled, release-tested package manifest for:
 - `ULinkRPC.CodeGen`
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
-Starter also generates a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and the selected client engine automatically.
+Starter also generates centralized `RpcContractIds` constants, a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and the selected client engine automatically.
 Generated projects also include starter-scaffolded codegen hooks:
 
 - Server, Godot, and Stride3D projects run `ULinkRPC.CodeGen` from MSBuild before compilation.

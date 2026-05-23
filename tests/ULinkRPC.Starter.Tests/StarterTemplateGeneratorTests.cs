@@ -110,6 +110,8 @@ public sealed class StarterTemplateGeneratorTests
             var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
             var sharedAsmdef = File.ReadAllText(Path.Combine(root, "Shared", "Shared.asmdef"));
             var sharedDtos = File.ReadAllText(Path.Combine(root, "Shared", "Interfaces", "SharedDtos.cs"));
+            var contractIds = File.ReadAllText(Path.Combine(root, "Shared", "Interfaces", "RpcContractIds.cs"));
+            var pingContract = File.ReadAllText(Path.Combine(root, "Shared", "Interfaces", "IPingService.cs"));
             var gitIgnore = File.ReadAllText(Path.Combine(root, ".gitignore"));
 
             Assert.Contains("<LangVersion>latest</LangVersion>", sharedCsproj);
@@ -141,6 +143,13 @@ public sealed class StarterTemplateGeneratorTests
             Assert.DoesNotContain("namespace Shared.Interfaces;", sharedDtos, StringComparison.Ordinal);
             Assert.DoesNotContain("DateTimeOffset", sharedDtos, StringComparison.Ordinal);
             Assert.Contains("public string ServerTimeUtc { get; set; } = string.Empty;", sharedDtos);
+            Assert.Contains("public static class RpcContractIds", contractIds);
+            Assert.Contains("public static class Services", contractIds);
+            Assert.Contains("public const int Ping = 1;", contractIds);
+            Assert.Contains("public static class PingServiceMethods", contractIds);
+            Assert.Contains("public const int PingAsync = 1;", contractIds);
+            Assert.Contains("[RpcService(RpcContractIds.Services.Ping)]", pingContract);
+            Assert.Contains("[RpcMethod(RpcContractIds.PingServiceMethods.PingAsync)]", pingContract);
             Assert.True(File.Exists(Path.Combine(root, "Shared", "Interfaces", "IPingService.cs")));
             Assert.True(File.Exists(Path.Combine(root, "Shared", "package.json")));
             Assert.False(File.Exists(Path.Combine(root, "Shared", "UnityPackage", "package.json")));

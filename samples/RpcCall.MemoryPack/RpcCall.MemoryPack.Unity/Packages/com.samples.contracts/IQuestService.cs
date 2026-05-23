@@ -3,20 +3,20 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
-    [RpcService(3, Callback = typeof(IQuestCallback))]
+    [RpcService(RpcContractIds.Services.Quest, Callback = typeof(IQuestCallback))]
     public interface IQuestService
     {
-        [RpcMethod(1)]
+        [RpcMethod(RpcContractIds.QuestServiceMethods.GetProgressAsync)]
         ValueTask<ProgressReply> GetProgressAsync(ProgressRequest req);
 
-        [RpcMethod(2)]
+        [RpcMethod(RpcContractIds.QuestServiceMethods.IncrProgress)]
         ValueTask<ProgressReply> IncrProgress(ProgressRequest req);
     }
 
     [RpcCallback(typeof(IQuestService))]
     public interface IQuestCallback
     {
-        [RpcPush(1)]
+        [RpcPush(RpcContractIds.QuestCallbackPushes.OnQuestNotify)]
         void OnQuestNotify(QuestNotify notify);
     }
 }
