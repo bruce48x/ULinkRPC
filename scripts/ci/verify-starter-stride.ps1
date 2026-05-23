@@ -11,7 +11,8 @@ $serializerLabel = (Get-Culture).TextInfo.ToTitleCase($serializer)
 $projectName = "StarterStride$transportLabel$serializerLabel"
 $projectDir = Join-Path $generatedRoot $projectName
 $serverProject = Join-Path $projectDir "Server/Server/Server.csproj"
-$clientProject = Join-Path $projectDir "Client/Client.csproj"
+$clientProject = Join-Path $projectDir "Client/Client/Client.csproj"
+$clientWindowsProject = Join-Path $projectDir "Client/Client.Windows/Client.Windows.csproj"
 $localFeed = Join-Path $rootDir "artifacts/ci-nuget"
 $ciNuGetConfig = Join-Path $generatedRoot "NuGet.config"
 $nuGetPackages = Join-Path $workDir "nuget-packages"
@@ -99,12 +100,12 @@ Invoke-LoggedCommand -FilePath "dotnet" -Arguments @("restore", $serverProject, 
 Invoke-LoggedCommand -FilePath "dotnet" -Arguments @("build", $serverProject, "-c", "Release", "--no-restore")
 
 Write-Host "Restoring and building generated Stride3D client"
-Invoke-LoggedCommand -FilePath "dotnet" -Arguments @("restore", $clientProject, "--configfile", $ciNuGetConfig)
-Invoke-LoggedCommand -FilePath "dotnet" -Arguments @("build", $clientProject, "-c", "Release", "--no-restore")
+Invoke-LoggedCommand -FilePath "dotnet" -Arguments @("restore", $clientWindowsProject, "--configfile", $ciNuGetConfig)
+Invoke-LoggedCommand -FilePath "dotnet" -Arguments @("build", $clientWindowsProject, "-c", "Release", "--no-restore")
 
 $clientProjectText = Get-Content -Raw -LiteralPath $clientProject
-if ($clientProjectText -notmatch 'PackageReference Include="Stride\.CommunityToolkit\.Windows"') {
-    throw "Generated Stride3D client is missing Stride.CommunityToolkit.Windows."
+if ($clientProjectText -notmatch 'PackageReference Include="Stride\.Engine"') {
+    throw "Generated Stride3D client is missing Stride.Engine."
 }
 
 if ($clientProjectText -notmatch 'PackageReference Include="ULinkRPC\.Transport\.WebSocket"') {
@@ -115,7 +116,7 @@ if ($clientProjectText -notmatch 'PackageReference Include="ULinkRPC\.Serializer
     throw "Generated Stride3D client is missing ULinkRPC.Serializer.Json."
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $projectDir "Client/Scripts/Rpc/Generated/RpcApi.cs"))) {
+if (-not (Test-Path -LiteralPath (Join-Path $projectDir "Client/Client/Scripts/Rpc/Generated/RpcApi.cs"))) {
     throw "Generated Stride3D client is missing generated RpcApi.cs."
 }
 
