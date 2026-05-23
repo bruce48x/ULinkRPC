@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.1.2 / 0.2.62
+## 0.1.2 / 0.2.63
 
 - Release packages:
 	- `ULinkRPC.Analyzers` `0.1.2`
-	- `ULinkRPC.Starter` `0.2.62`
+	- `ULinkRPC.Starter` `0.2.63`
 - Switched new starter projects from starter-scaffolded CLI codegen hooks to Roslyn source generation through `ULinkRPC.Analyzers`.
 - Added source-generated client facade, service client, callback binder, server binder, callback proxy, and `AllServicesBinder` output with explicit client/server generation properties plus runtime-based mode detection.
 - Removed new-project reliance on local `ULinkRPC.CodeGen` tool manifests, generated source directories, MSBuild `ULinkRPCGenerateCode` targets, and Unity `ULinkRPCCodeGenEditor` scripts.
