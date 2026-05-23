@@ -61,7 +61,8 @@ internal static class StarterDependencyPlanner
         var references = new List<StarterPackageReference>
         {
             new("ULinkRPC.Server", context.Versions.Server),
-            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)
+            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),
+            CreateAnalyzerReference(context)
         };
 
         AddSdkSerializerReferenceIfNeeded(context, references);
@@ -74,7 +75,8 @@ internal static class StarterDependencyPlanner
         {
             new("ULinkRPC.Core", context.Versions.Core),
             new("ULinkRPC.Client", context.Versions.Client),
-            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)
+            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),
+            CreateAnalyzerReference(context)
         };
 
         AddSdkSerializerReferenceIfNeeded(context, references);
@@ -94,7 +96,8 @@ internal static class StarterDependencyPlanner
             new("Stride.Core.Assets.CompilerApp", StridePackageVersions.Stride, IncludeAssets: "build;buildTransitive"),
             new("ULinkRPC.Core", context.Versions.Core),
             new("ULinkRPC.Client", context.Versions.Client),
-            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)
+            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),
+            CreateAnalyzerReference(context)
         };
 
         AddSdkSerializerReferenceIfNeeded(context, references);
@@ -109,6 +112,7 @@ internal static class StarterDependencyPlanner
             new("ULinkRPC.Client", context.Versions.Client, ManuallyInstalled: true),
             new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport, ManuallyInstalled: true),
             new(NuGetVersionResolver.GetSerializerPackage(context.Serializer), context.Versions.Serializer, ManuallyInstalled: true),
+            new("ULinkRPC.Analyzers", context.Versions.Analyzers, ManuallyInstalled: true),
             new("System.Threading.Channels", UnityPackageVersions.SystemThreadingChannels)
         };
 
@@ -183,4 +187,11 @@ internal static class StarterDependencyPlanner
 
         return version;
     }
+
+    private static StarterPackageReference CreateAnalyzerReference(StarterTemplateContext context) =>
+        new(
+            "ULinkRPC.Analyzers",
+            context.Versions.Analyzers,
+            PrivateAssets: "all",
+            IncludeAssets: "runtime; build; native; contentfiles; analyzers; buildtransitive");
 }

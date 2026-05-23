@@ -28,7 +28,6 @@ internal static class StarterStrideTemplate
         Directory.CreateDirectory(Path.Combine(gameProjectPath, "Assets"));
         Directory.CreateDirectory(Path.Combine(gameProjectPath, "Effects"));
         Directory.CreateDirectory(Path.Combine(gameProjectPath, "Resources"));
-        Directory.CreateDirectory(Path.Combine(gameProjectPath, "Scripts", "Rpc", "Generated"));
         Directory.CreateDirectory(Path.Combine(gameProjectPath, "Scripts", "Rpc", "Testing"));
         Directory.CreateDirectory(Path.Combine(windowsProjectPath, "Assets"));
         Directory.CreateDirectory(Path.Combine(windowsProjectPath, "Resources"));
@@ -60,6 +59,8 @@ EndGlobal
     <RootNamespace>Client</RootNamespace>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NuGetAudit>false</NuGetAudit>
+    <ULinkRPCGenerateClient>true</ULinkRPCGenerateClient>
+    <ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -67,7 +68,6 @@ EndGlobal
 {{packageReferences}}
   </ItemGroup>
 
-{{StarterCodeGenHookTemplates.RenderStrideClientTargets()}}
 </Project>
 """;
     }

@@ -18,7 +18,6 @@ internal static class StarterUnityTemplate
         var testerScriptPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs");
         var scenePath = Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName()}.unity");
         var autoOpenEditorScriptPath = Path.Combine(clientPath, "Assets", "Editor", "AutoOpenConnectionScene.cs");
-        var codeGenEditorScriptPath = Path.Combine(clientPath, "Assets", "Editor", "ULinkRPCCodeGenEditor.cs");
 
         StarterFileWriter.Write(Path.Combine(clientPath, "Packages", "manifest.json"), artifacts.Manifest);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "packages.config"), artifacts.PackagesConfig);
@@ -28,7 +27,6 @@ internal static class StarterUnityTemplate
         StarterFileWriter.Write(scenePath, artifacts.SceneContent);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName()}.unity.meta"), artifacts.SceneMeta);
         StarterFileWriter.Write(autoOpenEditorScriptPath, artifacts.AutoOpenSceneEditorScript);
-        StarterFileWriter.Write(codeGenEditorScriptPath, GetCodeGenEditorScript(context));
         StarterFileWriter.Write(Path.Combine(clientPath, "ProjectSettings", "EditorBuildSettings.asset"), artifacts.EditorBuildSettings);
         StarterFileWriter.Write(Path.Combine(clientPath, "README.md"), artifacts.Readme);
         StarterFileWriter.Write(Path.Combine(clientPath, "ProjectSettings", "ProjectVersion.txt"), artifacts.ProjectVersion);
@@ -41,7 +39,6 @@ internal static class StarterUnityTemplate
         Directory.CreateDirectory(Path.Combine(clientPath, "Packages"));
         Directory.CreateDirectory(Path.Combine(clientPath, "ProjectSettings"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scenes"));
-        Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Generated"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing"));
     }
 
@@ -348,178 +345,6 @@ DefaultImporter:
 
     private static string GetAutoOpenSceneEditorScript() =>
         StarterTemplateRenderer.Render("Unity/AutoOpenConnectionScene.template");
-
-    private static string GetCodeGenEditorScript(StarterTemplateContext context) => $$"""
-#if UNITY_EDITOR
-using System;
-using System.Diagnostics;
-using System.IO;
-using System.Text;
-using UnityEditor;
-using UnityEngine;
-using Debug = UnityEngine.Debug;
-
-internal sealed class ULinkRPCCodeGenEditor : AssetPostprocessor
-{
-    private const string SharedPackageName = "com.{{context.CompanyId}}.shared";
-    private const string ContractsAssetPrefix = "Packages/" + SharedPackageName + "/";
-    private const string GeneratedOutputPath = "Assets/Scripts/Rpc/Generated";
-    private const string GeneratedNamespace = "Rpc.Generated";
-    private const string LocalCodeGenProjectEnv = "ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT";
-
-    private static bool _isScheduled;
-    private static bool _isRunning;
-
-    [MenuItem("ULinkRPC/Regenerate RPC Code")]
-    public static void RegenerateRpcCode()
-    {
-        RunCodeGen();
-    }
-
-    private static void OnPostprocessAllAssets(
-        string[] importedAssets,
-        string[] deletedAssets,
-        string[] movedAssets,
-        string[] movedFromAssetPaths)
-    {
-        if (!TouchesContracts(importedAssets) &&
-            !TouchesContracts(deletedAssets) &&
-            !TouchesContracts(movedAssets) &&
-            !TouchesContracts(movedFromAssetPaths))
-        {
-            return;
-        }
-
-        ScheduleCodeGen();
-    }
-
-    private static bool TouchesContracts(string[] assetPaths)
-    {
-        foreach (var assetPath in assetPaths)
-        {
-            if (IsContractSource(assetPath))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool IsContractSource(string assetPath)
-    {
-        return assetPath.StartsWith(ContractsAssetPrefix, StringComparison.Ordinal) &&
-               assetPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static void ScheduleCodeGen()
-    {
-        if (_isScheduled)
-            return;
-
-        _isScheduled = true;
-        EditorApplication.delayCall += () =>
-        {
-            _isScheduled = false;
-            RunCodeGen();
-        };
-    }
-
-    private static void RunCodeGen()
-    {
-        if (_isRunning)
-            return;
-
-        var projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
-        if (string.IsNullOrWhiteSpace(projectRoot))
-        {
-            Debug.LogError("ULinkRPC.CodeGen failed: unable to resolve Unity project root.");
-            return;
-        }
-
-        var contractsPath = Path.GetFullPath(Path.Combine(projectRoot, "..", "{{context.SharedProjectName}}"));
-        if (!Directory.Exists(contractsPath))
-        {
-            Debug.LogError("ULinkRPC.CodeGen failed: contracts path not found: " + contractsPath);
-            return;
-        }
-
-        try
-        {
-            _isRunning = true;
-            var result = RunDotNetCodeGen(projectRoot, contractsPath);
-            if (result.ExitCode != 0)
-            {
-                Debug.LogError("ULinkRPC.CodeGen failed with exit code " + result.ExitCode + Environment.NewLine + result.Output);
-                return;
-            }
-
-            Debug.Log("ULinkRPC.CodeGen completed." + Environment.NewLine + result.Output);
-            AssetDatabase.Refresh();
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError("ULinkRPC.CodeGen failed: " + ex);
-        }
-        finally
-        {
-            _isRunning = false;
-        }
-    }
-
-    private static CodeGenResult RunDotNetCodeGen(string projectRoot, string contractsPath)
-    {
-        var localCodeGenProject = Environment.GetEnvironmentVariable(LocalCodeGenProjectEnv);
-        var commandPrefix = string.IsNullOrWhiteSpace(localCodeGenProject)
-            ? "tool run ulinkrpc-codegen --"
-            : "run --no-restore --no-build --project " + Quote(localCodeGenProject) + " --";
-
-        var arguments = commandPrefix +
-            " --contracts " + Quote(contractsPath) +
-            " --mode unity" +
-            " --output " + Quote(GeneratedOutputPath) +
-            " --namespace " + Quote(GeneratedNamespace);
-
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "dotnet",
-            Arguments = arguments,
-            WorkingDirectory = projectRoot,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        using var process = Process.Start(startInfo);
-        if (process is null)
-            throw new InvalidOperationException("Failed to start dotnet.");
-
-        var output = new StringBuilder();
-        output.Append(process.StandardOutput.ReadToEnd());
-        output.Append(process.StandardError.ReadToEnd());
-        process.WaitForExit();
-
-        return new CodeGenResult(process.ExitCode, output.ToString());
-    }
-
-    private static string Quote(string value)
-    {
-        return "\"" + value.Replace("\"", "\\\"") + "\"";
-    }
-
-    private readonly struct CodeGenResult
-    {
-        public CodeGenResult(int exitCode, string output)
-        {
-            ExitCode = exitCode;
-            Output = output;
-        }
-
-        public int ExitCode { get; }
-        public string Output { get; }
-    }
-}
-#endif
-""";
 
     private static string GetUnitySceneContent(TransportKind transport)
     {

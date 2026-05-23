@@ -7,6 +7,7 @@
   "TransportKcp": "0.11.10",
   "SerializerJson": "0.11.1",
   "SerializerMemoryPack": "0.11.1",
+  "Analyzers": "0.1.2",
   "CodeGen": "0.16.11",
   "MemoryPackRuntime": "1.21.4",
   "MemoryPackRuntimeCore": "1.21.4"

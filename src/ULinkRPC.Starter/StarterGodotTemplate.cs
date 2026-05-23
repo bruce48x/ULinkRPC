@@ -22,7 +22,6 @@ internal static class StarterGodotTemplate
     private static void EnsureClientDirectories(string clientPath)
     {
         Directory.CreateDirectory(Path.Combine(clientPath, "Scripts"));
-        Directory.CreateDirectory(Path.Combine(clientPath, "Scripts", "Rpc", "Generated"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Scripts", "Rpc", "Testing"));
     }
 
@@ -47,6 +46,8 @@ internal static class StarterGodotTemplate
     <RootNamespace>Client</RootNamespace>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NuGetAudit>false</NuGetAudit>
+    <ULinkRPCGenerateClient>true</ULinkRPCGenerateClient>
+    <ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -54,14 +55,30 @@ internal static class StarterGodotTemplate
 {{packageReferences}}
   </ItemGroup>
 
-{{StarterCodeGenHookTemplates.RenderClientTargets("godot")}}
 </Project>
 """;
     }
 
     private static string RenderPackageReferences(StarterDependencyPlan plan) =>
-        string.Join(Environment.NewLine, plan.PackageReferences.Select(static reference =>
-            $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\" />"));
+        string.Join(Environment.NewLine, plan.PackageReferences.Select(RenderPackageReference));
+
+    private static string RenderPackageReference(StarterPackageReference reference)
+    {
+        if (reference.PrivateAssets is null && reference.IncludeAssets is null)
+            return $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\" />";
+
+        var metadata = new List<string>();
+        if (reference.PrivateAssets is not null)
+            metadata.Add($"      <PrivateAssets>{reference.PrivateAssets}</PrivateAssets>");
+        if (reference.IncludeAssets is not null)
+            metadata.Add($"      <IncludeAssets>{reference.IncludeAssets}</IncludeAssets>");
+
+        return string.Join(
+            Environment.NewLine,
+            $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\">",
+            string.Join(Environment.NewLine, metadata),
+            "    </PackageReference>");
+    }
 
     private static string BuildReadme(StarterTemplateContext context, GodotSdkReference? sdk)
     {

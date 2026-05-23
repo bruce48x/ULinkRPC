@@ -1,6 +1,6 @@
 # ULinkRPC.Starter
 
-Project management tool for ULinkRPC workspaces. It can scaffold a runnable project and later regenerate project codegen output from the same CLI.
+Project management tool for ULinkRPC workspaces. It scaffolds runnable projects that use Roslyn source generation for RPC glue.
 
 Workflow guidance lives in the docs site:
 
@@ -48,7 +48,7 @@ For `new`:
 For `codegen`:
 
 - `--project-root` Starter project root. Default is the current working directory. The tool also searches parent directories.
-- `--no-restore` Skip `dotnet tool restore` before running `ULinkRPC.CodeGen`.
+- `--no-restore` Skip `dotnet tool restore` before running legacy `ULinkRPC.CodeGen`.
 
 Default `NuGetForUnity` source by client engine:
 
@@ -72,7 +72,7 @@ Create a project non-interactively:
 ulinkrpc-starter new --name MyGame --output ./samples --transport kcp --serializer memorypack
 ```
 
-Generated projects refresh server and client generated code from normal build/editor hooks after changing `Shared/` contracts. If you need an explicit repair command, run:
+Generated projects compile RPC glue through `ULinkRPC.Analyzers` source generation. `ulinkrpc-starter codegen` is retained only for old hook-based projects or explicit migration repair:
 
 ```bash
 cd MyGame
@@ -101,11 +101,11 @@ flowchart LR
     Tool --> Shared["Shared<br/>contracts / DTOs / UPM package"]
     Tool --> Server["Server<br/>solution / host / services"]
     Tool --> Client["Client<br/>Unity / Tuanjie / Godot / Stride3D skeleton"]
-    Tool --> Tooling["Local Tooling<br/>tool manifest / .gitignore / git init"]
+    Tool --> Tooling["Local Tooling<br/>.gitignore / git init"]
 
-    Shared --> CodeGen["Run ULinkRPC.CodeGen"]
-    CodeGen --> ServerGenerated["Generated Server Binders"]
-    CodeGen --> ClientGenerated["Generated Client API"]
+    Shared --> SourceGen["ULinkRPC.Analyzers<br/>source generator"]
+    SourceGen --> ServerGenerated["Compiler Generated<br/>Server Binders"]
+    SourceGen --> ClientGenerated["Compiler Generated<br/>Client API"]
     Server --> ServerGenerated
     Client --> ClientGenerated
 ```
@@ -123,16 +123,12 @@ The tool uses a bundled, release-tested package manifest for:
 - `ULinkRPC.Client`
 - the selected transport package
 - the selected serializer package
-- `ULinkRPC.CodeGen`
+- `ULinkRPC.Analyzers`
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
-Starter also generates centralized `RpcContractIds` constants, a minimal `IPingService` contract plus `Server/Server/PingService.cs`, installs a local `ULinkRPC.CodeGen` tool manifest, and runs code generation for both server and the selected client engine automatically.
-Generated projects also include starter-scaffolded codegen hooks:
-
-- Server, Godot, and Stride3D projects run `ULinkRPC.CodeGen` from MSBuild before compilation.
-- Unity, Unity CN, and Tuanjie projects include an Editor-only `ULinkRPC/Regenerate RPC Code` menu item and asset-change trigger for shared contract sources.
-
-`ulinkrpc-starter codegen` remains available as a fallback for troubleshooting, CI repair, and non-standard project layouts.
+Starter also generates centralized `RpcContractIds` constants, a minimal `IPingService` contract plus `Server/Server/PingService.cs`, and source-generator package references for server and client projects.
+Generated RPC glue is compiler output. New starter projects do not create `Generated/` source folders, MSBuild codegen targets, Unity codegen editor scripts, or a local `ULinkRPC.CodeGen` tool manifest.
+`ulinkrpc-starter codegen` remains available only as a legacy repair command for existing hook-based projects and non-standard migrations.
 When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
@@ -158,7 +154,11 @@ Starter dependency ownership is documented separately:
 
 - [`design/starter/starter-dependency-planning.md`](../../design/starter/starter-dependency-planning.md)
 
-Starter-scaffolded codegen hook planning is tracked here:
+Source-generator route planning is tracked here:
+
+- [`design/starter/source-generator-codegen.md`](../../design/starter/source-generator-codegen.md)
+
+Starter-scaffolded codegen hook history is tracked here:
 
 - [`design/starter/automatic-codegen.md`](../../design/starter/automatic-codegen.md)
 
@@ -179,7 +179,7 @@ Then open `Client/` with Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6, or ope
 
 After editing DTOs or service contracts under `Shared/`, use the normal build/editor flow:
 
-- Server, Godot, and Stride3D builds run `ULinkRPC.CodeGen` before compilation.
-- Unity, Unity CN, and Tuanjie refresh from the Editor-only asset-change trigger or the `ULinkRPC/Regenerate RPC Code` menu item.
+- Server, Godot, and Stride3D builds run the analyzer/source-generator during compilation.
+- Unity, Unity CN, and Tuanjie compile generated client APIs through the analyzer package restored into the Unity project.
 
-Use `ulinkrpc-starter codegen` only when you need an explicit fallback repair command.
+Use `ulinkrpc-starter codegen` only for legacy projects that still contain the old generated-source workflow.

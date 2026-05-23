@@ -87,6 +87,7 @@ internal sealed record ResolvedVersions(
     string Client,
     string Transport,
     string Serializer,
+    string Analyzers,
     string CodeGen,
     string? SerializerRuntime,
     string? SerializerRuntimeCore);

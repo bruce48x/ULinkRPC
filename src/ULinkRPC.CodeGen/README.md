@@ -2,6 +2,8 @@
 
 Command-line code generator for ULinkRPC.
 
+Strategic direction: this CLI is now the legacy repair and migration path. New starter projects use Roslyn source generation from `ULinkRPC.Analyzers`, tracked in `design/starter/source-generator-codegen.md`, so generated RPC glue is compiler output instead of project-local generated source.
+
 Generated client reference: https://bruce48x.github.io/ULinkRPC/reference/generated-client/
 
 Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/

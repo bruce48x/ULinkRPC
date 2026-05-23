@@ -3,7 +3,7 @@ title = "Godot 接入指南"
 date = 2026-05-12T09:40:00+08:00
 +++
 
-ULinkRPC.Starter 已经支持生成 Godot 4.x C# 客户端。Godot 路径和 Unity 路径共用同一套 `Shared` 契约、服务端项目和 codegen 流程。
+ULinkRPC.Starter 已经支持生成 Godot 4.x C# 客户端。Godot 路径和 Unity 路径共用同一套 `Shared` 契约、服务端项目和 Roslyn Source Generator 流程。
 
 ## 创建 Godot 项目
 
@@ -35,12 +35,11 @@ Client/
   Main.tscn
   Scripts/
     Rpc/
-      Generated/
       Testing/
         RpcConnectionTester.cs
 ```
 
-`Client.csproj` 引用 `../Shared/Shared.csproj`，并按所选 transport / serializer 添加 NuGet 包。Godot 客户端生成代码位于 `Client/Scripts/Rpc/Generated/`。
+`Client.csproj` 引用 `../Shared/Shared.csproj`，并按所选 transport / serializer 添加 NuGet 包。Godot 客户端 RPC glue 由 `ULinkRPC.Analyzers` 在编译期生成。
 
 ## Godot SDK 和 NuGet
 
@@ -54,21 +53,15 @@ starter 会尝试寻找本机 Godot Mono SDK 的 `Godot.NET.Sdk.*.nupkg`。如�
 
 ## 日常开发流程
 
-契约仍然只改 `Shared/Interfaces/`。修改 RPC 接口或 DTO 后，正常构建 Godot C# 项目即可触发 starter 生成的 MSBuild codegen hook：
+契约仍然只改 `Shared/Interfaces/`。修改 RPC 接口或 DTO 后，正常构建 Godot C# 项目即可触发 source generator：
 
 ```bash
 dotnet build Client/Client.csproj
 ```
 
-Godot 侧生成代码会更新到：
+Godot 侧生成代码是编译器输出，不需要项目内 `Generated/` 源码目录。服务端实现放在 `Server/Server/Services/`，Godot 业务脚本放在 `Client/Scripts/` 下你自己的目录中。
 
-```text
-Client/Scripts/Rpc/Generated/
-```
-
-不要手改 generated 目录。服务端实现放在 `Server/Server/Services/`，Godot 业务脚本放在 `Client/Scripts/` 下你自己的目录中。
-
-如果你只想显式刷新生成代码，也可以在项目根目录运行 `dotnet msbuild Client/Client.csproj /t:ULinkRPCGenerateCode`；`ulinkrpc-starter codegen` 只作为兜底修复入口保留。
+`ulinkrpc-starter codegen` 只作为旧项目迁移和排障入口保留。
 
 ## Transport 和 serializer
 

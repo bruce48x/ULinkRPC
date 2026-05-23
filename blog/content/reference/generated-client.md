@@ -2,7 +2,9 @@
 title = "Generated RpcClient"
 +++
 
-`ULinkRPC.CodeGen` 在 client mode 下会生成一个项目专属的 `RpcClient` facade。它不是固定 NuGet 包里的类型，而是写入当前项目的 generated 目录，例如 Unity 的 `Assets/Scripts/Rpc/Generated/RpcApi.cs` 或 Godot 的 `Scripts/Rpc/Generated/RpcApi.cs`。
+`ULinkRPC.Analyzers` 会通过 Roslyn Source Generator 生成项目专属的 `RpcClient` facade。它不是固定 NuGet 包里的类型，也不再写入项目内 generated 目录；这些类型是编译器生成输出。
+
+`ULinkRPC.CodeGen` CLI 只保留为旧项目迁移和排障入口。
 
 ## 构造
 
@@ -56,11 +58,11 @@ var reply = await player.LoginAsync(request, ct);
 
 Callback handler 的线程模型与 `RpcClientRuntime` 一致：handler 在 runtime 的 push loop 上调用，不会自动切回 Unity、团结或 Godot 主线程。需要更新引擎对象时，请转交给主线程逻辑处理。
 
-## 不要手改 generated 文件
+## 生成方式
 
-generated client、service proxies、callback binders 和 server binders 都由 `ULinkRPC.CodeGen` 生成。starter 项目会通过 build/editor hook 自动刷新这些文件：
+generated client、service proxies、callback binders 和 server binders 由 `ULinkRPC.Analyzers` 在编译期生成：
 
-- Server、Godot、Stride3D 在编译前运行 `ULinkRPCGenerateCode`。
-- Unity、Unity CN、Tuanjie 通过 Editor asset-change trigger 或 `ULinkRPC/Regenerate RPC Code` 菜单刷新。
+- Server 项目生成 server binder、callback proxy、`AllServicesBinder` 和 binder assembly attribute。
+- Godot、Stride3D、Unity、Unity CN、Tuanjie 客户端生成 `RpcClient` facade、service client 和 callback binder。
 
-不要手动编辑 generated 目录；这些文件会被下一次生成覆盖。`ulinkrpc-starter codegen` 和直接运行 `ULinkRPC.CodeGen` 仍可作为显式修复入口。
+新 starter 项目不需要维护 `Generated/` 目录。旧项目如果仍有 committed generated 文件，可以先保留旧 CLI 流程，迁移完成后删除旧 generated 输出，避免和 source generator 生成的类型冲突。

@@ -20,7 +20,7 @@ categories:
 它现在的定位不只是“初始化脚手架”，而是 ULinkRPC 的项目工具：
 
 - 用 `ulinkrpc-starter new` 创建新项目
-- 生成项目自带 build/editor codegen hook，后续改契约会自动刷新双端胶水代码
+- 生成项目自带 Roslyn Source Generator 配置，后续改契约会在正常编译时刷新双端胶水代码
 
 它会一次性帮你生成：
 
@@ -28,7 +28,7 @@ categories:
 - `Server` 服务端项目和解决方案
 - `Client` Unity 2022、团结引擎或 Godot 4.x 客户端骨架
 - 默认 `Ping` 契约、服务实现，以及客户端测试入口
-- `ULinkRPC.CodeGen` 本地工具清单和两侧生成代码
+- `ULinkRPC.Analyzers` source generator 配置
 
 也就是说，你现在的推荐起步方式是：
 
@@ -96,9 +96,9 @@ flowchart TB
     Root --> Server["Server<br/>.NET 服务端入口与服务实现"]
     Root --> Client["Client<br/>Unity / 团结 / Godot 工程"]
 
-    Shared --> CodeGen["ULinkRPC.CodeGen"]
-    CodeGen --> ServerGenerated["Server Generated<br/>binder / AllServicesBinder"]
-    CodeGen --> ClientGenerated["Client Generated<br/>proxy / RpcApi / callback binder"]
+    Shared --> SourceGen["ULinkRPC.Analyzers<br/>Source Generator"]
+    SourceGen --> ServerGenerated["Compiler Generated<br/>binder / AllServicesBinder"]
+    SourceGen --> ClientGenerated["Compiler Generated<br/>proxy / RpcApi / callback binder"]
     Server --> ServerGenerated
     Client --> ClientGenerated
 ```
@@ -190,30 +190,23 @@ starter 不只是“建几个空目录”，而是会直接做完这些事情：
 6. Unity 模式下生成 `manifest.json`、`packages.config`、`NuGet.config`
 7. Unity 模式下生成 `Assets/Scenes/ConnectionTest.unity` 和 `EditorBuildSettings.asset`
 8. Godot 模式下生成 `project.godot`、`Client.csproj`、`Main.tscn`
-9. 自动安装本地 `ULinkRPC.CodeGen`
-10. 自动跑 server / client 两侧代码生成
+9. 添加 `ULinkRPC.Analyzers` source generator 依赖
+10. 配置 server / client 两侧 source generator
 11. 自动 `git init`
 
 所以它的目标不是“给你一个空模板”，而是“给你一个可直接启动的起点”。
 
 ## 日常怎么让代码自动更新
 
-starter 第一次生成项目时，会自动帮你安装并跑好 `ULinkRPC.CodeGen`。
+starter 第一次生成项目时，会把 `ULinkRPC.Analyzers` 配进 server / client 项目。后续日常入口就是正常 build 或编辑器编译，不需要手动运行 codegen，也不需要维护 generated 目录。
 
-所以 `CodeGen` 真正重要的地方，不是在“第一次建项目”，而是在你后续做新功能的时候。
-
-日常入口已经不是手敲两次 `dotnet tool run ulinkrpc-codegen`，也不是每次都先跑 starter 命令。starter 生成的项目会自带自动触发点：
-
-- Server、Godot、Stride3D：编译前自动运行 `ULinkRPCGenerateCode`。
-- Unity、Unity CN、团结：Editor 检测 Shared 契约变化后自动刷新，也可以从 `ULinkRPC/Regenerate RPC Code` 菜单手动触发。
-
-如果自动流程被中断，或者你在非标准项目布局里需要显式修复，仍然可以使用 starter 的兜底命令：
+`ulinkrpc-starter codegen` 仍然保留，但只用于旧项目迁移或非标准布局排障：
 
 ```bash
 ulinkrpc-starter codegen --project-root ./MyGame
 ```
 
-如果本地 tool manifest 已经恢复过，想跳过恢复步骤，也可以加：
+如果旧项目的本地 tool manifest 已经恢复过，想跳过恢复步骤，也可以加：
 
 ```bash
 ulinkrpc-starter codegen --no-restore
@@ -222,20 +215,20 @@ ulinkrpc-starter codegen --no-restore
 最常见的真实开发顺序其实是这样的：
 
 1. 先在 `Shared/Interfaces/` 里定义新的接口和 DTO
-2. 正常构建 server / client，或在 Unity / 团结 Editor 里等待自动刷新
-3. 让 server / client 两侧的 generated 胶水代码更新
+2. 正常构建 server / client，或在 Unity / 团结 Editor 里等待脚本编译
+3. 让 source generator 在编译期生成双端胶水代码
 4. 再去补服务端实现
 5. 最后在客户端里调用新的 generated API
 
 你可以把它记成一句话：
 
-**Shared 契约变了，正常 build/editor 流程会刷新胶水代码；generated 目录更新完，再继续写业务逻辑。**
+**Shared 契约变了，正常 build/editor 流程会生成胶水代码；编译通过后，再继续写业务逻辑。**
 
 ```mermaid
 flowchart LR
-    A["修改 Shared/Interfaces<br/>接口与 DTO"] --> B["build/editor hook 运行 CodeGen"]
-    B --> C["更新 Server 生成代码"]
-    B --> D["更新 Client 生成代码"]
+    A["修改 Shared/Interfaces<br/>接口与 DTO"] --> B["source generator 编译期运行"]
+    B --> C["生成 Server binder"]
+    B --> D["生成 Client API"]
     C --> E["补服务端实现"]
     D --> F["在客户端调用生成 API"]
     E --> G["联调运行"]
@@ -308,11 +301,11 @@ namespace Shared.Interfaces
 }
 ```
 
-写到这里，服务端和客户端都还不能直接用这个新接口，因为两边的胶水代码还没生成。
+写到这里，服务端和客户端在下一次编译时就会看到新的胶水代码。
 
 ### 这时候该做什么
 
-这时候需要让 starter 生成的自动 codegen hook 跑一次。
+这时候正常构建对应项目即可。
 
 对 Server、Godot、Stride3D，正常构建对应项目即可：
 
@@ -321,29 +314,17 @@ cd MyGame
 dotnet build Server/Server/Server.csproj
 ```
 
-Unity、Unity CN、团结项目则在 Editor 里自动检测 Shared 包变化；如果需要立即触发，可以使用菜单 `ULinkRPC/Regenerate RPC Code`。
+Unity、Unity CN、团结项目则等待 Editor 触发脚本编译。
 
-`ulinkrpc-starter codegen` 仍然保留，但现在是兜底修复入口，而不是日常主流程。
+`ulinkrpc-starter codegen` 只保留给旧 generated-source 项目迁移使用，不是日常主流程。
 
 ### 跑完之后会发生什么
 
-自动 hook 跑完以后，`ULinkRPC.CodeGen` 会根据你刚才写的 `IInventoryService` 和 DTO 更新两边的胶水代码。
+编译时，`ULinkRPC.Analyzers` 会根据你刚才写的 `IInventoryService` 和 DTO 生成两边的胶水代码。
 
-server 侧会更新：
+server 侧会在编译输出中得到 `AllServicesBinder`、`InventoryServiceBinder`，以及相关 callback proxy（如果你定义了 callback）。
 
-- `Server/Server/Generated/AllServicesBinder.cs`
-- `Server/Server/Generated/InventoryServiceBinder.cs`
-- 以及相关 callback proxy（如果你定义了 callback）
-
-unity / 团结侧会更新：
-
-- `Client/Assets/Scripts/Rpc/Generated/RpcApi.cs`
-- `Client/Assets/Scripts/Rpc/Generated/` 下对应的 client stub / binder
-
-godot 侧会更新：
-
-- `Client/Scripts/Rpc/Generated/RpcApi.cs`
-- `Client/Scripts/Rpc/Generated/` 下对应的 client stub / binder
+client 侧会在编译输出中得到 `RpcApi`、service client stub 和 callback binder。
 
 这一步的意义是：
 
@@ -353,7 +334,7 @@ godot 侧会更新：
 
 ### 然后再去补服务端实现
 
-胶水代码生成完成后，再去 `Server/Server/Services/` 里写业务实现就顺了。
+胶水代码由编译器生成后，再去 `Server/Server/Services/` 里写业务实现就顺了。
 
 例如新增一个：
 
@@ -405,13 +386,13 @@ foreach (var item in reply.Items)
 这里最重要的不是具体命名细节，而是这个工作流：
 
 - 你改的是 `Shared`
-- `CodeGen` 生成的是“连接 Shared 和运行时”的胶水
+- Source Generator 生成的是“连接 Shared 和运行时”的胶水
 - 服务端实现只关心接口
 - 客户端调用只关心生成后的强类型 API
 
-### 什么时候一定会触发 CodeGen
+### 什么时候一定会触发 Source Generator
 
-只要你改了这些内容，下一次 build/editor 刷新就应该更新 generated 代码：
+只要你改了这些内容，下一次 build/editor 编译就应该生成新的胶水代码：
 
 - 新增 / 删除 / 修改 RPC 接口
 - 新增 / 删除 / 修改 DTO
@@ -423,7 +404,7 @@ foreach (var item in reply.Items)
 - `InventoryService` 里换了一套数据库查询
 - 客户端 UI 从按钮点击改成页面打开自动刷新
 
-这种不涉及 Shared 契约变化的改动，就不需要刷新 `CodeGen` 输出。
+这种不涉及 Shared 契约变化的改动，就不需要关心胶水代码生成。
 
 ### 一个很实用的判断方法
 
@@ -431,7 +412,7 @@ foreach (var item in reply.Items)
 
 **这次改动有没有动 `Shared/Interfaces/` 里的契约定义？**
 
-如果答案是“有”，那下一步就应该让 build/editor hook 先刷新 generated 代码。
+如果答案是“有”，那下一步就应该先正常编译，让 source generator 生成新的胶水代码。
 
 如果答案是“没有”，那通常可以继续改服务实现或客户端逻辑。
 
@@ -443,15 +424,9 @@ foreach (var item in reply.Items)
 - `Server/Server/Services/` 里的服务实现
 - 客户端自己的业务脚本
 
-而不是：
+而不是项目内 generated 目录。新 starter 项目不再创建这些目录，核心原则就是：
 
-- `Server/Server/Generated/`
-- `Client/Assets/Scripts/Rpc/Generated/`
-- `Client/Scripts/Rpc/Generated/`
-
-这些 generated 目录应该被看成“编译产物式的源码”，核心原则就是：
-
-**契约改了，就重新生成；不要手改 generated。**
+**契约改了，就重新编译；不要手写胶水代码。**
 
 ## 服务端怎么启动
 
@@ -598,7 +573,7 @@ Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 当 starter 生成的默认 `Ping` 示例已经跑通后，后续开发就按前面的 `Inventory` 例子那条线往前走：
 
 1. 先在 `Shared/Interfaces/` 里定义功能契约
-2. 通过 build/editor hook 刷新 generated 代码
+2. 正常编译，让 source generator 生成胶水代码
 3. 再补服务端实现和客户端业务接入
 
 日常开发里真正的源头始终是：

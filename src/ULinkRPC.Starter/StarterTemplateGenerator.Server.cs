@@ -26,6 +26,8 @@ internal static class StarterServerTemplate
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Server</RootNamespace>
+    <ULinkRPCGenerateServer>true</ULinkRPCGenerateServer>
+    <ULinkRPCServerGeneratedNamespace>Server.Generated</ULinkRPCServerGeneratedNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,14 +38,30 @@ internal static class StarterServerTemplate
 {{packageReferences}}
   </ItemGroup>
 
-{{StarterCodeGenHookTemplates.RenderServerTargets()}}
 </Project>
 """;
     }
 
     private static string RenderPackageReferences(StarterDependencyPlan plan) =>
-        string.Join(Environment.NewLine, plan.PackageReferences.Select(static reference =>
-            $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\" />"));
+        string.Join(Environment.NewLine, plan.PackageReferences.Select(RenderPackageReference));
+
+    private static string RenderPackageReference(StarterPackageReference reference)
+    {
+        if (reference.PrivateAssets is null && reference.IncludeAssets is null)
+            return $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\" />";
+
+        var metadata = new List<string>();
+        if (reference.PrivateAssets is not null)
+            metadata.Add($"      <PrivateAssets>{reference.PrivateAssets}</PrivateAssets>");
+        if (reference.IncludeAssets is not null)
+            metadata.Add($"      <IncludeAssets>{reference.IncludeAssets}</IncludeAssets>");
+
+        return string.Join(
+            Environment.NewLine,
+            $"    <PackageReference Include=\"{reference.Id}\" Version=\"{reference.Version}\">",
+            string.Join(Environment.NewLine, metadata),
+            "    </PackageReference>");
+    }
 
     private static string BuildServerProgramSource(SerializerKind serializer, TransportKind transport) => $$"""
 {{GetServerProgramUsings(serializer, transport)}}

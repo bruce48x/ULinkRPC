@@ -5,7 +5,7 @@ namespace ULinkRPC.Starter.Tests;
 
 public sealed class StarterDependencyPlannerTests
 {
-    private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6", "5.6.7", "6.7.8", "7.8.9", "8.9.10");
+    private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6", "5.6.7", "0.1.2", "6.7.8", "7.8.9", "8.9.10");
 
     [Fact]
     public void SharedMemoryPack_IncludesSerializerRuntimeAndGenerator()
@@ -42,9 +42,15 @@ public sealed class StarterDependencyPlannerTests
     [Fact]
     public void ServerJson_IncludesJsonSerializer()
     {
-        var ids = CreateIds(StarterProjectRole.Server, SerializerKind.Json);
+        var plan = CreatePlan(StarterProjectRole.Server, SerializerKind.Json);
+        var ids = plan.PackageReferences.Select(static reference => reference.Id).ToArray();
 
         Assert.Contains("ULinkRPC.Serializer.Json", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
+        Assert.Contains(plan.PackageReferences, static reference =>
+            reference.Id == "ULinkRPC.Analyzers" &&
+            reference.PrivateAssets == "all" &&
+            reference.IncludeAssets == "runtime; build; native; contentfiles; analyzers; buildtransitive");
     }
 
     [Fact]
@@ -55,6 +61,7 @@ public sealed class StarterDependencyPlannerTests
         Assert.Contains("ULinkRPC.Core", ids);
         Assert.Contains("ULinkRPC.Client", ids);
         Assert.Contains("ULinkRPC.Transport.WebSocket", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
         Assert.DoesNotContain("ULinkRPC.Serializer.MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack.Core", ids);
@@ -78,6 +85,7 @@ public sealed class StarterDependencyPlannerTests
         Assert.Contains("ULinkRPC.Core", ids);
         Assert.Contains("ULinkRPC.Client", ids);
         Assert.Contains("ULinkRPC.Transport.WebSocket", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
         Assert.DoesNotContain("ULinkRPC.Serializer.MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack.Core", ids);
@@ -89,6 +97,7 @@ public sealed class StarterDependencyPlannerTests
         var ids = CreateIds(StarterProjectRole.StrideClient, SerializerKind.Json, ClientEngineKind.Stride3D);
 
         Assert.Contains("ULinkRPC.Serializer.Json", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
     }
 
     [Fact]
@@ -98,6 +107,7 @@ public sealed class StarterDependencyPlannerTests
         var ids = plan.PackageReferences.Select(static reference => reference.Id).ToArray();
 
         Assert.Contains("ULinkRPC.Serializer.MemoryPack", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
         Assert.Contains("MemoryPack", ids);
         Assert.Contains("MemoryPack.Core", ids);
         Assert.Contains("MemoryPack.Generator", ids);

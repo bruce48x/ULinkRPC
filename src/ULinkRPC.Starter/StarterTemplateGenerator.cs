@@ -17,8 +17,6 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
         StarterServerTemplate.Generate(context);
         GenerateSolution(context.Paths.ServerRootPath);
         GenerateClientTemplate(context);
-        GenerateCodeGenToolManifest(context);
-        RunCodeGen(context);
         InitializeGit(context.Paths.RootPath);
     }
 
@@ -91,46 +89,6 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
     {
         var filtered = new string(projectName.Where(char.IsLetterOrDigit).ToArray());
         return string.IsNullOrWhiteSpace(filtered) ? "ulinkrpc.sample" : $"ulinkrpc.{filtered.ToLowerInvariant()}";
-    }
-
-    private void GenerateCodeGenToolManifest(StarterTemplateContext context)
-    {
-        runDotNet(context.Paths.RootPath, "new tool-manifest");
-        if (GetLocalCodeGenProjectPath() is null)
-        {
-            runDotNet(context.Paths.RootPath, $"tool install ULinkRPC.CodeGen --version {context.Versions.CodeGen}");
-        }
-    }
-
-    private void RunCodeGen(StarterTemplateContext context)
-    {
-        runDotNet(
-            context.Paths.ServerAppPath,
-            BuildServerCodeGenCommand(context));
-
-        runDotNet(
-            context.Paths.ClientPath,
-            BuildClientCodeGenCommand(context));
-    }
-
-    private static string BuildServerCodeGenCommand(StarterTemplateContext context) =>
-        BuildCodeGenCommand($"--contracts \"{context.Paths.SharedPath}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"");
-
-    private static string BuildClientCodeGenCommand(StarterTemplateContext context) =>
-        BuildCodeGenCommand($"--contracts \"{context.Paths.SharedPath}\" --mode {context.ClientCodeGenMode} --output \"{context.ClientCodeGenOutput}\" --namespace \"Rpc.Generated\"");
-
-    private static string BuildCodeGenCommand(string arguments)
-    {
-        var localCodeGenProjectPath = GetLocalCodeGenProjectPath();
-        return localCodeGenProjectPath is null
-            ? $"tool run ulinkrpc-codegen -- {arguments}"
-            : $"run --no-restore --no-build --project \"{localCodeGenProjectPath}\" -- {arguments}";
-    }
-
-    private static string? GetLocalCodeGenProjectPath()
-    {
-        var projectPath = Environment.GetEnvironmentVariable("ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT");
-        return string.IsNullOrWhiteSpace(projectPath) ? null : Path.GetFullPath(projectPath);
     }
 
     private static void GenerateGitIgnore(StarterTemplateContext context)
