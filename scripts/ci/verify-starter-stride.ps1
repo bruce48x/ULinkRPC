@@ -54,7 +54,6 @@ Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $localFeed -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $generatedRoot, $localFeed, $nuGetPackages | Out-Null
 $env:NUGET_PACKAGES = $nuGetPackages
-$env:ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT = Join-Path $rootDir "src/ULinkRPC.CodeGen/ULinkRPC.CodeGen.csproj"
 
 @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -73,9 +72,6 @@ Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Client/ULinkRPC.Client.cspro
 Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Server/ULinkRPC.Server.csproj")
 Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Transport.WebSocket/ULinkRPC.Transport.WebSocket.csproj")
 Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Serializer.Json/ULinkRPC.Serializer.Json.csproj")
-
-Write-Host "Building local CodeGen tool for no-build starter runs"
-Invoke-LoggedCommand -FilePath "dotnet" -Arguments @("build", $env:ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT, "-c", "Debug", "--nologo")
 
 Write-Host "Generating starter project at $projectDir ($transport + $serializer)"
 Invoke-LoggedCommand -FilePath "dotnet" -Arguments @(
@@ -116,8 +112,16 @@ if ($clientProjectText -notmatch 'PackageReference Include="ULinkRPC\.Serializer
     throw "Generated Stride3D client is missing ULinkRPC.Serializer.Json."
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $projectDir "Client/Client/Scripts/Rpc/Generated/RpcApi.cs"))) {
-    throw "Generated Stride3D client is missing generated RpcApi.cs."
+if ($clientProjectText -notmatch '<ULinkRPCGenerateClient>true</ULinkRPCGenerateClient>') {
+    throw "Generated Stride3D client is missing ULinkRPCGenerateClient source generator opt-in."
+}
+
+if ($clientProjectText -notmatch '<ULinkRPCGeneratedNamespace>Rpc\.Generated</ULinkRPCGeneratedNamespace>') {
+    throw "Generated Stride3D client is missing the Rpc.Generated source generator namespace."
+}
+
+if (Test-Path -LiteralPath (Join-Path $projectDir "Client/Client/Scripts/Rpc/Generated/RpcApi.cs")) {
+    throw "Generated Stride3D client unexpectedly created legacy RpcApi.cs output."
 }
 
 Write-Host "Starter Stride3D $transport + $serializer verification passed."

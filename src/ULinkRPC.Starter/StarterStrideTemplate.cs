@@ -83,6 +83,7 @@ EndGlobal
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <NuGetAudit>false</NuGetAudit>
+    <ULinkRPCGenerateClient>false</ULinkRPCGenerateClient>
   </PropertyGroup>
 
   <ItemGroup>

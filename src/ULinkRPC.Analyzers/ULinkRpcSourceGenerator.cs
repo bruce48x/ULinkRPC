@@ -108,26 +108,37 @@ public sealed class ULinkRpcSourceGenerator : IIncrementalGenerator
         private const string ClientNamespaceKey = "build_property.ULinkRPCGeneratedNamespace";
         private const string ServerNamespaceKey = "build_property.ULinkRPCServerGeneratedNamespace";
 
-        private GeneratorOptions(bool generateClient, bool generateServer, string clientNamespace, string serverNamespace)
+        private GeneratorOptions(
+            bool generateClient,
+            bool generateServer,
+            bool hasExplicitGenerationMode,
+            string clientNamespace,
+            string serverNamespace)
         {
             GenerateClient = generateClient;
             GenerateServer = generateServer;
+            HasExplicitGenerationMode = hasExplicitGenerationMode;
             ClientNamespace = clientNamespace;
             ServerNamespace = serverNamespace;
         }
 
         public bool GenerateClient { get; }
         public bool GenerateServer { get; }
+        public bool HasExplicitGenerationMode { get; }
         public string ClientNamespace { get; }
         public string ServerNamespace { get; }
 
         public GeneratorOptions WithAutoDetectedModes(Compilation compilation)
         {
+            if (HasExplicitGenerationMode)
+                return this;
+
             var hasClientRuntime = compilation.GetTypeByMetadataName("ULinkRPC.Client.RpcClientRuntime") is not null;
             var hasServerRuntime = compilation.GetTypeByMetadataName("ULinkRPC.Server.RpcServiceRegistry") is not null;
             return new GeneratorOptions(
                 generateClient: hasClientRuntime && !hasServerRuntime,
                 generateServer: hasServerRuntime && !hasClientRuntime,
+                hasExplicitGenerationMode: false,
                 ClientNamespace,
                 ServerNamespace);
         }
@@ -135,17 +146,19 @@ public sealed class ULinkRpcSourceGenerator : IIncrementalGenerator
         public static GeneratorOptions From(AnalyzerConfigOptionsProvider provider)
         {
             var global = provider.GlobalOptions;
+            var hasClientSetting = global.TryGetValue(ClientKey, out var clientValue);
+            var hasServerSetting = global.TryGetValue(ServerKey, out var serverValue);
             return new GeneratorOptions(
-                IsEnabled(global, ClientKey),
-                IsEnabled(global, ServerKey),
+                IsEnabled(clientValue),
+                IsEnabled(serverValue),
+                hasClientSetting || hasServerSetting,
                 GetString(global, ClientNamespaceKey, "Rpc.Generated"),
                 GetString(global, ServerNamespaceKey, "Server.Generated"));
         }
 
-        private static bool IsEnabled(AnalyzerConfigOptions options, string key) =>
-            options.TryGetValue(key, out var value) &&
-            (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(value, "1", StringComparison.Ordinal));
+        private static bool IsEnabled(string? value) =>
+            string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "1", StringComparison.Ordinal);
 
         private static string GetString(AnalyzerConfigOptions options, string key, string fallback) =>
             options.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)

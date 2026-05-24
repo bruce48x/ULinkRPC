@@ -289,9 +289,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<ULinkRPCServerGeneratedNamespace>Server.Generated</ULinkRPCServerGeneratedNamespace>", serverCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", serverCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", serverCsproj);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Analyzers\" Version=\"0.1.2\">", serverCsproj);
-            Assert.Contains("<PrivateAssets>all</PrivateAssets>", serverCsproj);
-            Assert.Contains("<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>", serverCsproj);
+            Assert.DoesNotContain("<PackageReference Include=\"ULinkRPC.Analyzers\"", serverCsproj, StringComparison.Ordinal);
             Assert.DoesNotContain("ULinkRPCGenerateCode", serverCsproj, StringComparison.Ordinal);
             Assert.DoesNotContain("ulinkrpc-codegen", serverCsproj, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("<package id=\"ULinkRPC.Core\" version=\"1.2.3\" />", packagesConfig);
@@ -493,7 +491,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Analyzers\" Version=\"0.1.2\">", clientCsproj);
+            Assert.DoesNotContain("<PackageReference Include=\"ULinkRPC.Analyzers\"", clientCsproj, StringComparison.Ordinal);
             Assert.DoesNotContain("ULinkRPCGenerateCode", clientCsproj, StringComparison.Ordinal);
             Assert.DoesNotContain("ulinkrpc-codegen", clientCsproj, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("<add key=\"godot-local\" value=\"" + sdkSource + "\" />", nugetConfig);
@@ -578,7 +576,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>", clientCsproj);
             Assert.Contains("<NuGetAudit>false</NuGetAudit>", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.Kcp\" Version=\"4.5.6\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Analyzers\" Version=\"0.1.2\">", clientCsproj);
+            Assert.DoesNotContain("<PackageReference Include=\"ULinkRPC.Analyzers\"", clientCsproj, StringComparison.Ordinal);
             Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
             Assert.DoesNotContain("<PackageReference Include=\"ULinkRPC.Serializer.MemoryPack\"", clientCsproj, StringComparison.Ordinal);
             Assert.DoesNotContain("<PackageReference Include=\"MemoryPack\"", clientCsproj, StringComparison.Ordinal);
@@ -644,12 +642,13 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("<IncludeAssets>build;buildTransitive</IncludeAssets>", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
             Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Analyzers\" Version=\"0.1.2\">", clientCsproj);
+            Assert.DoesNotContain("<PackageReference Include=\"ULinkRPC.Analyzers\"", clientCsproj, StringComparison.Ordinal);
             Assert.DoesNotContain("ULinkRPCGenerateCode", clientCsproj, StringComparison.Ordinal);
             Assert.DoesNotContain("ulinkrpc-codegen", clientCsproj, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("<TargetFramework>net10.0-windows</TargetFramework>", windowsCsproj);
             Assert.Contains("<OutputType>Exe</OutputType>", windowsCsproj);
             Assert.Contains("<NuGetAudit>false</NuGetAudit>", windowsCsproj);
+            Assert.Contains("<ULinkRPCGenerateClient>false</ULinkRPCGenerateClient>", windowsCsproj);
             Assert.Contains("<ProjectReference Include=\"..\\Client\\Client.csproj\" />", windowsCsproj);
             Assert.Contains("Name: Client", gamePackage);
             Assert.Contains("Path: !dir Effects", gamePackage);

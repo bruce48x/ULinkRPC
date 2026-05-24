@@ -98,6 +98,22 @@ public sealed class ULinkRpcSourceGeneratorTests
         Assert.DoesNotContain(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("AllServicesBinder.g.cs", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void GenerateClient_ExplicitFalseSuppressesAutoDetection()
+    {
+        var compilation = CreateCompilation(ContractSource + ClientRuntimeStubs);
+
+        var result = RunGenerator(
+            compilation,
+            new Dictionary<string, string>
+            {
+                ["build_property.ULinkRPCGenerateClient"] = "false"
+            });
+
+        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        Assert.Empty(result.GeneratedTrees);
+    }
+
     private static GeneratorRunResult RunGenerator(CSharpCompilation compilation, Dictionary<string, string> properties)
     {
         var driver = CSharpGeneratorDriver.Create(

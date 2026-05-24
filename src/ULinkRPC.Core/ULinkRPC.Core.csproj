@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="buildTransitive\ULinkRPC.Core.props" Pack="true" PackagePath="buildTransitive" />
     <None Include="..\ULinkRPC.Analyzers\bin\$(Configuration)\netstandard2.0\ULinkRPC.Analyzers.dll"
           Pack="true"
           PackagePath="analyzers/dotnet/cs"
