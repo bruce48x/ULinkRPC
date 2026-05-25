@@ -30,7 +30,6 @@ dotnet tool install -g ULinkRPC.Starter
 ```bash
 ulinkrpc-starter [--help|-h|--version]
 ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]
-ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]
 ```
 
 Options:
@@ -44,11 +43,6 @@ For `new`:
 - `--serializer` Serializer package to use: `json`, `memorypack`.
 - `--nugetforunity-source` For Unity-compatible clients only: `embedded` or `openupm`. This overrides the client engine default.
 - `--no-next-steps` Do not print the post-create "Next steps" guidance.
-
-For `codegen`:
-
-- `--project-root` Starter project root. Default is the current working directory. The tool also searches parent directories.
-- `--no-restore` Skip `dotnet tool restore` before running legacy `ULinkRPC.CodeGen`.
 
 Default `NuGetForUnity` source by client engine:
 
@@ -72,12 +66,7 @@ Create a project non-interactively:
 ulinkrpc-starter new --name MyGame --output ./samples --transport kcp --serializer memorypack
 ```
 
-Generated projects compile RPC glue through `ULinkRPC.Analyzers` source generation. `ulinkrpc-starter codegen` is retained only for old hook-based projects or explicit migration repair:
-
-```bash
-cd MyGame
-ulinkrpc-starter codegen
-```
+Generated projects compile RPC glue through `ULinkRPC.Analyzers` source generation during normal server/client builds and editor compilation.
 
 This generates:
 
@@ -128,7 +117,6 @@ The tool uses a bundled, release-tested package manifest for:
 Default shared DTOs are generated under `Shared/Interfaces/`.
 Starter also generates centralized `RpcContractIds` constants, a minimal `IPingService` contract plus `Server/Server/PingService.cs`, and source-generator package references for server and client projects.
 Generated RPC glue is compiler output. New starter projects do not create `Generated/` source folders, MSBuild codegen targets, Unity codegen editor scripts, or a local `ULinkRPC.CodeGen` tool manifest.
-`ulinkrpc-starter codegen` remains available only as a legacy repair command for existing hook-based projects and non-standard migrations.
 When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
@@ -182,5 +170,3 @@ After editing DTOs or service contracts under `Shared/`, use the normal build/ed
 
 - Server, Godot, and Stride3D builds run the analyzer/source-generator during compilation.
 - Unity, Unity CN, and Tuanjie compile generated client APIs through the analyzer package restored into the Unity project.
-
-Use `ulinkrpc-starter codegen` only for legacy projects that still contain the old generated-source workflow.

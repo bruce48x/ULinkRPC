@@ -28,7 +28,6 @@ internal static class Program
             return options.Command switch
             {
                 StarterCommandKind.New => RunNewCommand(options.NewCommand!),
-                StarterCommandKind.CodeGen => RunCodeGenCommand(options.CodeGenCommand!),
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
@@ -71,22 +70,7 @@ internal static class Program
             ClientEngineKind.Stride3D => "  3) Open \"Client/Client.sln\" with Stride Game Studio, or run \"dotnet run --project Client/Client.Windows/Client.Windows.csproj\".",
             _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
         });
-        Console.WriteLine("  4) After changing Shared contracts, build the server/client or use the editor menu; codegen runs automatically.");
-        return 0;
-    }
-
-    private static int RunCodeGenCommand(StarterCodeGenCommandOptions options)
-    {
-        var startPath = Path.GetFullPath(options.ProjectRoot);
-        if (!StarterWorkspace.TryResolveProjectContext(startPath, out var context, out var error))
-        {
-            Console.Error.WriteLine(error);
-            return 1;
-        }
-
-        var projectTool = new StarterProjectTool(ProcessRunner.RunDotNet);
-        projectTool.RunCodeGen(context, options.NoRestore);
-        Console.WriteLine($"Regenerated server and client code for: {context.RootPath}");
+        Console.WriteLine("  4) After changing Shared contracts, build the server/client or let the editor compile; source generation runs automatically.");
         return 0;
     }
 

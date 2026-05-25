@@ -69,16 +69,6 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.Stride3D => NuGetForUnitySourceKind.Embedded,
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
-
-    public static string GetClientCodeGenMode(this ClientEngineKind clientEngine) => clientEngine switch
-    {
-        ClientEngineKind.Unity => "unity",
-        ClientEngineKind.UnityCn => "unity",
-        ClientEngineKind.Tuanjie => "unity",
-        ClientEngineKind.Godot => "godot",
-        ClientEngineKind.Stride3D => "stride3d",
-        _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
-    };
 }
 
 internal sealed record ResolvedVersions(
@@ -88,14 +78,12 @@ internal sealed record ResolvedVersions(
     string Transport,
     string Serializer,
     string Analyzers,
-    string CodeGen,
     string? SerializerRuntime,
     string? SerializerRuntimeCore);
 
 internal enum StarterCommandKind
 {
-    New,
-    CodeGen
+    New
 }
 
 internal sealed record StarterNewCommandOptions(
@@ -107,16 +95,11 @@ internal sealed record StarterNewCommandOptions(
     NuGetForUnitySourceKind? NuGetForUnitySource,
     bool NoNextSteps);
 
-internal sealed record StarterCodeGenCommandOptions(
-    string ProjectRoot,
-    bool NoRestore);
-
 internal sealed record StarterCliOptions(
     StarterCommandKind Command,
     bool ShowHelp,
     bool ShowVersion,
-    StarterNewCommandOptions? NewCommand,
-    StarterCodeGenCommandOptions? CodeGenCommand);
+    StarterNewCommandOptions? NewCommand);
 
 internal sealed record StarterPaths(
     string RootPath,
@@ -137,17 +120,6 @@ internal sealed record StarterTemplateContext(
 {
     public string SharedProjectName => Path.GetFileName(Paths.SharedPath);
     public string ServerProjectName => Path.GetFileName(Paths.ServerAppPath);
-    public string ClientCodeGenMode => ClientEngine.GetClientCodeGenMode();
-    public string ClientCodeGenOutput => ClientEngine switch
-    {
-        ClientEngineKind.Unity or ClientEngineKind.UnityCn or ClientEngineKind.Tuanjie =>
-            $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
-        ClientEngineKind.Stride3D =>
-            $"Client{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
-        ClientEngineKind.Godot =>
-            $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
-        _ => throw new ArgumentOutOfRangeException(nameof(ClientEngine), ClientEngine, null)
-    };
 }
 
 internal sealed record UnityClientArtifacts(

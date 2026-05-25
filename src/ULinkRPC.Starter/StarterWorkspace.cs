@@ -118,17 +118,4 @@ internal sealed record StarterProjectContext(
     string SharedPath,
     string ServerAppPath,
     string ClientPath,
-    ClientEngineKind ClientEngine)
-{
-    public string ClientCodeGenMode => ClientEngine.GetClientCodeGenMode();
-    public string ClientCodeGenOutput => ClientEngine switch
-    {
-        ClientEngineKind.Unity or ClientEngineKind.UnityCn or ClientEngineKind.Tuanjie =>
-            $"Assets{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
-        ClientEngineKind.Stride3D =>
-            $"Client{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
-        ClientEngineKind.Godot =>
-            $"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated",
-        _ => throw new ArgumentOutOfRangeException(nameof(ClientEngine), ClientEngine, null)
-    };
-}
+    ClientEngineKind ClientEngine);

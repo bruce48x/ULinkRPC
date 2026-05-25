@@ -7,7 +7,6 @@ internal static class StarterCli
         Console.WriteLine("Usage:");
         Console.WriteLine("  ulinkrpc-starter [--help|-h|--version]");
         Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]");
-        Console.WriteLine("  ulinkrpc-starter codegen [--project-root ./MyGame] [--no-restore]");
     }
 
     public static bool TryParseArgs(string[] args, out StarterCliOptions options, out string error)
@@ -19,14 +18,14 @@ internal static class StarterCli
 
         if (args.Length == 1 && args[0] == "--version")
         {
-            options = new StarterCliOptions(StarterCommandKind.New, false, true, null, null);
+            options = new StarterCliOptions(StarterCommandKind.New, false, true, null);
             error = string.Empty;
             return true;
         }
 
         if (args.Length == 1 && IsHelpOption(args[0]))
         {
-            options = new StarterCliOptions(StarterCommandKind.New, true, false, null, null);
+            options = new StarterCliOptions(StarterCommandKind.New, true, false, null);
             error = string.Empty;
             return true;
         }
@@ -34,9 +33,6 @@ internal static class StarterCli
         var firstArg = args[0];
         if (firstArg.Equals("new", StringComparison.OrdinalIgnoreCase))
             return TryParseNewArgs(args[1..], out options, out error);
-
-        if (firstArg.Equals("codegen", StringComparison.OrdinalIgnoreCase))
-            return TryParseCodeGenArgs(args[1..], out options, out error);
 
         if (firstArg.StartsWith("-", StringComparison.Ordinal))
             return TryParseNewArgs(args, out options, out error);
@@ -74,13 +70,13 @@ internal static class StarterCli
 
             if (arg is "--version")
             {
-                options = new StarterCliOptions(StarterCommandKind.New, false, true, null, null);
+                options = new StarterCliOptions(StarterCommandKind.New, false, true, null);
                 return true;
             }
 
             if (IsHelpOption(arg))
             {
-                options = new StarterCliOptions(StarterCommandKind.New, true, false, null, null);
+                options = new StarterCliOptions(StarterCommandKind.New, true, false, null);
                 return true;
             }
 
@@ -163,49 +159,7 @@ internal static class StarterCli
             StarterCommandKind.New,
             false,
             false,
-            new StarterNewCommandOptions(projectName, outputDir, clientEngine, transport, serializer, nuGetForUnitySource, noNextSteps),
-            null);
-        return true;
-    }
-
-    private static bool TryParseCodeGenArgs(string[] args, out StarterCliOptions options, out string error)
-    {
-        var projectRoot = Directory.GetCurrentDirectory();
-        var noRestore = false;
-        error = string.Empty;
-
-        for (var i = 0; i < args.Length; i++)
-        {
-            var arg = args[i];
-            if (IsHelpOption(arg))
-            {
-                options = new StarterCliOptions(StarterCommandKind.CodeGen, true, false, null, null);
-                return true;
-            }
-
-            if (arg is "--project-root" && i + 1 < args.Length)
-            {
-                projectRoot = args[++i];
-                continue;
-            }
-
-            if (arg is "--no-restore")
-            {
-                noRestore = true;
-                continue;
-            }
-
-            options = default!;
-            error = $"Unknown or incomplete option: {arg}";
-            return false;
-        }
-
-        options = new StarterCliOptions(
-            StarterCommandKind.CodeGen,
-            false,
-            false,
-            null,
-            new StarterCodeGenCommandOptions(projectRoot, noRestore));
+            new StarterNewCommandOptions(projectName, outputDir, clientEngine, transport, serializer, nuGetForUnitySource, noNextSteps));
         return true;
     }
 

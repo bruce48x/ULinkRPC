@@ -13,7 +13,6 @@ internal static class NuGetVersionResolver
             GetTransportVersion(transport),
             GetSerializerVersion(serializer),
             StarterReleaseVersions.Analyzers,
-            StarterReleaseVersions.CodeGen,
             serializer is SerializerKind.MemoryPack ? StarterReleaseVersions.MemoryPackRuntime : null,
             serializer is SerializerKind.MemoryPack ? StarterReleaseVersions.MemoryPackRuntimeCore : null);
     }
@@ -62,7 +61,6 @@ internal static class StarterReleaseVersions
     public static string SerializerJson => Manifest.Value.SerializerJson;
     public static string SerializerMemoryPack => Manifest.Value.SerializerMemoryPack;
     public static string Analyzers => Manifest.Value.Analyzers;
-    public static string CodeGen => Manifest.Value.CodeGen;
     public static string MemoryPackRuntime => Manifest.Value.MemoryPackRuntime;
     public static string MemoryPackRuntimeCore => Manifest.Value.MemoryPackRuntimeCore;
 
@@ -93,7 +91,6 @@ internal sealed class ReleaseVersionManifest
     public string SerializerJson { get; init; } = string.Empty;
     public string SerializerMemoryPack { get; init; } = string.Empty;
     public string Analyzers { get; init; } = string.Empty;
-    public string CodeGen { get; init; } = string.Empty;
     public string MemoryPackRuntime { get; init; } = string.Empty;
     public string MemoryPackRuntimeCore { get; init; } = string.Empty;
 
@@ -119,7 +116,6 @@ internal sealed class ReleaseVersionManifest
         yield return (nameof(SerializerJson), SerializerJson);
         yield return (nameof(SerializerMemoryPack), SerializerMemoryPack);
         yield return (nameof(Analyzers), Analyzers);
-        yield return (nameof(CodeGen), CodeGen);
         yield return (nameof(MemoryPackRuntime), MemoryPackRuntime);
         yield return (nameof(MemoryPackRuntimeCore), MemoryPackRuntimeCore);
     }

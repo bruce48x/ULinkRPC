@@ -7,7 +7,7 @@ namespace ULinkRPC.Starter.Tests;
 
 public sealed class StarterTemplateGeneratorTests
 {
-    private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6", "5.6.7", "0.1.2", "6.7.8", "6.7.8", "8.9.10");
+    private static readonly ResolvedVersions Versions = new("1.2.3", "2.3.4", "3.4.5", "4.5.6", "5.6.7", "0.1.2", "6.7.8", "8.9.10");
 
     [Fact]
     public void GenerateIntoTargetDirectory_RollsBackStagingDirectory_WhenGenerationFails()
@@ -68,7 +68,6 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal("0.11.4", jsonVersions.Client);
         Assert.Equal("0.11.6", jsonVersions.Transport);
         Assert.Equal("0.11.1", jsonVersions.Serializer);
-        Assert.Equal("0.16.12", jsonVersions.CodeGen);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
@@ -92,7 +91,6 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Serializer.Json", "ULinkRPC.Serializer.Json.csproj"), StarterReleaseVersions.SerializerJson);
         Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Serializer.MemoryPack", "ULinkRPC.Serializer.MemoryPack.csproj"), StarterReleaseVersions.SerializerMemoryPack);
         Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Analyzers", "ULinkRPC.Analyzers.csproj"), StarterReleaseVersions.Analyzers);
-        Assert.Equal(ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.CodeGen", "ULinkRPC.CodeGen.csproj"), StarterReleaseVersions.CodeGen);
         Assert.Equal(ReadPackageReferenceVersion(repositoryRoot, "src", "ULinkRPC.Serializer.MemoryPack", "ULinkRPC.Serializer.MemoryPack.csproj", "MemoryPack"), StarterReleaseVersions.MemoryPackRuntime);
         Assert.Equal(ReadPackageReferenceVersion(repositoryRoot, "src", "ULinkRPC.Serializer.MemoryPack", "ULinkRPC.Serializer.MemoryPack.csproj", "MemoryPack"), StarterReleaseVersions.MemoryPackRuntimeCore);
     }
@@ -204,31 +202,6 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void GenerateTemplate_IgnoresLocalCodeGenProject_WhenSourceGeneratorRouteIsUsed()
-    {
-        var root = CreateTempRoot();
-        var localCodeGenProject = Path.Combine(root, "ULinkRPC.CodeGen.csproj");
-        var previous = Environment.GetEnvironmentVariable("ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT");
-
-        try
-        {
-            Environment.SetEnvironmentVariable("ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT", localCodeGenProject);
-            var commands = new List<string>();
-            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner());
-
-            generator.GenerateTemplate(root, "Local-CodeGen", ClientEngineKind.Stride3D, TransportKind.WebSocket, SerializerKind.Json, Versions);
-
-            Assert.DoesNotContain(commands, static command => command.Contains("ULinkRPC.CodeGen", StringComparison.Ordinal));
-            Assert.DoesNotContain(commands, static command => command.Contains("ulinkrpc-codegen", StringComparison.OrdinalIgnoreCase));
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("ULINKRPC_STARTER_LOCAL_CODEGEN_PROJECT", previous);
-            Directory.Delete(root, recursive: true);
-        }
-    }
-
-    [Fact]
     public void GenerateTemplate_CreatesUnityClientFiles_WithOpenUpmByDefault()
     {
         var root = CreateTempRoot();
@@ -260,7 +233,7 @@ public sealed class StarterTemplateGeneratorTests
             var scene = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scenes", "ConnectionTest.unity"));
             var autoOpenSceneScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Editor", "AutoOpenConnectionScene.cs"));
             var editorBuildSettings = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "EditorBuildSettings.asset"));
-            var codeGenEditorScriptPath = Path.Combine(root, "Client", "Assets", "Editor", "ULinkRPCCodeGenEditor.cs");
+            var legacyEditorScriptPath = Path.Combine(root, "Client", "Assets", "Editor", "ULinkRPCCodeGenEditor.cs");
             var starterGeneratedAsmdefPath = Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Generated", "ULinkRPC.Generated.asmdef");
             var embeddedNuGetForUnity = Path.Combine(root, "Client", "Packages", "com.github-glitchenzo.nugetforunity", "package.json");
 
@@ -336,7 +309,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("[InitializeOnLoad]", autoOpenSceneScript);
             Assert.Contains("EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);", autoOpenSceneScript);
             Assert.Contains("SessionState.GetBool(SessionStateKey, false)", autoOpenSceneScript);
-            Assert.False(File.Exists(codeGenEditorScriptPath));
+            Assert.False(File.Exists(legacyEditorScriptPath));
             Assert.Contains("Assets/Scenes/ConnectionTest.unity", editorBuildSettings);
             Assert.Contains("guid: d4d2d5faafe942e58a33f4a41e3b7cf2", editorBuildSettings);
             Assert.False(File.Exists(starterGeneratedAsmdefPath));
@@ -458,7 +431,7 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void GenerateTemplate_CreatesGodotClientFiles_AndRunsGodotCodeGen()
+    public void GenerateTemplate_CreatesGodotClientFiles_WithSourceGenerator()
     {
         var root = CreateTempRoot();
         try
@@ -614,7 +587,7 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void GenerateTemplate_CreatesStrideClientFiles_AndRunsStrideCodeGen()
+    public void GenerateTemplate_CreatesStrideClientFiles_WithSourceGenerator()
     {
         var root = CreateTempRoot();
         try
@@ -692,7 +665,7 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void GenerateTemplate_CreatesTuanjieClientFiles_UsingUnityCompatibleTemplateAndCodeGen()
+    public void GenerateTemplate_CreatesTuanjieClientFiles_UsingUnityCompatibleSourceGeneration()
     {
         var root = CreateTempRoot();
         try
@@ -839,7 +812,6 @@ public sealed class StarterTemplateGeneratorTests
     [InlineData("--help")]
     [InlineData("-h")]
     [InlineData("new", "--help")]
-    [InlineData("codegen", "--help")]
     public void TryParseArgs_ParsesHelpOption(params string[] args)
     {
         var ok = StarterCli.TryParseArgs(args, out var options, out var error);
@@ -851,18 +823,15 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void TryParseArgs_ParsesCodeGenCommand()
+    public void TryParseArgs_RejectsCodeGenCommand()
     {
         var ok = StarterCli.TryParseArgs(
             ["codegen", "--project-root", "./sample", "--no-restore"],
             out var options,
             out var error);
 
-        Assert.True(ok);
-        Assert.Equal(string.Empty, error);
-        Assert.Equal(StarterCommandKind.CodeGen, options.Command);
-        Assert.Equal("./sample", options.CodeGenCommand!.ProjectRoot);
-        Assert.True(options.CodeGenCommand.NoRestore);
+        Assert.False(ok);
+        Assert.Equal("Unknown command: codegen", error);
     }
 
     [Fact]
@@ -908,56 +877,6 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void StarterProjectTool_RunsRestoreAndBothCodeGenTargets()
-    {
-        var root = CreateTempRoot();
-        try
-        {
-            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
-            generator.GenerateTemplate(root, "Godot-Test", ClientEngineKind.Godot, TransportKind.WebSocket, SerializerKind.Json, Versions);
-
-            var commands = new List<string>();
-            var tool = new StarterProjectTool(CreateFakeDotNetRunner(commands));
-            Assert.True(StarterWorkspace.TryResolveProjectContext(root, out var context, out var error), error);
-
-            tool.RunCodeGen(context, noRestore: false);
-
-            Assert.Contains("tool restore", commands);
-            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
-            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode godot --output \"Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
-        }
-        finally
-        {
-            Directory.Delete(root, recursive: true);
-        }
-    }
-
-    [Fact]
-    public void StarterProjectTool_RunsStrideCodeGenTarget()
-    {
-        var root = CreateTempRoot();
-        try
-        {
-            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
-            generator.GenerateTemplate(root, "Stride-Test", ClientEngineKind.Stride3D, TransportKind.WebSocket, SerializerKind.Json, Versions);
-
-            var commands = new List<string>();
-            var tool = new StarterProjectTool(CreateFakeDotNetRunner(commands));
-            Assert.True(StarterWorkspace.TryResolveProjectContext(root, out var context, out var error), error);
-
-            tool.RunCodeGen(context, noRestore: false);
-
-            Assert.Contains("tool restore", commands);
-            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode server --server-output \"Generated\" --server-namespace \"Server.Generated\"", commands);
-            Assert.Contains($"tool run ulinkrpc-codegen -- --contracts \"{Path.Combine(root, "Shared")}\" --mode stride3d --output \"Client{Path.DirectorySeparatorChar}Scripts{Path.DirectorySeparatorChar}Rpc{Path.DirectorySeparatorChar}Generated\" --namespace \"Rpc.Generated\"", commands);
-        }
-        finally
-        {
-            Directory.Delete(root, recursive: true);
-        }
-    }
-
-    [Fact]
     public void ClientEngine_DefaultNuGetForUnitySource_MatchesExpected()
     {
         Assert.Equal(NuGetForUnitySourceKind.OpenUpm, ClientEngineKind.Unity.GetDefaultNuGetForUnitySource());
@@ -967,7 +886,7 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void StarterReadme_DocumentsCodeGenMigrationRoute()
+    public void StarterReadme_DocumentsSourceGeneratorRoute()
     {
         var repositoryRoot = FindRepositoryRoot();
         var readme = File.ReadAllText(Path.Combine(repositoryRoot, "src", "ULinkRPC.Starter", "README.md"));
@@ -976,7 +895,7 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Contains("ULinkRPC.Analyzers", readme);
         Assert.Contains("New starter projects do not create `Generated/` source folders", readme);
         Assert.Contains("use the normal build/editor flow", readme);
-        Assert.Contains("Use `ulinkrpc-starter codegen` only for legacy projects", readme);
+        Assert.DoesNotContain("ulinkrpc-starter codegen", readme, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("design/starter/source-generator-codegen.md", readme);
     }
 
@@ -1081,24 +1000,6 @@ public sealed class StarterTemplateGeneratorTests
                 return;
             }
 
-            if (string.Equals(arguments, "new tool-manifest", StringComparison.Ordinal))
-            {
-                var toolDir = Path.Combine(workingDirectory, ".config");
-                Directory.CreateDirectory(toolDir);
-                File.WriteAllText(Path.Combine(toolDir, "dotnet-tools.json"), "{ }\n");
-                return;
-            }
-
-            if (string.Equals(arguments, "tool restore", StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            if (arguments.StartsWith("tool install ULinkRPC.CodeGen --version ", StringComparison.Ordinal))
-            {
-                return;
-            }
-
             if (arguments.StartsWith("sln ", StringComparison.Ordinal) && arguments.Contains(" add ", StringComparison.Ordinal))
             {
                 var addIndex = arguments.IndexOf(" add ", StringComparison.Ordinal);
@@ -1111,71 +1012,8 @@ public sealed class StarterTemplateGeneratorTests
                 return;
             }
 
-            var codeGenArguments = GetCodeGenArguments(arguments);
-            if (codeGenArguments is not null)
-            {
-                if (codeGenArguments.Contains("--mode server", StringComparison.Ordinal))
-                {
-                    var outputDir = Path.Combine(workingDirectory, "Generated");
-                    Directory.CreateDirectory(outputDir);
-                    File.WriteAllText(Path.Combine(outputDir, "AllServicesBinder.cs"), "// generated\n");
-                    return;
-                }
-
-                if (codeGenArguments.Contains("--mode unity", StringComparison.Ordinal))
-                {
-                    var outputDir = Path.Combine(workingDirectory, "Assets", "Scripts", "Rpc", "Generated");
-                    Directory.CreateDirectory(outputDir);
-                    File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
-                    File.WriteAllText(
-                        Path.Combine(outputDir, "ULinkRPC.Generated.asmdef"),
-                        """
-{
-  "name": "ULinkRPC.Generated"
-}
-""");
-                    return;
-                }
-
-                if (codeGenArguments.Contains("--mode godot", StringComparison.Ordinal))
-                {
-                    var outputDir = Path.Combine(workingDirectory, "Scripts", "Rpc", "Generated");
-                    Directory.CreateDirectory(outputDir);
-                    File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
-                    return;
-                }
-
-                if (codeGenArguments.Contains("--mode stride3d", StringComparison.Ordinal))
-                {
-                    var outputDir = Path.Combine(workingDirectory, "Client", "Scripts", "Rpc", "Generated");
-                    Directory.CreateDirectory(outputDir);
-                    File.WriteAllText(Path.Combine(outputDir, "RpcApi.cs"), "// generated\n");
-                    return;
-                }
-            }
-
             throw new InvalidOperationException($"Unexpected dotnet command in test: {arguments}");
         };
-    }
-
-    private static string? GetCodeGenArguments(string arguments)
-    {
-        const string toolRunPrefix = "tool run ulinkrpc-codegen -- ";
-        if (arguments.StartsWith(toolRunPrefix, StringComparison.Ordinal))
-        {
-            return arguments[toolRunPrefix.Length..];
-        }
-
-        const string localRunPrefix = "run --no-restore --no-build --project ";
-        if (!arguments.StartsWith(localRunPrefix, StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        var codeGenSeparatorIndex = arguments.IndexOf(" -- --contracts ", StringComparison.Ordinal);
-        return codeGenSeparatorIndex < 0
-            ? null
-            : arguments[(codeGenSeparatorIndex + " -- ".Length)..];
     }
 
     private static Action<string, string> CreateFakeGitRunner(List<string>? commands = null)
