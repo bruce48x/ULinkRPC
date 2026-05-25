@@ -34,7 +34,7 @@ Generated client output also emits a complete `RpcClient` wrapper in the configu
 Client generated code namespace is derived from the output directory (for example `Assets/Scripts/Rpc/Generated` or `Scripts/Rpc/Generated` -> `Rpc.Generated`).
 Generated files now inherit `using` directives declared by contract sources so referenced types resolve correctly.
 Contract parsing is implemented via Roslyn syntax trees for better correctness across C# language forms.
-Contract ids are explicit protocol ids: `ServiceId`, `MethodId`, and callback push ids must be greater than `0`; service ids must be unique globally, while method and push ids must be unique within their declaring service/callback interface. `ULinkRPC.Core` also ships analyzer diagnostics for the same id mistakes during normal C# editing/builds.
+Contract ids are explicit protocol ids: `ServiceId`, `MethodId`, and callback push ids must be greater than `0`; service ids must be unique globally, while method and push ids must be unique within their declaring service/callback interface. `ULinkRPC.Analyzers` provides diagnostics for the same id mistakes during normal C# editing/builds.
 Generated binders reference `ULinkRPC.Core` + `ULinkRPC.Server` and include both `Bind(RpcServiceRegistry, IYourService)` and delegate-based `Bind(...)` overloads. Generated `AllServicesBinder` emits only `BindAll(RpcServiceRegistry registry)`, which reflects over the current assembly to locate concrete service implementations automatically; callback services prefer a single-parameter constructor accepting the callback interface, and fall back to a public parameterless constructor. Per-connection service creation now uses `RpcSession`.
 
 Typical client-side usage now looks like this:

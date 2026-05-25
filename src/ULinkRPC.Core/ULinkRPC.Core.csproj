@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>ULinkRPC.Core</PackageId>
-    <Version>0.11.6</Version>
+    <Version>0.11.7</Version>
     <Authors>ULinkRPC</Authors>
     <Description>ULinkRPC core abstractions, contracts, envelopes, and framing helpers.</Description>
     <PackageTags>rpc;unity;dotnet;transport</PackageTags>
@@ -18,11 +18,6 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
     <None Include="buildTransitive\ULinkRPC.Core.props" Pack="true" PackagePath="buildTransitive" />
-    <None Include="..\ULinkRPC.Analyzers\bin\$(Configuration)\netstandard2.0\ULinkRPC.Analyzers.dll"
-          Pack="true"
-          PackagePath="analyzers/dotnet/cs"
-          Visible="false"
-          Condition="Exists('..\ULinkRPC.Analyzers\bin\$(Configuration)\netstandard2.0\ULinkRPC.Analyzers.dll')" />
   </ItemGroup>
 
   <ItemGroup>

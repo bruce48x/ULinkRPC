@@ -67,6 +67,7 @@ $env:NUGET_PACKAGES = $nuGetPackages
 "@ | Set-Content -LiteralPath $ciNuGetConfig -Encoding UTF8
 
 Write-Host "Packing local packages into $localFeed"
+Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Analyzers/ULinkRPC.Analyzers.csproj")
 Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Core/ULinkRPC.Core.csproj")
 Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Client/ULinkRPC.Client.csproj")
 Pack-LocalPackage (Join-Path $rootDir "src/ULinkRPC.Server/ULinkRPC.Server.csproj")

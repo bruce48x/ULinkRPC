@@ -37,6 +37,7 @@ public sealed class StarterDependencyPlannerTests
         Assert.DoesNotContain("ULinkRPC.Serializer.MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack.Generator", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
     }
 
     [Fact]
@@ -46,7 +47,7 @@ public sealed class StarterDependencyPlannerTests
         var ids = plan.PackageReferences.Select(static reference => reference.Id).ToArray();
 
         Assert.Contains("ULinkRPC.Serializer.Json", ids);
-        Assert.DoesNotContain("ULinkRPC.Analyzers", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
     }
 
     [Fact]
@@ -57,7 +58,7 @@ public sealed class StarterDependencyPlannerTests
         Assert.Contains("ULinkRPC.Core", ids);
         Assert.Contains("ULinkRPC.Client", ids);
         Assert.Contains("ULinkRPC.Transport.WebSocket", ids);
-        Assert.DoesNotContain("ULinkRPC.Analyzers", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
         Assert.DoesNotContain("ULinkRPC.Serializer.MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack.Core", ids);
@@ -81,7 +82,7 @@ public sealed class StarterDependencyPlannerTests
         Assert.Contains("ULinkRPC.Core", ids);
         Assert.Contains("ULinkRPC.Client", ids);
         Assert.Contains("ULinkRPC.Transport.WebSocket", ids);
-        Assert.DoesNotContain("ULinkRPC.Analyzers", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
         Assert.DoesNotContain("ULinkRPC.Serializer.MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack", ids);
         Assert.DoesNotContain("MemoryPack.Core", ids);
@@ -93,7 +94,7 @@ public sealed class StarterDependencyPlannerTests
         var ids = CreateIds(StarterProjectRole.StrideClient, SerializerKind.Json, ClientEngineKind.Stride3D);
 
         Assert.Contains("ULinkRPC.Serializer.Json", ids);
-        Assert.DoesNotContain("ULinkRPC.Analyzers", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
     }
 
     [Fact]
@@ -150,6 +151,24 @@ public sealed class StarterDependencyPlannerTests
 
         Assert.Equal("all", generator.PrivateAssets);
         Assert.Equal("runtime; build; native; contentfiles; analyzers; buildtransitive", generator.IncludeAssets);
+    }
+
+    [Fact]
+    public void SdkGeneratedProjects_UsePrivateAnalyzerPackage()
+    {
+        AssertPrivateAnalyzerPackage(StarterProjectRole.Server, ClientEngineKind.Unity);
+        AssertPrivateAnalyzerPackage(StarterProjectRole.GodotClient, ClientEngineKind.Godot);
+        AssertPrivateAnalyzerPackage(StarterProjectRole.StrideClient, ClientEngineKind.Stride3D);
+    }
+
+    private static void AssertPrivateAnalyzerPackage(StarterProjectRole role, ClientEngineKind clientEngine)
+    {
+        var analyzer = CreatePlan(role, SerializerKind.Json, clientEngine)
+            .PackageReferences
+            .Single(static reference => reference.Id == "ULinkRPC.Analyzers");
+
+        Assert.Equal("all", analyzer.PrivateAssets);
+        Assert.Equal("runtime; build; native; contentfiles; analyzers; buildtransitive", analyzer.IncludeAssets);
     }
 
     private static string[] CreateIds(

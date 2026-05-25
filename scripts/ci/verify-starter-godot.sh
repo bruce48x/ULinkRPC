@@ -189,6 +189,7 @@ cat > "$CI_NUGET_CONFIG" <<EOF
 EOF
 
 echo "Packing local packages into $LOCAL_FEED"
+pack_local_package "$ROOT_DIR/src/ULinkRPC.Analyzers/ULinkRPC.Analyzers.csproj"
 pack_local_package "$ROOT_DIR/src/ULinkRPC.Core/ULinkRPC.Core.csproj"
 pack_local_package "$ROOT_DIR/src/ULinkRPC.Client/ULinkRPC.Client.csproj"
 pack_local_package "$ROOT_DIR/src/ULinkRPC.Server/ULinkRPC.Server.csproj"

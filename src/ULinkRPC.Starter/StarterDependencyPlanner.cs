@@ -20,6 +20,8 @@ internal sealed record StarterDependencyPlan(IReadOnlyList<StarterPackageReferen
 
 internal static class StarterDependencyPlanner
 {
+    private const string AnalyzerIncludeAssets = "runtime; build; native; contentfiles; analyzers; buildtransitive";
+
     public static StarterDependencyPlan Create(StarterTemplateContext context, StarterProjectRole role)
     {
         var references = role switch
@@ -61,7 +63,8 @@ internal static class StarterDependencyPlanner
         var references = new List<StarterPackageReference>
         {
             new("ULinkRPC.Server", context.Versions.Server),
-            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)
+            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),
+            CreateAnalyzerReference(context)
         };
 
         AddSdkSerializerReferenceIfNeeded(context, references);
@@ -74,7 +77,8 @@ internal static class StarterDependencyPlanner
         {
             new("ULinkRPC.Core", context.Versions.Core),
             new("ULinkRPC.Client", context.Versions.Client),
-            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)
+            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),
+            CreateAnalyzerReference(context)
         };
 
         AddSdkSerializerReferenceIfNeeded(context, references);
@@ -94,7 +98,8 @@ internal static class StarterDependencyPlanner
             new("Stride.Core.Assets.CompilerApp", StridePackageVersions.Stride, IncludeAssets: "build;buildTransitive"),
             new("ULinkRPC.Core", context.Versions.Core),
             new("ULinkRPC.Client", context.Versions.Client),
-            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport)
+            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),
+            CreateAnalyzerReference(context)
         };
 
         AddSdkSerializerReferenceIfNeeded(context, references);
@@ -139,6 +144,13 @@ internal static class StarterDependencyPlanner
                 throw new ArgumentOutOfRangeException(nameof(context), context.Serializer, null);
         }
     }
+
+    private static StarterPackageReference CreateAnalyzerReference(StarterTemplateContext context) =>
+        new(
+            "ULinkRPC.Analyzers",
+            context.Versions.Analyzers,
+            PrivateAssets: "all",
+            IncludeAssets: AnalyzerIncludeAssets);
 
     private static void AddUnitySerializerDependencies(
         StarterTemplateContext context,

@@ -9,10 +9,11 @@
     <AssemblyName>ULinkRPC.Analyzers</AssemblyName>
     <RootNamespace>ULinkRPC.Analyzers</RootNamespace>
     <PackageId>ULinkRPC.Analyzers</PackageId>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <Authors>ULinkRPC</Authors>
     <Description>Roslyn analyzers and source generators for ULinkRPC contracts.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <DefaultItemExcludes>$(DefaultItemExcludes);obj\**\*.cs;bin\**\*.cs</DefaultItemExcludes>
   </PropertyGroup>
@@ -22,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="buildTransitive\ULinkRPC.Analyzers.props" Pack="true" PackagePath="buildTransitive" />
   </ItemGroup>
