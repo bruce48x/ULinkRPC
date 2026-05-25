@@ -114,7 +114,7 @@ public class KcpTransportTests
         ForceFrameAccumulatorOverflowOnNextAppend(firstTransport);
         await firstClient.SendFrameAsync(new byte[] { 0x01 }, cts.Token);
 
-        await Task.Delay(150, cts.Token);
+        await WithTimeout(WaitUntilAsync(() => !firstTransport.IsConnected, cts.Token), cts.Token);
 
         using var acceptCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, acceptCts.Token);
