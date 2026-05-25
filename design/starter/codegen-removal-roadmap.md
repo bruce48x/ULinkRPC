@@ -8,7 +8,8 @@ Progress:
 
 - 2026-05-25: Steps 1-3 landed for source-generator validation and sample migration. Samples no longer keep committed generated RPC glue and .NET/Godot sample builds rely on `ULinkRPC.Analyzers`.
 - 2026-05-25: Step 4 landed. `ulinkrpc-starter codegen`, starter legacy project-tool codegen execution, and bundled CodeGen version resolution were removed.
-- Remaining removal work starts at step 5. `ULinkRPC.CodeGen` stays in the tree until CLI package deletion and docs cleanup are completed.
+- 2026-05-25: Step 5 landed. The `ULinkRPC.CodeGen` project, its test project, and test solution references were removed.
+- Remaining removal work starts at step 6. Docs cleanup is still required to remove normal-workflow references to legacy CLI codegen.
 
 ## Decision
 
