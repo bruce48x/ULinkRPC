@@ -120,10 +120,11 @@ namespace ULinkRPC.Transport.Kcp
 
         public async ValueTask DisposeAsync()
         {
+            Volatile.Write(ref _isConnected, 0);
+
             if (Interlocked.Exchange(ref _disposed, 1) != 0)
                 return;
 
-            Volatile.Write(ref _isConnected, 0);
             try
             {
                 _cts.Cancel();

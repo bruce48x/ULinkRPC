@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.12
+
+- Release packages:
+	- `ULinkRPC.Transport.Kcp` `0.11.12`
+- Fixed a KCP server transport dispose race where `AcceptAsync` could observe a queued connection as connected while it was already being disposed.
+
 ## 0.3.1
 
 - Release packages:
