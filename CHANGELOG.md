@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- Release packages:
+	- `ULinkRPC.Starter` `0.3.1`
+- Added automatic CLI language detection for `ULinkRPC.Starter`.
+- Added Simplified Chinese and Traditional Chinese output for usage text, interactive prompts, validation errors, and post-create next steps.
+
 ## 0.11.8 / 0.1.6 / 0.3.0
 
 - Release packages:

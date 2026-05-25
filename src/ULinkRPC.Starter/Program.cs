@@ -53,24 +53,18 @@ internal static class Program
             rootPath,
             stagingRootPath => generator.GenerateTemplate(stagingRootPath, options.ProjectName, clientEngine, transport, serializer, nuGetForUnitySource, versions));
 
-        Console.WriteLine($"Created ULinkRPC project at: {rootPath}");
+        var text = StarterText.Current;
+        Console.WriteLine(text.CreatedProject(rootPath));
         if (options.NoNextSteps)
         {
             return 0;
         }
 
-        Console.WriteLine("Next steps:");
+        Console.WriteLine(text.NextStepsHeader);
         Console.WriteLine($"  1) cd \"{rootPath}\"");
         Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
-        Console.WriteLine(clientEngine switch
-        {
-            ClientEngineKind.Unity or ClientEngineKind.UnityCn or ClientEngineKind.Tuanjie =>
-                $"  3) Open \"Client\" with {clientEngine.GetStarterClientLabel()}.",
-            ClientEngineKind.Godot => "  3) Open \"Client\" with Godot 4.6 and build the C# solution.",
-            ClientEngineKind.Stride3D => "  3) Open \"Client/Client.sln\" with Stride Game Studio, or run \"dotnet run --project Client/Client.Windows/Client.Windows.csproj\".",
-            _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
-        });
-        Console.WriteLine("  4) After changing Shared contracts, build the server/client or let the editor compile; source generation runs automatically.");
+        Console.WriteLine(text.OpenClientStep(clientEngine));
+        Console.WriteLine(text.SharedContractsStep);
         return 0;
     }
 

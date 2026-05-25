@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Xml.Linq;
 using ULinkRPC.Starter;
@@ -825,13 +826,27 @@ public sealed class StarterTemplateGeneratorTests
     [Fact]
     public void TryParseArgs_RejectsCodeGenCommand()
     {
-        var ok = StarterCli.TryParseArgs(
-            ["codegen", "--project-root", "./sample", "--no-restore"],
-            out var options,
-            out var error);
+        var previousUiCulture = CultureInfo.CurrentUICulture;
+        var previousCulture = CultureInfo.CurrentCulture;
+        var culture = CultureInfo.GetCultureInfo("en-US");
 
-        Assert.False(ok);
-        Assert.Equal("Unknown command: codegen", error);
+        try
+        {
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = culture;
+            var ok = StarterCli.TryParseArgs(
+                ["codegen", "--project-root", "./sample", "--no-restore"],
+                out _,
+                out var error);
+
+            Assert.False(ok);
+            Assert.Equal("Unknown command: codegen", error);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previousCulture;
+            CultureInfo.CurrentUICulture = previousUiCulture;
+        }
     }
 
     [Fact]

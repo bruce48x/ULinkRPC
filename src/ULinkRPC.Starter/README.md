@@ -51,6 +51,7 @@ Default `NuGetForUnity` source by client engine:
 - `tuanjie` -> `embedded`
 
 If `--client-engine`, `--transport`, or `--serializer` is omitted, the tool enters interactive mode and asks you to choose them in the terminal.
+CLI prompts, usage text, validation errors, and post-create next steps automatically follow the system UI language. English is used by default; Simplified Chinese is used for `zh`, `zh-CN`, `zh-Hans`, and other non-traditional Chinese cultures; Traditional Chinese is used for `zh-TW`, `zh-HK`, `zh-MO`, and `zh-Hant`.
 
 ## Examples
 

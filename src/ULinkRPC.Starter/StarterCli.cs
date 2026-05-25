@@ -4,7 +4,8 @@ internal static class StarterCli
 {
     public static void PrintUsage()
     {
-        Console.WriteLine("Usage:");
+        var text = StarterText.Current;
+        Console.WriteLine(text.UsageHeader);
         Console.WriteLine("  ulinkrpc-starter [--help|-h|--version]");
         Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]");
     }
@@ -38,7 +39,7 @@ internal static class StarterCli
             return TryParseNewArgs(args, out options, out error);
 
         options = default!;
-        error = $"Unknown command: {firstArg}";
+        error = StarterText.Current.UnknownCommand(firstArg);
         return false;
     }
 
@@ -90,7 +91,7 @@ internal static class StarterCli
                 if (!TryParseClientEngine(args[++i], out var parsed))
                 {
                     options = default!;
-                    error = "Invalid --client-engine value.";
+                    error = StarterText.Current.InvalidClientEngineValue;
                     return false;
                 }
 
@@ -103,7 +104,7 @@ internal static class StarterCli
                 if (!TryParseTransport(args[++i], out var parsed))
                 {
                     options = default!;
-                    error = "Invalid --transport value.";
+                    error = StarterText.Current.InvalidTransportValue;
                     return false;
                 }
 
@@ -116,7 +117,7 @@ internal static class StarterCli
                 if (!TryParseSerializer(args[++i], out var parsed))
                 {
                     options = default!;
-                    error = "Invalid --serializer value.";
+                    error = StarterText.Current.InvalidSerializerValue;
                     return false;
                 }
 
@@ -129,7 +130,7 @@ internal static class StarterCli
                 if (!TryParseNuGetForUnitySource(args[++i], out var parsed))
                 {
                     options = default!;
-                    error = "Invalid --nugetforunity-source value.";
+                    error = StarterText.Current.InvalidNuGetForUnitySourceValue;
                     return false;
                 }
 
@@ -144,14 +145,14 @@ internal static class StarterCli
             }
 
             options = default!;
-            error = $"Unknown or incomplete option: {arg}";
+            error = StarterText.Current.UnknownOrIncompleteOption(arg);
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(projectName))
         {
             options = default!;
-            error = "--name cannot be empty.";
+            error = StarterText.Current.EmptyName;
             return false;
         }
 
@@ -167,12 +168,13 @@ internal static class StarterCli
 
     public static ClientEngineKind PromptClientEngine()
     {
-        Console.WriteLine("Select client engine:");
-        Console.WriteLine("  1) Unity");
-        Console.WriteLine("  2) Unity CN");
-        Console.WriteLine("  3) Tuanjie");
-        Console.WriteLine("  4) Godot");
-        Console.WriteLine("  5) Stride3D");
+        var text = StarterText.Current;
+        Console.WriteLine(text.ClientEnginePrompt);
+        Console.WriteLine(text.ClientEngineOption(1, ClientEngineKind.Unity));
+        Console.WriteLine(text.ClientEngineOption(2, ClientEngineKind.UnityCn));
+        Console.WriteLine(text.ClientEngineOption(3, ClientEngineKind.Tuanjie));
+        Console.WriteLine(text.ClientEngineOption(4, ClientEngineKind.Godot));
+        Console.WriteLine(text.ClientEngineOption(5, ClientEngineKind.Stride3D));
         while (true)
         {
             Console.Write("> ");
@@ -186,13 +188,14 @@ internal static class StarterCli
                 case "5": return ClientEngineKind.Stride3D;
             }
 
-            Console.WriteLine("Please enter 1-5.");
+            Console.WriteLine(text.EnterRange(1, 5));
         }
     }
 
     public static TransportKind PromptTransport()
     {
-        Console.WriteLine("Select transport:");
+        var text = StarterText.Current;
+        Console.WriteLine(text.TransportPrompt);
         Console.WriteLine("  1) TCP");
         Console.WriteLine("  2) WebSocket");
         Console.WriteLine("  3) KCP");
@@ -207,13 +210,14 @@ internal static class StarterCli
                 case "3": return TransportKind.Kcp;
             }
 
-            Console.WriteLine("Please enter 1-3.");
+            Console.WriteLine(text.EnterRange(1, 3));
         }
     }
 
     public static SerializerKind PromptSerializer()
     {
-        Console.WriteLine("Select serializer:");
+        var text = StarterText.Current;
+        Console.WriteLine(text.SerializerPrompt);
         Console.WriteLine("  1) JSON");
         Console.WriteLine("  2) MemoryPack");
         while (true)
@@ -226,7 +230,7 @@ internal static class StarterCli
                 case "2": return SerializerKind.MemoryPack;
             }
 
-            Console.WriteLine("Please enter 1-2.");
+            Console.WriteLine(text.EnterRange(1, 2));
         }
     }
 
