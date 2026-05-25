@@ -136,20 +136,19 @@ This is a deliberate architecture decision:
 
 The long-form decision record is here:
 
-- [`design/starter/starter-unity-shared-source-link.md`](../../design/starter/starter-unity-shared-source-link.md)
+- [`design/starter/unity-shared-source-link.md`](../../design/starter/unity-shared-source-link.md)
 
 Starter dependency ownership is documented separately:
 
-- [`design/starter/starter-dependency-planning.md`](../../design/starter/starter-dependency-planning.md)
+- [`design/starter/dependency-planning.md`](../../design/starter/dependency-planning.md)
 
-Source-generator route planning is tracked here:
+Source-generation design is tracked here:
 
-- [`design/starter/source-generator-codegen.md`](../../design/starter/source-generator-codegen.md)
-- [`design/starter/codegen-removal-roadmap.md`](../../design/starter/codegen-removal-roadmap.md)
+- [`design/starter/source-generation.md`](../../design/starter/source-generation.md)
 
-Archived starter-scaffolded codegen hook history is tracked here:
+Completed CodeGen removal history is archived here:
 
-- [`design/starter/automatic-codegen.md`](../../design/starter/automatic-codegen.md)
+- [`design/archive/starter/codegen-removal-roadmap.md`](../../design/archive/starter/codegen-removal-roadmap.md)
 
 ## Next Steps
 

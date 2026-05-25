@@ -28,7 +28,6 @@ foreach ($sample in $samples) {
         "-Sample", $sample,
         "-Configuration", $Configuration,
         "-Verbosity", $Verbosity,
-        "-SkipBuild",
         "-DisableBuildServer"
     )
 
@@ -36,15 +35,15 @@ foreach ($sample in $samples) {
         $arguments += "-NoRestore"
     }
 
-    Write-Host "==> checking generated code for $sample" -ForegroundColor Cyan
+    Write-Host "==> checking source-generated sample build for $sample" -ForegroundColor Cyan
     & pwsh @arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "Code generation failed for $sample with exit code $LASTEXITCODE"
+        throw "Source-generated sample build failed for $sample with exit code $LASTEXITCODE"
     }
 }
 
 if ($SkipDiffCheck) {
-    Write-Host "Generated code completed. Skipping git diff check because -SkipDiffCheck was set."
+    Write-Host "Source-generated sample builds completed. Skipping git diff check because -SkipDiffCheck was set."
     exit 0
 }
 
@@ -55,7 +54,7 @@ if ($LASTEXITCODE -ne 0) {
 
 if (-not [string]::IsNullOrWhiteSpace($diffOutput)) {
     Write-Error @"
-Generated code is stale. Run this command locally and commit the result:
+Source-generated sample checks changed tracked files. Run this command locally and commit the result if the changes are intentional:
 
   pwsh -NoProfile -File scripts/check-generated-code.ps1
 
@@ -65,4 +64,4 @@ $diffOutput
     exit 1
 }
 
-Write-Host "Generated code is up to date."
+Write-Host "Source-generated sample builds are up to date."

@@ -90,24 +90,9 @@ The intended end state is:
 
 If Unity 2022/Tuanjie analyzer support regresses, fix analyzer compatibility, packaging, import metadata, or Unity compiler integration. Do not reintroduce starter-scaffolded project-local generated source.
 
-## Migration Plan
-
-| Phase | Status | Work |
-| --- | --- | --- |
-| 0 | Done | Accept source-generator route and stop expanding starter-scaffolded codegen hooks. |
-| 1 | Not planned | Keep generator implementation in `ULinkRPC.Analyzers`; no CLI/shared-core split remains after legacy CLI deletion. |
-| 2 | Done | Implement source generator in `ULinkRPC.Analyzers` with client/server generation modes, analyzer-config properties, and runtime-based auto-detection. |
-| 3 | Done | Add source-generator compilation tests for server binders, client facade, constants, and referenced contract assemblies. |
-| 4 | Done | Update starter templates for Server, Godot, and Stride3D to reference analyzer/source-generator packages and remove MSBuild `ULinkRPCGenerateCode` targets. |
-| 5 | Done | Remove project-local Unity/Tuanjie Editor codegen postprocessor from new starter templates and rely on the analyzer package restored into Unity-compatible projects. |
-| 6 | Done | Update samples and docs to remove committed generated glue from new-project guidance. |
-| 7 | Done | Remove `ulinkrpc-starter codegen` and direct CLI generation from the product surface. |
-
-The legacy CLI deletion path is tracked in [`codegen-removal-roadmap.md`](codegen-removal-roadmap.md).
-
 ## Starter Template Changes
 
-New starter templates should move from "generate files now and add hooks" to "configure compiler generation":
+New starter templates configure compiler generation:
 
 - Do not create local generator tool manifests for new projects.
 - Stop creating `Generated/`, `Assets/Scripts/Rpc/Generated/`, and `Scripts/Rpc/Generated/` as required source folders.
@@ -117,15 +102,17 @@ New starter templates should move from "generate files now and add hooks" to "co
 - Add generation-mode properties per project.
 - Keep contract attributes and id constants in `Shared`.
 
+The completed CLI deletion history is archived in [ULinkRPC.CodeGen Removal Roadmap](../archive/starter/codegen-removal-roadmap.md).
+
 ## Compatibility Rules
 
-- Runtime APIs should not require application code to know whether glue came from CLI or source generator.
+- Runtime APIs should not expose source-generator implementation details to application code.
 - Generated type names and namespaces should remain stable unless a breaking-change release explicitly says otherwise.
-- If a source-generated type conflicts with a committed generated file during migration, remove the old generated output.
+- New starter projects must not contain committed generated RPC glue.
 
-## Release Criteria
+## Validation Requirements
 
-The route is not complete until these checks pass:
+The route stays valid only while these checks pass:
 
 - Source-generated server binder discovery works through `RpcServerHostBuilder`.
 - Source-generated client facade compiles and executes behavior tests for service calls and callbacks.

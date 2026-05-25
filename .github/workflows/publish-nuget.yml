@@ -48,8 +48,8 @@ jobs:
       - name: Test runtime core
         run: dotnet test tests/ULinkRPC.Tests/ULinkRPC.Tests.csproj --no-restore -c Release -m:1 /nr:false /p:UseSharedCompilation=false
 
-      - name: Test code generator
-        run: dotnet test tests/ULinkRPC.CodeGen.Tests/ULinkRPC.CodeGen.Tests.csproj --no-restore -c Release -m:1 /nr:false /p:UseSharedCompilation=false
+      - name: Test analyzers
+        run: dotnet test tests/ULinkRPC.Analyzers.Tests/ULinkRPC.Analyzers.Tests.csproj --no-restore -c Release -m:1 /nr:false /p:UseSharedCompilation=false
 
       - name: Test serializers
         run: dotnet test tests/ULinkRPC.Serializer.Tests/ULinkRPC.Serializer.Tests.csproj --no-restore -c Release -m:1 /nr:false /p:UseSharedCompilation=false

@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.11.8 / 0.1.5 / 0.3.0
+## 0.11.8 / 0.1.6 / 0.3.0
 
 - Release packages:
 	- `ULinkRPC.Core` `0.11.8`
-	- `ULinkRPC.Analyzers` `0.1.5`
+	- `ULinkRPC.Analyzers` `0.1.6`
 	- `ULinkRPC.Starter` `0.3.0`
 - Added an assembly-level `ULinkRPCGenerateClient` marker for selecting the one client assembly that should receive source-generated RPC client glue.
 - Updated Unity-compatible starters to write the marker into `Assembly-CSharp`, preventing duplicate `Rpc.Generated` output across Unity script assemblies.

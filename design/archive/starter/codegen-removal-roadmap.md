@@ -4,6 +4,8 @@ Status: complete
 
 Date: 2026-05-25
 
+Archive note: this is a completed removal record, not current implementation guidance. Current generation rules live in [Source Generation](../../starter/source-generation.md).
+
 Progress:
 
 - 2026-05-25: Steps 1-3 landed for source-generator validation and sample migration. Samples no longer keep committed generated RPC glue and .NET/Godot sample builds rely on `ULinkRPC.Analyzers`.

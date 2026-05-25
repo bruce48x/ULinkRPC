@@ -9,7 +9,7 @@ Unity-compatible client assemblies should opt in with `[assembly: ULinkRPCGenera
 Typical projects should add this package with:
 
 ```xml
-<PackageReference Include="ULinkRPC.Analyzers" Version="0.1.5">
+<PackageReference Include="ULinkRPC.Analyzers" Version="0.1.6">
   <PrivateAssets>all</PrivateAssets>
   <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 </PackageReference>

@@ -896,7 +896,7 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Contains("New starter projects do not create `Generated/` source folders", readme);
         Assert.Contains("use the normal build/editor flow", readme);
         Assert.DoesNotContain("ulinkrpc-starter codegen", readme, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("design/starter/source-generator-codegen.md", readme);
+        Assert.Contains("design/starter/source-generation.md", readme);
     }
 
 
