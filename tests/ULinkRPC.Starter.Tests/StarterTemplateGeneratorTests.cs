@@ -63,7 +63,7 @@ public sealed class StarterTemplateGeneratorTests
         var jsonVersions = NuGetVersionResolver.ResolveVersions(TransportKind.WebSocket, SerializerKind.Json);
         var memoryPackVersions = NuGetVersionResolver.ResolveVersions(TransportKind.Kcp, SerializerKind.MemoryPack);
 
-        Assert.Equal("0.11.7", jsonVersions.Core);
+        Assert.Equal("0.11.8", jsonVersions.Core);
         Assert.Equal("0.11.9", jsonVersions.Server);
         Assert.Equal("0.11.4", jsonVersions.Client);
         Assert.Equal("0.11.6", jsonVersions.Transport);
@@ -254,6 +254,7 @@ public sealed class StarterTemplateGeneratorTests
             var nugetConfig = File.ReadAllText(Path.Combine(root, "Client", "Assets", "NuGet.config"));
             var projectVersion = File.ReadAllText(Path.Combine(root, "Client", "ProjectSettings", "ProjectVersion.txt"));
             var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
+            var generationMarker = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "ULinkRPCGeneration.cs"));
             var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
             var testerScriptMeta = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs.meta"));
             var scene = File.ReadAllText(Path.Combine(root, "Client", "Assets", "Scenes", "ConnectionTest.unity"));
@@ -313,6 +314,7 @@ public sealed class StarterTemplateGeneratorTests
             Assert.Contains("m_EditorVersionWithRevision: 2022.3.62f3c1 (1623fc0bbb97)", projectVersion);
             Assert.Contains("the editor will auto-open `Assets/Scenes/ConnectionTest.unity`", clientReadme);
             Assert.Contains("download from OpenUPM", clientReadme);
+            Assert.Contains("[assembly: ULinkRPCGenerateClient(\"Rpc.Generated\")]", generationMarker);
             Assert.Contains("using Rpc.Generated;", testerScript);
             Assert.Contains("using Shared.Interfaces;", testerScript);
             Assert.Contains("using ULinkRPC.Core;", testerScript);

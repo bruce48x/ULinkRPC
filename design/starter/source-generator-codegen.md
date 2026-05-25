@@ -85,7 +85,8 @@ Unity-compatible clients must validate source-generator support through the actu
 The intended end state is:
 
 - NuGetForUnity restores `ULinkRPC.Analyzers` as an analyzer/source-generator asset.
-- The runtime/testing asmdef that consumes generated client APIs references the contracts, runtime packages, and analyzer package.
+- The runtime/testing assembly that consumes generated client APIs references the contracts, runtime packages, and analyzer package.
+- Exactly one Unity client assembly opts in with `[assembly: ULinkRPCGenerateClient("Rpc.Generated")]`; other Unity assemblies must not auto-generate duplicate `Rpc.Generated` facades.
 - Generated `Rpc.Generated` types are compiler output in the consuming assembly.
 - No Editor script shells out to `dotnet`.
 

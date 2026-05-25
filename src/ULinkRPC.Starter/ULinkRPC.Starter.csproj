@@ -7,7 +7,7 @@
     <RootNamespace>ULinkRPC.Starter</RootNamespace>
     <AssemblyName>ULinkRPC.Starter</AssemblyName>
     <PackageId>ULinkRPC.Starter</PackageId>
-    <Version>0.2.65</Version>
+    <Version>0.2.66</Version>
     <Authors>ULinkRPC</Authors>
     <Description>CLI project tool to scaffold and manage ULinkRPC shared/server/client workspaces.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

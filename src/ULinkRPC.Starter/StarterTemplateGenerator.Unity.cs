@@ -15,6 +15,7 @@ internal static class StarterUnityTemplate
         var artifacts = BuildArtifacts(context);
 
         var clientPath = context.Paths.ClientPath;
+        var generationMarkerPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "ULinkRPCGeneration.cs");
         var testerScriptPath = Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs");
         var scenePath = Path.Combine(clientPath, "Assets", "Scenes", $"{GetUnitySceneName()}.unity");
         var autoOpenEditorScriptPath = Path.Combine(clientPath, "Assets", "Editor", "AutoOpenConnectionScene.cs");
@@ -22,6 +23,7 @@ internal static class StarterUnityTemplate
         StarterFileWriter.Write(Path.Combine(clientPath, "Packages", "manifest.json"), artifacts.Manifest);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "packages.config"), artifacts.PackagesConfig);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "NuGet.config"), artifacts.NuGetConfig);
+        StarterFileWriter.Write(generationMarkerPath, GetUnityGenerationMarkerScript());
         StarterFileWriter.Write(testerScriptPath, artifacts.TesterScript);
         StarterFileWriter.Write(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs.meta"), artifacts.TesterScriptMeta);
         StarterFileWriter.Write(scenePath, artifacts.SceneContent);
@@ -39,6 +41,7 @@ internal static class StarterUnityTemplate
         Directory.CreateDirectory(Path.Combine(clientPath, "Packages"));
         Directory.CreateDirectory(Path.Combine(clientPath, "ProjectSettings"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scenes"));
+        Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scripts", "Rpc"));
         Directory.CreateDirectory(Path.Combine(clientPath, "Assets", "Scripts", "Rpc", "Testing"));
     }
 
@@ -181,6 +184,14 @@ NuGetForUnity source: {{context.NuGetForUnitySource}}
     };
 
     private static string GetUnitySceneName() => "ConnectionTest";
+
+    private static string GetUnityGenerationMarkerScript() => """
+#nullable enable
+
+using ULinkRPC.Core;
+
+[assembly: ULinkRPCGenerateClient("Rpc.Generated")]
+""";
 
     private static string GetUnityTesterScript(TransportKind transport, SerializerKind serializer)
     {

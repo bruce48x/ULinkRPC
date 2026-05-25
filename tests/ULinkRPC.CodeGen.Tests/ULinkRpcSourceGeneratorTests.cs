@@ -99,6 +99,48 @@ public sealed class ULinkRpcSourceGeneratorTests
     }
 
     [Fact]
+    public void GenerateClient_UsesAssemblyMarker()
+    {
+        var compilation = CreateCompilationFromSources(
+            "MarkedClient",
+            ClientGenerationMarkerSource,
+            ContractSource + ClientRuntimeStubs);
+
+        var result = RunGenerator(compilation, new Dictionary<string, string>());
+
+        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        Assert.Contains(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("PingServiceClient.g.cs", StringComparison.Ordinal));
+        var facade = Assert.Single(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("RpcApi.g.cs", StringComparison.Ordinal));
+        Assert.Contains("namespace Client.Marked", facade.GetText().ToString());
+    }
+
+    [Fact]
+    public void GenerateClient_SkipsUnityAutoDetectionWithoutAssemblyMarker()
+    {
+        var unityCompilation = CSharpCompilation.Create(
+            "UnityEngine.CoreModule",
+            [CSharpSyntaxTree.ParseText("namespace UnityEngine { public class Object { } }")],
+            GetPlatformReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var stream = new MemoryStream();
+        var emit = unityCompilation.Emit(stream);
+        Assert.True(emit.Success, string.Join(Environment.NewLine, emit.Diagnostics));
+        stream.Position = 0;
+
+        var compilation = CSharpCompilation.Create(
+            "Gameplay.Runtime",
+            [CSharpSyntaxTree.ParseText(ContractSource + ClientRuntimeStubs)],
+            GetPlatformReferences().Append(MetadataReference.CreateFromImage(stream.ToArray())),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var result = RunGenerator(compilation, new Dictionary<string, string>());
+
+        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
     public void GenerateClient_ExplicitFalseSuppressesAutoDetection()
     {
         var compilation = CreateCompilation(ContractSource + ClientRuntimeStubs);
@@ -133,6 +175,13 @@ public sealed class ULinkRpcSourceGeneratorTests
         CSharpCompilation.Create(
             assemblyName,
             [CSharpSyntaxTree.ParseText(source)],
+            GetPlatformReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+    private static CSharpCompilation CreateCompilationFromSources(string assemblyName, params string[] sources) =>
+        CSharpCompilation.Create(
+            assemblyName,
+            sources.Select(static source => CSharpSyntaxTree.ParseText(source)),
             GetPlatformReferences(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
@@ -253,7 +302,19 @@ public sealed class ULinkRpcSourceGeneratorTests
             {
                 public RpcPushAttribute(int methodId) { }
             }
+
+            [AttributeUsage(AttributeTargets.Assembly)]
+            public sealed class ULinkRPCGenerateClientAttribute : Attribute
+            {
+                public ULinkRPCGenerateClientAttribute(string generatedNamespace) { }
+            }
         }
+        """;
+
+    private const string ClientGenerationMarkerSource = """
+        using ULinkRPC.Core;
+
+        [assembly: ULinkRPCGenerateClient("Client.Marked")]
         """;
 
     private const string ClientRuntimeStubs = """

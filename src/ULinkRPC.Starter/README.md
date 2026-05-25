@@ -157,8 +157,9 @@ Starter dependency ownership is documented separately:
 Source-generator route planning is tracked here:
 
 - [`design/starter/source-generator-codegen.md`](../../design/starter/source-generator-codegen.md)
+- [`design/starter/codegen-removal-roadmap.md`](../../design/starter/codegen-removal-roadmap.md)
 
-Starter-scaffolded codegen hook history is tracked here:
+Archived starter-scaffolded codegen hook history is tracked here:
 
 - [`design/starter/automatic-codegen.md`](../../design/starter/automatic-codegen.md)
 

@@ -1,6 +1,6 @@
-# Starter-Generated CodeGen Hooks
+# Starter-Generated CodeGen Hooks (Archived)
 
-Status: superseded by [Source Generator CodeGen Route](source-generator-codegen.md)
+Status: archived; superseded by [Source Generator CodeGen Route](source-generator-codegen.md) and [ULinkRPC.CodeGen Removal Roadmap](codegen-removal-roadmap.md)
 
 Date: 2026-05-20
 
@@ -22,9 +22,13 @@ The current product direction is to abandon starter-scaffolded CLI codegen as th
 
 The new route is documented in [Source Generator CodeGen Route](source-generator-codegen.md). Future work should use that document as the source of truth for architecture, migration phases, starter changes, and release criteria.
 
-## Legacy Status
+## Current Status
 
-The CLI and starter codegen hooks can remain temporarily as compatibility tools while the source generator route is implemented and validated. They are no longer the strategic direction.
+This document is historical context only. Do not use it as current implementation guidance.
+
+`ULinkRPC.CodeGen` is planned for removal after source-generator validation is complete. The active removal plan is documented in [ULinkRPC.CodeGen Removal Roadmap](codegen-removal-roadmap.md).
+
+Starter-generated codegen hooks are no longer an acceptable fallback for new starter projects or Unity/Tuanjie compile failures.
 
 Do not add new feature work that deepens dependency on:
 

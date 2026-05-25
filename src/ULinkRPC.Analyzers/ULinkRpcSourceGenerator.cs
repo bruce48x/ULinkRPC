@@ -31,11 +31,10 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
 
     public void Execute(GeneratorExecutionContext context)
     {
-        var options = GeneratorOptions.From(context.AnalyzerConfigOptions);
-
         try
         {
             var compilation = context.Compilation;
+            var options = GeneratorOptions.From(context.AnalyzerConfigOptions, compilation);
             if (!options.GenerateClient && !options.GenerateServer)
                 options = options.WithAutoDetectedModes(compilation);
 
@@ -132,6 +131,9 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             if (HasExplicitGenerationMode)
                 return this;
 
+            if (IsUnityCompilation(compilation))
+                return this;
+
             var hasClientRuntime = compilation.GetTypeByMetadataName("ULinkRPC.Client.RpcClientRuntime") is not null;
             var hasServerRuntime = compilation.GetTypeByMetadataName("ULinkRPC.Server.RpcServiceRegistry") is not null;
             return new GeneratorOptions(
@@ -142,17 +144,56 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 ServerNamespace);
         }
 
-        public static GeneratorOptions From(AnalyzerConfigOptionsProvider provider)
+        public static GeneratorOptions From(AnalyzerConfigOptionsProvider provider, Compilation compilation)
         {
             var global = provider.GlobalOptions;
             var hasClientSetting = global.TryGetValue(ClientKey, out var clientValue);
             var hasServerSetting = global.TryGetValue(ServerKey, out var serverValue);
+            var clientNamespace = GetString(global, ClientNamespaceKey, "Rpc.Generated");
+            var hasClientMarker = TryGetClientGenerationAttribute(compilation, out var markerNamespace);
+            if (hasClientMarker && !hasClientSetting && !string.IsNullOrWhiteSpace(markerNamespace))
+                clientNamespace = markerNamespace!;
+
             return new GeneratorOptions(
-                IsEnabled(clientValue),
+                IsEnabled(clientValue) || (!hasClientSetting && hasClientMarker),
                 IsEnabled(serverValue),
-                hasClientSetting || hasServerSetting,
-                GetString(global, ClientNamespaceKey, "Rpc.Generated"),
+                hasClientSetting || hasServerSetting || hasClientMarker,
+                clientNamespace,
                 GetString(global, ServerNamespaceKey, "Server.Generated"));
+        }
+
+        private static bool IsUnityCompilation(Compilation compilation)
+        {
+            if (compilation.AssemblyName is not null &&
+                compilation.AssemblyName.StartsWith("Assembly-CSharp", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            return compilation.SourceModule.ReferencedAssemblySymbols.Any(static assembly =>
+                assembly.Identity.Name.StartsWith("UnityEngine", StringComparison.Ordinal) ||
+                assembly.Identity.Name.StartsWith("UnityEditor", StringComparison.Ordinal));
+        }
+
+        private static bool TryGetClientGenerationAttribute(Compilation compilation, out string? generatedNamespace)
+        {
+            generatedNamespace = null;
+            foreach (var attribute in compilation.Assembly.GetAttributes())
+            {
+                var attributeClass = attribute.AttributeClass;
+                if (attributeClass is null)
+                    continue;
+
+                if (!string.Equals(attributeClass.Name, "ULinkRPCGenerateClientAttribute", StringComparison.Ordinal))
+                    continue;
+
+                generatedNamespace = attribute.ConstructorArguments
+                    .Select(static argument => argument.Value as string)
+                    .FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value));
+                return true;
+            }
+
+            return false;
         }
 
         private static bool IsEnabled(string? value) =>
@@ -574,7 +615,7 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 writer.OpenBlock($"public {group.GroupName}RpcGroup(IRpcClient client)");
                 writer.Line("if (client is null) throw new ArgumentNullException(nameof(client));");
                 foreach (var service in group.Services)
-                    writer.Line($"{Naming.GetFacadeServicePropertyName(service.InterfaceName)} = client.{Naming.GetClientFactoryMethodName(service.InterfaceName)}();");
+                    writer.Line($"{Naming.GetFacadeServicePropertyName(service.InterfaceName)} = new {Naming.GetClientTypeName(service.InterfaceName)}(client);");
                 writer.CloseBlock();
                 writer.Line();
                 foreach (var service in group.Services)

@@ -59,4 +59,22 @@ namespace ULinkRPC.Core
 
         public int MethodId { get; }
     }
+
+    /// <summary>
+    ///     Marks the current assembly as the client assembly that should receive generated RPC client glue.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
+    public sealed class ULinkRPCGenerateClientAttribute : Attribute
+    {
+        public ULinkRPCGenerateClientAttribute()
+        {
+        }
+
+        public ULinkRPCGenerateClientAttribute(string generatedNamespace)
+        {
+            GeneratedNamespace = generatedNamespace;
+        }
+
+        public string? GeneratedNamespace { get; }
+    }
 }
