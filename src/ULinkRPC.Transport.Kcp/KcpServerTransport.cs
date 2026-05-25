@@ -25,6 +25,7 @@ namespace ULinkRPC.Transport.Kcp
         private readonly LengthPrefixedFrameAccumulator _accumulator = new();
         private readonly CancellationTokenSource _cts = new();
         private IDisposable? _updateRegistration;
+        private int _isConnected;
         private int _disposed;
 
         public KcpServerTransport(Socket socket, EndPoint remote, uint conv, Action? onDispose = null)
@@ -72,14 +73,14 @@ namespace ULinkRPC.Transport.Kcp
 
         public EndPoint? RemoteEndPoint => _remote;
 
-        public bool IsConnected { get; private set; }
+        public bool IsConnected => Volatile.Read(ref _isConnected) != 0;
 
         public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             if (IsConnected)
                 return default;
 
-            IsConnected = true;
+            Volatile.Write(ref _isConnected, 1);
             _updateRegistration = KcpUpdateScheduler.Register(UpdateKcp);
 
             return default;
@@ -122,7 +123,7 @@ namespace ULinkRPC.Transport.Kcp
             if (Interlocked.Exchange(ref _disposed, 1) != 0)
                 return;
 
-            IsConnected = false;
+            Volatile.Write(ref _isConnected, 0);
             try
             {
                 _cts.Cancel();
