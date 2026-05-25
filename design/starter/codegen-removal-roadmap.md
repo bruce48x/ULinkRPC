@@ -1,8 +1,13 @@
 # ULinkRPC.CodeGen Removal Roadmap
 
-Status: planned, gated by source-generator validation
+Status: in progress, gated by source-generator validation
 
 Date: 2026-05-25
+
+Progress:
+
+- 2026-05-25: Steps 1-3 landed for source-generator validation and sample migration. Samples no longer keep committed generated RPC glue and .NET/Godot sample builds rely on `ULinkRPC.Analyzers`.
+- Remaining removal work starts at step 4. `ULinkRPC.CodeGen` stays in the tree until starter command removal, CLI package deletion, and docs cleanup are completed.
 
 ## Decision
 

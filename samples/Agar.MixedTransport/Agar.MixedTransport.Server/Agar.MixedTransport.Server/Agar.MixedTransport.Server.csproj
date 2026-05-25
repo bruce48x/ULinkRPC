@@ -7,7 +7,14 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Agar.MixedTransport.Server</RootNamespace>
     <AssemblyName>Agar.MixedTransport.Server</AssemblyName>
+    <ULinkRPCGenerateServer>true</ULinkRPCGenerateServer>
+    <ULinkRPCServerGeneratedNamespace>Shared.Interfaces.Server.Generated</ULinkRPCServerGeneratedNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="ULinkRPCGenerateServer" />
+    <CompilerVisibleProperty Include="ULinkRPCServerGeneratedNamespace" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MemoryPack.Generator" Version="1.21.4">
@@ -15,6 +22,10 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <Compile Include="..\..\Shared\Interfaces\**\*.cs" />
+    <ProjectReference Include="..\..\..\..\src\ULinkRPC.Analyzers\ULinkRPC.Analyzers.csproj"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Analyzer"
+                      PrivateAssets="all" />
     <ProjectReference Include="..\..\..\..\src\ULinkRPC.Server\ULinkRPC.Server.csproj" />
     <ProjectReference Include="..\..\..\..\src\ULinkRPC.Serializer.MemoryPack\ULinkRPC.Serializer.MemoryPack.csproj" />
     <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.Tcp\ULinkRPC.Transport.Tcp.csproj" />

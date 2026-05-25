@@ -3,8 +3,7 @@
   "references": [
     "Game.Rpc.Contracts",
     "ULinkRPC.Core",
-    "ULinkRPC.Client",
-    "ULinkRPC.Generated"
+    "ULinkRPC.Client"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

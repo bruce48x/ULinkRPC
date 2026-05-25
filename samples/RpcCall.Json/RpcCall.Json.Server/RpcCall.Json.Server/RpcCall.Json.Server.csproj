@@ -8,10 +8,21 @@
         <Nullable>enable</Nullable>
         <RootNamespace>RpcCall.Json.Server</RootNamespace>
         <AssemblyName>RpcCall.Json.Server</AssemblyName>
+        <ULinkRPCGenerateServer>true</ULinkRPCGenerateServer>
+        <ULinkRPCServerGeneratedNamespace>Game.Rpc.Server.Generated</ULinkRPCServerGeneratedNamespace>
     </PropertyGroup>
 
     <ItemGroup>
+        <CompilerVisibleProperty Include="ULinkRPCGenerateServer" />
+        <CompilerVisibleProperty Include="ULinkRPCServerGeneratedNamespace" />
+    </ItemGroup>
+
+    <ItemGroup>
         <Compile Include="..\..\RpcCall.Json.Unity\Packages\com.samples.contracts\**\*.cs"/>
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Analyzers\ULinkRPC.Analyzers.csproj"
+                          ReferenceOutputAssembly="false"
+                          OutputItemType="Analyzer"
+                          PrivateAssets="all" />
         <ProjectReference Include="..\..\..\..\src\ULinkRPC.Server\ULinkRPC.Server.csproj" />
         <ProjectReference Include="..\..\..\..\src\ULinkRPC.Serializer.Json\ULinkRPC.Serializer.Json.csproj" />
         <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.WebSocket\ULinkRPC.Transport.WebSocket.csproj" />

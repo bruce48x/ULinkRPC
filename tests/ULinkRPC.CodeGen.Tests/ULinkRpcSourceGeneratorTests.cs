@@ -23,7 +23,12 @@ public sealed class ULinkRpcSourceGeneratorTests
 
         Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
         Assert.Contains(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("PingServiceClient.g.cs", StringComparison.Ordinal));
+        Assert.Contains(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("PingCallbackBinder.g.cs", StringComparison.Ordinal));
         Assert.Contains(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("RpcApi.g.cs", StringComparison.Ordinal));
+        var facade = Assert.Single(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("RpcApi.g.cs", StringComparison.Ordinal));
+        var facadeSource = facade.GetText().ToString();
+        Assert.Contains("public sealed class RpcClient", facadeSource);
+        Assert.Contains("public abstract class PingCallbackBase", facadeSource);
         Assert.Empty(result.Compilation.GetDiagnostics().Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
     }
 
@@ -55,6 +60,7 @@ public sealed class ULinkRpcSourceGeneratorTests
         Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
         var allServices = Assert.Single(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("AllServicesBinder.g.cs", StringComparison.Ordinal));
         Assert.Contains("[assembly: RpcGeneratedServicesBinder(typeof(Server.Generated.AllServicesBinder))]", allServices.GetText().ToString());
+        Assert.Contains(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("PingCallbackProxy.g.cs", StringComparison.Ordinal));
         Assert.Empty(result.Compilation.GetDiagnostics().Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
     }
 
@@ -138,6 +144,37 @@ public sealed class ULinkRpcSourceGeneratorTests
 
         Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
         Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void GenerateClient_UsesUnityAssemblyMarkerWhenUnityRuntimeIsReferenced()
+    {
+        var unityCompilation = CSharpCompilation.Create(
+            "UnityEngine.CoreModule",
+            [CSharpSyntaxTree.ParseText("namespace UnityEngine { public class Object { } }")],
+            GetPlatformReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var stream = new MemoryStream();
+        var emit = unityCompilation.Emit(stream);
+        Assert.True(emit.Success, string.Join(Environment.NewLine, emit.Diagnostics));
+        stream.Position = 0;
+
+        var compilation = CSharpCompilation.Create(
+            "Game.Rpc.Runtime.Testing",
+            [
+                CSharpSyntaxTree.ParseText(ClientGenerationMarkerSource),
+                CSharpSyntaxTree.ParseText(ContractSource + ClientRuntimeStubs)
+            ],
+            GetPlatformReferences().Append(MetadataReference.CreateFromImage(stream.ToArray())),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var result = RunGenerator(compilation, new Dictionary<string, string>());
+
+        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        var facade = Assert.Single(result.GeneratedTrees, static tree => tree.FilePath.EndsWith("RpcApi.g.cs", StringComparison.Ordinal));
+        Assert.Contains("namespace Client.Marked", facade.GetText().ToString());
+        Assert.Empty(result.Compilation.GetDiagnostics().Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
     }
 
     [Fact]
@@ -256,6 +293,11 @@ public sealed class ULinkRpcSourceGeneratorTests
                 {
                     public const int PingAsync = 1;
                 }
+
+                public static class PingCallbackMethods
+                {
+                    public const int OnPong = 1;
+                }
             }
 
             public sealed class PingRequest
@@ -268,11 +310,18 @@ public sealed class ULinkRpcSourceGeneratorTests
                 public string Message { get; set; } = string.Empty;
             }
 
-            [RpcService(RpcContractIds.Services.Ping)]
+            [RpcService(RpcContractIds.Services.Ping, Callback = typeof(IPingCallback))]
             public interface IPingService
             {
                 [RpcMethod(RpcContractIds.PingMethods.PingAsync)]
                 ValueTask<PingReply> PingAsync(PingRequest request);
+            }
+
+            [RpcCallback(typeof(IPingService))]
+            public interface IPingCallback
+            {
+                [RpcPush(RpcContractIds.PingCallbackMethods.OnPong)]
+                void OnPong(PingReply reply);
             }
         }
 
