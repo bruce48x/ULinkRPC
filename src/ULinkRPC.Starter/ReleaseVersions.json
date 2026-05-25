@@ -4,10 +4,10 @@
   "Client": "0.11.4",
   "TransportTcp": "0.11.4",
   "TransportWebSocket": "0.11.6",
-  "TransportKcp": "0.11.10",
+  "TransportKcp": "0.11.11",
   "SerializerJson": "0.11.1",
   "SerializerMemoryPack": "0.11.1",
-  "Analyzers": "0.1.3",
+  "Analyzers": "0.1.4",
   "CodeGen": "0.16.12",
   "MemoryPackRuntime": "1.21.4",
   "MemoryPackRuntimeCore": "1.21.4"

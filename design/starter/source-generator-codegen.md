@@ -104,6 +104,8 @@ If Unity 2022/Tuanjie analyzer support blocks direct generator execution, the fa
 | 6 | In Progress | Update samples and docs to remove committed generated glue from new-project guidance; keep old generated samples only where they test CLI compatibility. |
 | 7 | Done | Mark `ulinkrpc-starter codegen` and direct CLI generation as legacy repair paths; remove them from the recommended workflow. |
 
+The planned deletion path for the legacy CLI is tracked in [`codegen-removal-roadmap.md`](codegen-removal-roadmap.md).
+
 ## Starter Template Changes
 
 New starter templates should move from "generate files now and add hooks" to "configure compiler generation":

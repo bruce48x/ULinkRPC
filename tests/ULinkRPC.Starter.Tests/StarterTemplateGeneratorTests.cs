@@ -72,7 +72,7 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
-        Assert.Equal("0.11.10", memoryPackVersions.Transport);
+        Assert.Equal("0.11.11", memoryPackVersions.Transport);
         Assert.Equal("0.11.1", memoryPackVersions.Serializer);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntime);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntimeCore);

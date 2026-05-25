@@ -10,8 +10,8 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace ULinkRPC.Analyzers;
 
-[Generator(LanguageNames.CSharp)]
-public sealed class ULinkRpcSourceGenerator : IIncrementalGenerator
+[Generator]
+public sealed class ULinkRpcSourceGenerator : ISourceGenerator
 {
     private const string CoreRuntimeUsing = "ULinkRPC.Core";
     private const string ClientRuntimeUsing = "ULinkRPC.Client";
@@ -25,18 +25,17 @@ public sealed class ULinkRpcSourceGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
+    public void Initialize(GeneratorInitializationContext context)
     {
-        var compilationAndOptions = context.CompilationProvider.Combine(context.AnalyzerConfigOptionsProvider);
-        context.RegisterSourceOutput(compilationAndOptions, static (sourceContext, input) => Execute(sourceContext, input.Left, input.Right));
     }
 
-    private static void Execute(SourceProductionContext context, Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider)
+    public void Execute(GeneratorExecutionContext context)
     {
-        var options = GeneratorOptions.From(optionsProvider);
+        var options = GeneratorOptions.From(context.AnalyzerConfigOptions);
 
         try
         {
+            var compilation = context.Compilation;
             if (!options.GenerateClient && !options.GenerateServer)
                 options = options.WithAutoDetectedModes(compilation);
 
@@ -59,7 +58,7 @@ public sealed class ULinkRpcSourceGenerator : IIncrementalGenerator
         }
     }
 
-    private static void EmitClient(SourceProductionContext context, List<RpcServiceModel> services, string generatedNamespace)
+    private static void EmitClient(GeneratorExecutionContext context, List<RpcServiceModel> services, string generatedNamespace)
     {
         foreach (var service in services)
         {
@@ -80,7 +79,7 @@ public sealed class ULinkRpcSourceGenerator : IIncrementalGenerator
             SourceText.From(ClientSourceEmitter.GenerateFacade(services, generatedNamespace), Encoding.UTF8));
     }
 
-    private static void EmitServer(SourceProductionContext context, List<RpcServiceModel> services, string generatedNamespace)
+    private static void EmitServer(GeneratorExecutionContext context, List<RpcServiceModel> services, string generatedNamespace)
     {
         foreach (var service in services)
         {

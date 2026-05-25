@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.4 / 0.2.65
+
+- Release packages:
+	- `ULinkRPC.Analyzers` `0.1.4`
+	- `ULinkRPC.Starter` `0.2.65`
+	- `ULinkRPC.Transport.Kcp` `0.11.11`
+- Changed `ULinkRPC.Analyzers` to use the Unity-compatible Roslyn 3.8 source generator API surface with a single `ISourceGenerator` implementation.
+- Documented that new starter projects must use the source-generator route and must not fall back to starter-scaffolded generated source or `ULinkRPC.CodeGen`.
+- Added the planned `ULinkRPC.CodeGen` removal roadmap, gated by source-generator coverage and Unity/Tuanjie validation.
+- Updated the starter release manifest to reference `ULinkRPC.Analyzers` `0.1.4` and `ULinkRPC.Transport.Kcp` `0.11.11`.
+
 ## 0.1.2 / 0.2.63
 
 - Release packages:

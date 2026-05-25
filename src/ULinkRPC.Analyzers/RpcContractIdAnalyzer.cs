@@ -24,7 +24,7 @@ public sealed class RpcContractIdAnalyzer : DiagnosticAnalyzer
         "ULinkRPC.Contracts",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        customTags: new[] { WellKnownDiagnosticTags.CompilationEnd });
+        customTags: new[] { "CompilationEnd" });
 
     private static readonly DiagnosticDescriptor InvalidMethodIdRule = new(
         InvalidMethodIdDiagnosticId,

@@ -117,7 +117,7 @@ public sealed class ULinkRpcSourceGeneratorTests
     private static GeneratorRunResult RunGenerator(CSharpCompilation compilation, Dictionary<string, string> properties)
     {
         var driver = CSharpGeneratorDriver.Create(
-            [new ULinkRpcSourceGenerator().AsSourceGenerator()],
+            [new ULinkRpcSourceGenerator()],
             optionsProvider: new TestAnalyzerConfigOptionsProvider(properties));
 
         driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(

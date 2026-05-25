@@ -7,7 +7,7 @@ Generated starter server and SDK-style client projects reference this package as
 Typical projects should add this package with:
 
 ```xml
-<PackageReference Include="ULinkRPC.Analyzers" Version="0.1.3">
+<PackageReference Include="ULinkRPC.Analyzers" Version="0.1.4">
   <PrivateAssets>all</PrivateAssets>
   <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 </PackageReference>
