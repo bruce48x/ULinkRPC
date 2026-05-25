@@ -61,11 +61,9 @@ dotnet build Client/Client.csproj
 
 Godot 侧生成代码是编译器输出，不需要项目内 `Generated/` 源码目录。服务端实现放在 `Server/Server/Services/`，Godot 业务脚本放在 `Client/Scripts/` 下你自己的目录中。
 
-`ulinkrpc-starter codegen` 只作为旧项目迁移和排障入口保留。
-
 ## Transport 和 serializer
 
-Godot starter 当前支持 `tcp`、`websocket`、`kcp`，以及 `json`、`memorypack`。如果第一次接入，先用 `websocket + json`。确认连接、codegen 和服务端实现稳定后，再切换到 MemoryPack 或其他 transport。
+Godot starter 当前支持 `tcp`、`websocket`、`kcp`，以及 `json`、`memorypack`。如果第一次接入，先用 `websocket + json`。确认连接、source generation 和服务端实现稳定后，再切换到 MemoryPack 或其他 transport。
 
 MemoryPack 模式下，Shared DTO 会包含 MemoryPack 标记，相关依赖由 starter 写入项目。DTO 版本演进需要更谨慎，详见 [DTO 版本演进](/ULinkRPC/posts/dto-versioning/)。
 

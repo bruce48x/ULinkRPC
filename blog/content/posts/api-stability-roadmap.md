@@ -45,7 +45,7 @@ ULinkRPC 当前适合进入 **soft freeze**：主流接入路径、wire protocol
 
 ### Generated-support API
 
-这层主要服务 codegen 输出。用户可以看到，也可能在高级场景下调用，但它的兼容性应跟 `ULinkRPC.CodeGen` 版本绑定。
+这层主要服务 source generator 输出。用户可以看到，也可能在高级场景下调用，但它的兼容性应跟 `ULinkRPC.Analyzers` 和 runtime 包版本绑定。
 
 - `IRpcClient`
 - `RpcMethod<TArg, TResult>`
@@ -53,7 +53,7 @@ ULinkRPC 当前适合进入 **soft freeze**：主流接入路径、wire protocol
 - `RpcGeneratedServicesBinderAttribute`
 - generated server binder 使用的 registry 和 handler 入口
 
-这层发生 breaking change 时，必须明确要求用户重新运行 codegen，并避免出现新版 runtime 配旧版 generated code 的隐式失败。
+这层发生 breaking change 时，必须明确要求用户重新构建，让 source generator 重新生成胶水代码，并避免出现新版 runtime 配旧版 generated code 的隐式失败。
 
 ### Advanced API
 
@@ -176,10 +176,10 @@ generated `RpcApi` 当前根据 contract namespace 和 service interface 推导 
 
 ## Release 检查问题
 
-每次准备发布涉及 runtime、codegen 或 transport 的版本前，至少检查：
+每次准备发布涉及 runtime、source generator 或 transport 的版本前，至少检查：
 
 - 是否改变了 generated code 需要调用的 runtime API？
-- 是否要求用户重新运行 codegen？
+- 是否要求用户重新构建以刷新 source-generated code？
 - 是否改变了 wire frame、service id、method id、request id 或 payload 语义？
 - 是否改变了断线、dispose、pending request、keepalive timeout 的行为？
 - 是否改变了 generated facade 的类型名、namespace、group 或属性名？

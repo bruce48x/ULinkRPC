@@ -15,7 +15,7 @@ ULinkRPC 适合“C# 服务端 + C# 游戏客户端”共享契约的项目。�
 
 你接受“应用层负责连接状态、重连、鉴权、业务错误码和版本策略”的边界。
 
-你希望默认模板能直接生成 server、client、Shared、codegen 和最小连接测试。
+你希望默认模板能直接生成 server、client、Shared、source generator 配置和最小连接测试。
 
 ## 不适合选择 ULinkRPC 的情况
 
@@ -29,9 +29,9 @@ ULinkRPC 适合“C# 服务端 + C# 游戏客户端”共享契约的项目。�
 
 ## 和手写消息分发相比
 
-手写消息分发的优点是简单、完全可控、没有 codegen 流程。缺点是接口增长后容易出现路由 id、DTO、序列化和调用侧封装不一致。
+手写消息分发的优点是简单、完全可控、没有生成层。缺点是接口增长后容易出现路由 id、DTO、序列化和调用侧封装不一致。
 
-ULinkRPC 更适合 RPC 方法数量会增长、服务端和客户端都想保留强类型调用入口的项目。代价是必须遵守 Shared 契约、重新 codegen、不要手改 generated 目录。
+ULinkRPC 更适合 RPC 方法数量会增长、服务端和客户端都想保留强类型调用入口的项目。代价是必须遵守 Shared 契约、通过正常构建刷新 source-generated glue，不要手改 generated 输出。
 
 ## 和 schema-first RPC 工具相比
 

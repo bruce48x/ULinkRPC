@@ -14,13 +14,13 @@ ULinkRPC 是一个面向 Unity、Godot 和 .NET 的强类型双向 RPC 框架。
 
 ## 它解决了什么问题
 
-用 ULinkRPC，你只需要定义一次接口和 DTO，生成胶水代码之后，客户端和服务端两边都可以直接使用强类型服务。
+用 ULinkRPC，你只需要定义一次接口和 DTO。`ULinkRPC.Analyzers` 会在编译期生成 RPC 胶水代码，客户端和服务端两边都可以直接使用强类型服务。
 
 ```mermaid
 flowchart LR
-    Contracts["共享契约<br/>接口 + DTO"] --> CodeGen["ULinkRPC.CodeGen"]
-    CodeGen --> ClientApi["客户端生成 API<br/>proxy / facade / callback binder"]
-    CodeGen --> ServerBinders["服务端生成 Binder<br/>路由 / callback proxy"]
+    Contracts["共享契约<br/>接口 + DTO"] --> SourceGen["ULinkRPC.Analyzers<br/>source generator"]
+    SourceGen --> ClientApi["客户端生成 API<br/>proxy / facade / callback binder"]
+    SourceGen --> ServerBinders["服务端生成 Binder<br/>路由 / callback proxy"]
 
     Client["Unity / Godot 客户端"] --> ClientApi
     ClientApi --> Runtime["ULinkRPC Runtime"]
@@ -49,7 +49,7 @@ ULinkRPC 刻意把职责边界收在“通信框架”这一层。传输层、�
 ## 快速开始
 
 1. 用 `[RpcService]`、`[RpcMethod]`，以及可选的回调契约定义共享接口。
-2. 使用 `ULinkRPC.CodeGen` 生成客户端和服务端需要的胶水代码。
+2. 构建服务端和客户端，让 `ULinkRPC.Analyzers` 生成两端需要的胶水代码。
 3. 在两端配置一致的传输层和序列化器。
 4. 连接客户端，然后直接调用生成好的强类型服务。
 
@@ -131,7 +131,7 @@ var reply = await player.LoginAsync(new LoginRequest
 
 - 如何生成一份可运行的 Unity/Godot + .NET 项目
 - 如何启动默认服务端和生成好的客户端
-- 什么情况下需要重新运行 `ULinkRPC.CodeGen`
+- source generation 如何在正常构建和编辑器编译中运行
 - `Shared`、`Server`、`Client` 三层分别负责什么
 
 ## 示例
@@ -168,7 +168,7 @@ pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
 flowchart TB
     Core["ULinkRPC.Core"] --> Client["ULinkRPC.Client"]
     Core --> Server["ULinkRPC.Server"]
-    Core --> CodeGen["ULinkRPC.CodeGen"]
+    Core --> Analyzers["ULinkRPC.Analyzers"]
     Core --> Transport
     Core --> Serializer
     Transport --> Tcp["ULinkRPC.Transport.Tcp"]
@@ -197,7 +197,7 @@ flowchart TB
 
 代码生成：
 
-- `ULinkRPC.CodeGen`
+- `ULinkRPC.Analyzers`
 
 ## 文档
 
@@ -211,7 +211,7 @@ flowchart TB
 
 ## 仓库结构
 
-- `src/ULinkRPC.*`：运行时、传输层、序列化器和代码生成器
+- `src/ULinkRPC.*`：运行时、传输层、序列化器、starter 和 analyzer/source-generator 包
 - `samples/`：可直接运行的客户端 + .NET 示例
 - `blog/`：用于 GitHub Pages 的 Hugo 文档/博客站点
 - `design/`：内部设计说明和决策记录

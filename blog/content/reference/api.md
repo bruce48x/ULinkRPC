@@ -584,7 +584,7 @@ Type parameters:
 
 ### Type `ULinkRPC.Core.RpcMethodAttribute`
 
-Marks an interface method as an RPC method. MethodId must be stable within a service. ULinkRPC.CodeGen requires exactly one request DTO parameter and generates payload packing/unpacking for it.
+Marks an interface method as an RPC method. MethodId must be stable within a service. ULinkRPC source generation requires exactly one request DTO parameter and generates payload packing/unpacking for it.
 
 ### Type `ULinkRPC.Core.RpcProtocolLimits`
 

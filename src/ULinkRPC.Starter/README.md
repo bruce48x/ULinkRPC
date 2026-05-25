@@ -116,7 +116,7 @@ The tool uses a bundled, release-tested package manifest for:
 
 Default shared DTOs are generated under `Shared/Interfaces/`.
 Starter also generates centralized `RpcContractIds` constants, a minimal `IPingService` contract plus `Server/Server/PingService.cs`, and source-generator package references for server and client projects.
-Generated RPC glue is compiler output. New starter projects do not create `Generated/` source folders, MSBuild codegen targets, Unity codegen editor scripts, or a local `ULinkRPC.CodeGen` tool manifest.
+Generated RPC glue is compiler output. New starter projects do not create `Generated/` source folders, MSBuild codegen targets, Unity codegen editor scripts, or a local generator tool manifest.
 When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
 Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
 Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.

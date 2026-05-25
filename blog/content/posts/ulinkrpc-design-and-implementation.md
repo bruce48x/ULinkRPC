@@ -7,7 +7,7 @@ tags:
   - dotnet
   - rpc
   - architecture
-  - codegen
+  - source generation
 categories:
   - Architecture
 ---
@@ -21,10 +21,10 @@ categories:
 - 它为什么要强依赖“共享契约 + 代码生成”？
 - 它和“手写消息号 + switch 分发”相比，本质差别是什么？
 - 双向通信到底是怎么落到一条连接上的？
-- Transport、Serializer、Runtime、CodeGen 之间是怎么解耦的？
+- Transport、Serializer、Runtime、Source Generation 之间是怎么解耦的？
 - 服务端 callback、客户端 push、请求响应、保活、压缩、加密，这些东西分别在哪一层？
 
-这篇文章不再讲环境搭建，只讲设计本身：它为什么这样分层，为什么一定要 codegen，双向通信到底是怎么落到一条连接上的。
+这篇文章不再讲环境搭建，只讲设计本身：它为什么这样分层，为什么一定要 source generation，双向通信到底是怎么落到一条连接上的。
 
 ## 先给一句总纲：ULinkRPC 其实是“契约驱动 + 代码生成 + 帧级运行时”的组合
 
@@ -34,7 +34,7 @@ categories:
 
 ```mermaid
 flowchart LR
-    A["Contract Layer<br/>共享接口与 DTO"] --> B["CodeGen Layer<br/>生成 proxy / binder / facade"]
+    A["Contract Layer<br/>共享接口与 DTO"] --> B["Source Generation Layer<br/>生成 proxy / binder / facade"]
     B --> C["Runtime Layer<br/>请求、响应、Push、KeepAlive"]
     C --> D["Transport Layer<br/>TCP / WebSocket / KCP"]
 
@@ -54,9 +54,9 @@ flowchart LR
 
 这一层只定义“能调什么、能推什么”，不处理网络细节。
 
-### 2. 生成层：把契约翻译成“可运行的胶水代码”
+### 2. Source generation 层：把契约翻译成“可运行的胶水代码”
 
-这一层由 `ULinkRPC.CodeGen` 负责。它会读取 contracts 源码，然后分别生成：
+这一层由 `ULinkRPC.Analyzers` 的 Roslyn source generator 负责。它会读取当前编译和引用程序集中的 RPC 契约符号，然后分别生成：
 
 - 客户端 service proxy
 - 客户端 callback binder
@@ -80,7 +80,7 @@ flowchart LR
 
 可以把它记成一句话：
 
-> **Contract 定义语义，CodeGen 生成胶水，Runtime 负责收发。**
+> **Contract 定义语义，Source Generator 生成胶水，Runtime 负责收发。**
 
 ---
 
@@ -165,7 +165,7 @@ void OnNotify(string message);
 - 方法签名一改，wire payload 形状也跟着改
 - 多参数方法天然依赖参数顺序
 - callback 如果也支持裸参数，协议风格会越来越散
-- codegen 里要维护 `无参 / DTO 参数 / 多参数` 多套分支
+- source generator 里要维护 `无参 / DTO 参数 / 多参数` 多套分支
 - 文档和 sample 很难形成统一规范
 
 这对短期 demo 没什么，但对多人协作、长期迭代、前后端版本错位这些真实场景并不友好。
@@ -187,7 +187,7 @@ void OnNotify(string message);
 好处：
 
 - RPC 方法的 wire shape 更稳定
-- codegen 明显简单很多
+- source generator 明显简单很多
 - callback、request、response 的模型更统一
 - sample、文档、团队约定都更容易收敛
 - 后面要做版本演进时，主要是在 DTO 层思考，而不是在参数列表层思考
@@ -432,7 +432,7 @@ sequenceDiagram
 
 ### 第 1 步：调用的是生成出来的 client proxy
 
-你以为自己在调用接口，其实调用的是 CodeGen 生成的 `PlayerServiceClient`。
+你以为自己在调用接口，其实调用的是 source generator 生成的 `PlayerServiceClient`。
 
 这个 proxy 里会预先定义：
 
@@ -487,7 +487,7 @@ _transport.SendFrameAsync(frame)
 
 这里是很多人第一次看会恍然大悟的地方。
 
-服务端不是自己手写一张巨大的分发表，而是 CodeGen 为每个服务生成 binder。比如 `PlayerServiceBinder` 会把：
+服务端不是自己手写一张巨大的分发表，而是 source generator 为每个服务生成 binder。比如 `PlayerServiceBinder` 会把：
 
 - `(1, 1)` 绑定到 `LoginAsync`
 - `(1, 2)` 绑定到 `IncrStep`
@@ -665,11 +665,11 @@ _callback.OnNotify(new PlayerNotify { Message = "hello" })
 - 动态建分发表
 - 收到请求后再反射调用
 
-但 ULinkRPC 还是选择了 CodeGen，主要是因为这几件事：
+但 ULinkRPC 还是选择了 source generation，主要是因为这几件事：
 
 ```mermaid
 flowchart TB
-    A["Contracts"] --> B["ULinkRPC.CodeGen"]
+    A["Contracts"] --> B["ULinkRPC.Analyzers"]
     B --> C["Generated Client Proxy"]
     B --> D["Generated RpcApi / RpcClient Facade"]
     B --> E["Generated Callback Binder"]
@@ -714,7 +714,7 @@ Unity、IL2CPP、AOT 环境对“运行时反射 + 动态生成”并不友好�
 
 ### 4. 约束更清晰
 
-CodeGen 在扫描契约时会直接校验：
+Source generator 在扫描契约时会直接校验：
 
 - `ServiceId` 是否重复
 - `MethodId` 是否重复
@@ -731,7 +731,7 @@ CodeGen 在扫描契约时会直接校验：
 
 ---
 
-## CodeGen 到底做了哪些脏活
+## Source Generator 到底做了哪些脏活
 
 如果把生成器的职责讲得再具体一点，它其实在帮你做 6 类事情。
 
@@ -796,7 +796,7 @@ client.Api.Game.Inventory.GetRevisionAsync(...)
 
 ## 5. 生成服务端 binder
 
-服务端 binder 是整个 CodeGen 最关键的产物之一。
+服务端 binder 是整个 source generator 最关键的产物之一。
 
 它把每个 `(serviceId, methodId)` 都注册到 `RpcServiceRegistry`，并在 handler 里完成：
 

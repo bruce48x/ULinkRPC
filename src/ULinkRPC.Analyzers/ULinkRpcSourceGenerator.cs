@@ -21,7 +21,7 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
         "ULRPCGEN001",
         "ULinkRPC source generation failed",
         "{0}",
-        "ULinkRPC.CodeGen",
+        "ULinkRPC.SourceGeneration",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 

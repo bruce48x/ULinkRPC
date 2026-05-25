@@ -14,13 +14,13 @@ It is designed for projects that need:
 
 ## What It Solves
 
-With ULinkRPC, you define interfaces and DTOs once, generate the glue code, then use typed services on both sides.
+With ULinkRPC, you define interfaces and DTOs once. `ULinkRPC.Analyzers` generates the RPC glue during compilation, then you use typed services on both sides.
 
 ```mermaid
 flowchart LR
-    Contracts["Shared Contracts<br/>interfaces + DTOs"] --> CodeGen["ULinkRPC.CodeGen"]
-    CodeGen --> ClientApi["Generated Client API<br/>proxy / facade / callback binder"]
-    CodeGen --> ServerBinders["Generated Server Binders<br/>routing / callback proxy"]
+    Contracts["Shared Contracts<br/>interfaces + DTOs"] --> SourceGen["ULinkRPC.Analyzers<br/>source generator"]
+    SourceGen --> ClientApi["Generated Client API<br/>proxy / facade / callback binder"]
+    SourceGen --> ServerBinders["Generated Server Binders<br/>routing / callback proxy"]
 
     Client["Unity / Godot Client"] --> ClientApi
     ClientApi --> Runtime["ULinkRPC Runtime"]
@@ -51,7 +51,7 @@ Read the canonical boundary page before designing production integration:
 ## Quick Start
 
 1. Define shared contracts with `[RpcService]`, `[RpcMethod]`, and optional callback contracts.
-2. Generate client and server glue code with `ULinkRPC.CodeGen`.
+2. Build the server and client so `ULinkRPC.Analyzers` generates client and server glue.
 3. Configure the same transport and serializer on both sides.
 4. Connect the client and call generated typed services.
 
@@ -133,7 +133,7 @@ It covers:
 
 - generating a runnable Unity/Godot + .NET project
 - running the default server and generated client
-- when to rerun `ULinkRPC.CodeGen`
+- how source generation runs during normal builds and editor compilation
 - how `Shared`, `Server`, and `Client` fit together
 
 ## Samples
@@ -162,7 +162,7 @@ Core packages:
 flowchart TB
     Core["ULinkRPC.Core"] --> Client["ULinkRPC.Client"]
     Core --> Server["ULinkRPC.Server"]
-    Core --> CodeGen["ULinkRPC.CodeGen"]
+    Core --> Analyzers["ULinkRPC.Analyzers"]
     Core --> Transport
     Core --> Serializer
     Transport --> Tcp["ULinkRPC.Transport.Tcp"]
@@ -191,7 +191,7 @@ Serializer packages:
 
 Code generation:
 
-- `ULinkRPC.CodeGen`
+- `ULinkRPC.Analyzers`
 
 ## Documentation
 
@@ -204,7 +204,7 @@ Code generation:
 
 ## Repository Layout
 
-- `src/ULinkRPC.*`: runtime, transports, serializers, and code generator
+- `src/ULinkRPC.*`: runtime, transports, serializers, starter, and analyzer/source-generator package
 - `samples/`: runnable client + .NET samples
 - `blog/`: Hugo documentation/blog site for GitHub Pages
 - `design/`: internal design notes and decision records

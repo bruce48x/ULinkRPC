@@ -3,7 +3,7 @@ title = "DTO 版本演进"
 date = 2026-05-12T09:30:00+08:00
 +++
 
-ULinkRPC 的契约源头是共享 C# 接口和 DTO。codegen 根据 `[RpcService]`、`[RpcMethod]` 以及 DTO 类型生成两端胶水代码。版本演进的核心原则是：先保持 wire shape 兼容，再滚动部署，再删除旧字段或旧方法。
+ULinkRPC 的契约源头是共享 C# 接口和 DTO。source generator 根据 `[RpcService]`、`[RpcMethod]` 以及 DTO 类型生成两端胶水代码。版本演进的核心原则是：先保持 wire shape 兼容，再滚动部署，再删除旧字段或旧方法。
 
 ## 稳定 ID 不要复用
 
@@ -11,7 +11,7 @@ ULinkRPC 的契约源头是共享 C# 接口和 DTO。codegen 根据 `[RpcService
 
 推荐像 starter 默认项目一样把 id 集中到 `RpcContractIds` 这类 `const int` 常量里，并按唯一性作用域分组：所有 service id 放在 `Services`，每个 service 的 method id 放在对应的 `XxxServiceMethods`，callback push id 放在对应的 `XxxCallbackPushes`。这样 id 仍然是显式协议契约，同时更容易 review 和避免散落在多个接口文件里。
 
-CodeGen 会拒绝非正数 id、重复 service id、同一 service 内重复 method id，以及 callback interface 内重复 push id。`ULinkRPC.Core` 包也会携带 analyzer，让这些错误在普通 C# 编辑和构建阶段提前暴露。
+`ULinkRPC.Analyzers` 会拒绝非正数 id、重复 service id、同一 service 内重复 method id，以及 callback interface 内重复 push id，让这些错误在普通 C# 编辑和构建阶段提前暴露。
 
 方法签名变化会影响生成代码和 payload 类型。对已发布方法，优先新增方法 id，例如 `GetInventoryV2Async`，等旧客户端下线后再清理旧方法。
 

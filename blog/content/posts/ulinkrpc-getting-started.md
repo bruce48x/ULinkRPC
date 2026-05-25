@@ -126,7 +126,7 @@ MyGame/
 
 - 契约只有一份
 - 服务端和客户端同时引用同一份 Shared
-- codegen 永远围绕同一份契约运行
+- source generation 永远围绕同一份契约运行
 
 ## 安装 starter
 
@@ -198,19 +198,7 @@ starter 不只是“建几个空目录”，而是会直接做完这些事情：
 
 ## 日常怎么让代码自动更新
 
-starter 第一次生成项目时，会把 `ULinkRPC.Analyzers` 配进 server / client 项目。后续日常入口就是正常 build 或编辑器编译，不需要手动运行 codegen，也不需要维护 generated 目录。
-
-`ulinkrpc-starter codegen` 仍然保留，但只用于旧项目迁移或非标准布局排障：
-
-```bash
-ulinkrpc-starter codegen --project-root ./MyGame
-```
-
-如果旧项目的本地 tool manifest 已经恢复过，想跳过恢复步骤，也可以加：
-
-```bash
-ulinkrpc-starter codegen --no-restore
-```
+starter 第一次生成项目时，会把 `ULinkRPC.Analyzers` 配进 server / client 项目。后续日常入口就是正常 build 或编辑器编译，不需要手动运行生成命令，也不需要维护 generated 目录。
 
 最常见的真实开发顺序其实是这样的：
 
@@ -316,7 +304,7 @@ dotnet build Server/Server/Server.csproj
 
 Unity、Unity CN、团结项目则等待 Editor 触发脚本编译。
 
-`ulinkrpc-starter codegen` 只保留给旧 generated-source 项目迁移使用，不是日常主流程。
+没有单独的 starter 生成命令；如果旧项目仍保留 generated-source 输出，迁移到 source generator 后应删除旧输出目录。
 
 ### 跑完之后会发生什么
 
@@ -606,7 +594,7 @@ Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 - 项目结构统一
 - Shared 不会从第一天就失控
 - 服务端和客户端引用关系清晰
-- codegen 流程固定
+- source generation 流程固定
 - transport / serializer 选择可以明确收敛到模板层
 
 如果你是第一次接入，我建议就按 starter 的默认结构继续往前长，不要先手工改目录。先让流程稳定，再谈抽象和个性化结构。
