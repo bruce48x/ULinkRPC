@@ -1,0 +1,8 @@
+<Project>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="ULinkRPCGenerateClient" />
+    <CompilerVisibleProperty Include="ULinkRPCGenerateServer" />
+    <CompilerVisibleProperty Include="ULinkRPCGeneratedNamespace" />
+    <CompilerVisibleProperty Include="ULinkRPCServerGeneratedNamespace" />
+  </ItemGroup>
+</Project>
