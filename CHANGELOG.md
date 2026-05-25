@@ -1,14 +1,16 @@
 # Changelog
 
-## 0.11.8 / 0.1.5 / 0.2.66
+## 0.11.8 / 0.1.5 / 0.3.0
 
 - Release packages:
 	- `ULinkRPC.Core` `0.11.8`
 	- `ULinkRPC.Analyzers` `0.1.5`
-	- `ULinkRPC.Starter` `0.2.66`
+	- `ULinkRPC.Starter` `0.3.0`
 - Added an assembly-level `ULinkRPCGenerateClient` marker for selecting the one client assembly that should receive source-generated RPC client glue.
 - Updated Unity-compatible starters to write the marker into `Assembly-CSharp`, preventing duplicate `Rpc.Generated` output across Unity script assemblies.
 - Suppressed client auto-detection for Unity compilations without the marker so Unity asmdefs that reference `ULinkRPC.Client` do not generate duplicate facades.
+- Removed the legacy starter codegen command surface and the deleted `ULinkRPC.CodeGen` package route from starter workflow documentation.
+- Added source-generator focused tests for generated client/server glue, referenced contract assemblies, Unity client markers, and contract id diagnostics.
 
 ## 0.1.4 / 0.2.65
 

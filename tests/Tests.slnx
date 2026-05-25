@@ -9,6 +9,7 @@
   <Project Path="../src/ULinkRPC.Transport.Loopback/ULinkRPC.Transport.Loopback.csproj" />
   <Project Path="../src/ULinkRPC.Transport.Tcp/ULinkRPC.Transport.Tcp.csproj" />
   <Project Path="../src/ULinkRPC.Transport.WebSocket/ULinkRPC.Transport.WebSocket.csproj" />
+  <Project Path="ULinkRPC.Analyzers.Tests/ULinkRPC.Analyzers.Tests.csproj" />
   <Project Path="ULinkRPC.Serializer.Tests/ULinkRPC.Serializer.Tests.csproj" />
   <Project Path="ULinkRPC.Starter.Tests/ULinkRPC.Starter.Tests.csproj" />
   <Project Path="ULinkRPC.Tests/ULinkRPC.Tests.csproj" />
