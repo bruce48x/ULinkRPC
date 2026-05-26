@@ -1,172 +1,148 @@
 # ULinkRPC.Starter
 
-Project management tool for ULinkRPC workspaces. It scaffolds runnable projects that use Roslyn source generation for RPC glue.
+`ULinkRPC.Starter` creates a runnable ULinkRPC workspace with shared contracts, a .NET server, and a selected client skeleton.
 
-Workflow guidance lives in the docs site:
+Use it when you want to start a new project without manually wiring package references, transport setup, serializer setup, and source generation.
 
-- Getting started: https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
-- Godot guide: https://bruce48x.github.io/ULinkRPC/guides/godot-guide/
-- Generated RpcClient reference: https://bruce48x.github.io/ULinkRPC/reference/generated-client/
-- Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
+## Requirements
 
-Generated projects use these fixed folders:
-
-- `Shared` (netstandard2.1 + net10.0)
-- `Server` (.NET 10)
-- `Client` (Unity 2022 LTS, Unity CN, Tuanjie, Godot 4.6, or Stride3D 4.3 skeleton)
-
-The tool asks for transport and serializer before generating files.
+- .NET SDK 10.0 or later
+- A client runtime/editor matching the selected client type:
+  - Unity 2022 LTS for `unity`
+  - Unity 2022 LTS with China-friendly defaults for `unity-cn`
+  - Tuanjie for `tuanjie`
+  - Godot 4.6 C# for `godot`
+  - Stride3D 4.3 for `stride3d`
+  - .NET 10 for `console`
 
 ## Install
-
-Requires .NET SDK 10.0 or later. If you only have .NET 8 or .NET 9 installed, upgrade the SDK before running `dotnet tool install`.
 
 ```bash
 dotnet tool install -g ULinkRPC.Starter
 ```
 
-## Usage
+## Create A Project
 
-```bash
-ulinkrpc-starter [--help|-h|--version]
-ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]
-```
-
-Options:
-
-For `new`:
-
-- `--name` Project root folder name. Default is `ULinkApp`.
-- `--output` Parent directory for the generated project. Default is the current working directory.
-- `--client-engine` Client engine to scaffold: `unity`, `unity-cn`, `tuanjie`, `godot`, `stride3d`.
-- `--transport` Transport package to use: `tcp`, `websocket`, `kcp`.
-- `--serializer` Serializer package to use: `json`, `memorypack`.
-- `--nugetforunity-source` For Unity-compatible clients only: `embedded` or `openupm`. This overrides the client engine default.
-- `--no-next-steps` Do not print the post-create "Next steps" guidance.
-
-Default `NuGetForUnity` source by client engine:
-
-- `unity` -> `openupm`
-- `unity-cn` -> `embedded`
-- `tuanjie` -> `embedded`
-
-If `--client-engine`, `--transport`, or `--serializer` is omitted, the tool enters interactive mode and asks you to choose them in the terminal.
-CLI prompts, usage text, validation errors, and post-create next steps automatically follow the system UI language. English is used by default; Simplified Chinese is used for `zh`, `zh-CN`, `zh-Hans`, and other non-traditional Chinese cultures; Traditional Chinese is used for `zh-TW`, `zh-HK`, `zh-MO`, and `zh-Hant`.
-
-## Examples
-
-Create a project in the current directory and choose transport/serializer interactively:
+Interactive mode:
 
 ```bash
 ulinkrpc-starter new --name MyGame
 ```
 
-Create a project non-interactively:
+Non-interactive mode:
 
 ```bash
-ulinkrpc-starter new --name MyGame --output ./samples --transport kcp --serializer memorypack
+ulinkrpc-starter new --name MyGame --output ./samples --client-engine unity --transport websocket --serializer json
 ```
 
-Generated projects compile RPC glue through `ULinkRPC.Analyzers` source generation during normal server/client builds and editor compilation.
+Console client example:
 
-This generates:
+```bash
+ulinkrpc-starter new --name MyConsoleApp --client-engine console --transport tcp --serializer memorypack
+```
+
+## Command Reference
+
+```bash
+ulinkrpc-starter [--help|-h|--version]
+ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d|console] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]
+```
+
+`new` options:
+
+- `--name`: Project root folder name. Default: `ULinkApp`.
+- `--output`: Parent directory for the generated project. Default: current directory.
+- `--client-engine`: Client type to scaffold: `unity`, `unity-cn`, `tuanjie`, `godot`, `stride3d`, or `console`.
+- `--transport`: Transport package: `tcp`, `websocket`, or `kcp`.
+- `--serializer`: Serializer package: `json` or `memorypack`.
+- `--nugetforunity-source`: Unity-compatible clients only. Choose `embedded` or `openupm`.
+- `--no-next-steps`: Do not print post-create guidance.
+
+If `--client-engine`, `--transport`, or `--serializer` is omitted, the tool asks for it in the terminal.
+
+CLI prompts, validation errors, usage text, and next steps follow the system UI language. English is the default; Simplified Chinese is used for `zh`, `zh-CN`, `zh-Hans`, and other non-traditional Chinese cultures; Traditional Chinese is used for `zh-TW`, `zh-HK`, `zh-MO`, and `zh-Hant`.
+
+## Client Types
+
+| `--client-engine` | Generated client |
+| --- | --- |
+| `unity` | Unity 2022 LTS project using OpenUPM `NuGetForUnity` by default |
+| `unity-cn` | Unity 2022 LTS project using embedded `NuGetForUnity` by default |
+| `tuanjie` | Tuanjie-compatible Unity project using embedded `NuGetForUnity` by default |
+| `godot` | Godot 4.6 C# project with a runnable test scene |
+| `stride3d` | Stride3D 4.3 solution with a Windows launcher |
+| `console` | .NET 10 console client with a generated-client ping call |
+
+Default `NuGetForUnity` source:
+
+- `unity`: `openupm`
+- `unity-cn`: `embedded`
+- `tuanjie`: `embedded`
+
+You can override the Unity default with `--nugetforunity-source`.
+
+## Generated Layout
 
 ```text
-samples/
-  MyGame/
-    .gitignore
-    Shared/
+MyGame/
+  .gitignore
+  Shared/
+    Shared.csproj
+    Interfaces/
+      IPingService.cs
+      RpcContractIds.cs
+      SharedDtos.cs
+  Server/
+    Server.slnx
     Server/
-      Server.sln or Server.slnx
-      Server/
-        Server.csproj
-    Client/
+      Server.csproj
+      Program.cs
+      Services/
+        PingService.cs
+  Client/
 ```
 
-## What Gets Generated
+`Shared/` contains DTOs and RPC contracts. Unity-compatible clients also use it as a local UPM package.
 
-```mermaid
-flowchart LR
-    Input["Starter Inputs<br/>name / engine / transport / serializer"] --> Tool["ULinkRPC.Starter"]
-    Tool --> Shared["Shared<br/>contracts / DTOs / UPM package"]
-    Tool --> Server["Server<br/>solution / host / services"]
-    Tool --> Client["Client<br/>Unity / Tuanjie / Godot / Stride3D skeleton"]
-    Tool --> Tooling["Local Tooling<br/>.gitignore / git init"]
+`Server/Server/` is a .NET 10 server app configured with the selected transport and serializer.
 
-    Shared --> SourceGen["ULinkRPC.Analyzers<br/>source generator"]
-    SourceGen --> ServerGenerated["Compiler Generated<br/>Server Binders"]
-    SourceGen --> ClientGenerated["Compiler Generated<br/>Client API"]
-    Server --> ServerGenerated
-    Client --> ClientGenerated
-```
+`Client/` depends on the selected client type. The generated client includes a minimal connection test that calls `IPingService.PingAsync`.
 
-- `Shared/`: shared DTO project for .NET and a local Unity UPM package. The `.csproj`, `.asmdef`, and `package.json` are generated at the same level, `Directory.Build.props` redirects `obj/bin` to `../_artifacts/Shared/`, and the generated `.csproj` uses `LangVersion=latest` so MemoryPack source generation can compile.
-- `Server/Server.sln` or `Server/Server.slnx`: solution file that references `../Shared/Shared.csproj` and `Server/Server.csproj`.
-- `Server/Server/`: .NET 10 console app with `ULinkRPC.Server` plus the selected transport and serializer packages. The generated entry uses `RpcServerHostBuilder.Create().UseCommandLine(args)` and wires the selected serializer and acceptor explicitly.
-- `Client/`: Unity 2022 LTS / Unity CN / Tuanjie-compatible skeleton with `packages.config`, a local reference to `Shared`, and either an OpenUPM or embedded `NuGetForUnity` setup depending on the selected client engine; a Godot 4.6 C# skeleton with `project.godot`, `Client.csproj`, and a runnable test node; or a Stride3D 4.3 `Client.sln` with a game project, a Windows launcher project, and an RPC ping tester.
-- `.gitignore`: ignore rules for .NET build outputs, editor files, Unity/Godot/Stride generated folders, and NuGetForUnity restored packages.
+The tool also initializes a git repository at the project root.
 
-The tool uses a bundled, release-tested package manifest for:
+## Run The Generated Project
 
-- `ULinkRPC.Core`
-- `ULinkRPC.Server`
-- `ULinkRPC.Client`
-- the selected transport package
-- the selected serializer package
-- `ULinkRPC.Analyzers`
-
-Default shared DTOs are generated under `Shared/Interfaces/`.
-Starter also generates centralized `RpcContractIds` constants, a minimal `IPingService` contract plus `Server/Server/PingService.cs`, and source-generator package references for server and client projects.
-Generated RPC glue is compiler output. New starter projects do not create `Generated/` source folders, MSBuild codegen targets, Unity codegen editor scripts, or a local generator tool manifest.
-When `memorypack` is selected, the generated `Shared.csproj` uses `LangVersion=latest` so `MemoryPack.Generator` output can compile.
-Shared generation disables implicit usings to avoid C# 10 `global using` files in generated build artifacts.
-Generated namespaces do not include the user-provided project name. Shared code uses the `Shared...` namespace prefix, and server code uses the `Server...` namespace prefix.
-In Unity projects, `Client/Assets/packages.config` writes the user-selected transport and serializer packages with `manuallyInstalled="true"`.
-Project generation also runs `git init` at the project root. By default, `unity` uses OpenUPM for `NuGetForUnity`, while `unity-cn` and `tuanjie` embed `NuGetForUnity` locally under `Client/Packages/com.github-glitchenzo.nugetforunity` so the first project open does not depend on `package.openupm.com`. You can always override that default with `--nugetforunity-source`.
-
-## Architecture Notes
-
-Unity intentionally keeps `Shared` as a source-linked local UPM package instead of switching to a prebuilt `Shared.dll` workflow.
-
-This is a deliberate architecture decision:
-
-- Server, Godot, and Stride3D stay on the normal `.csproj` path.
-- Unity keeps the source-linked shared workflow even for `memorypack`.
-- We do not currently accept the workflow tradeoff of requiring an explicit rebuild/sync step after every shared change.
-- We also want to avoid adding avoidable friction to future Unity hot-update work such as `HybridCLR`.
-
-The long-form decision record is here:
-
-- [`design/starter/unity-shared-source-link.md`](../../design/starter/unity-shared-source-link.md)
-
-Starter dependency ownership is documented separately:
-
-- [`design/starter/dependency-planning.md`](../../design/starter/dependency-planning.md)
-
-Source-generation design is tracked here:
-
-- [`design/starter/source-generation.md`](../../design/starter/source-generation.md)
-
-Completed CodeGen removal history is archived here:
-
-- [`design/archive/starter/codegen-removal-roadmap.md`](../../design/archive/starter/codegen-removal-roadmap.md)
-
-## Next Steps
-
-For the full workflow, use the docs site getting-started tutorial:
-
-- https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
-
-Minimal CLI smoke test after generation:
+Start the server:
 
 ```bash
 cd MyGame
 dotnet run --project Server/Server/Server.csproj
 ```
 
-Then open `Client/` with Unity 2022 LTS, Unity CN, Tuanjie, or Godot 4.6, or open `Client/Client.sln` with Stride Game Studio / run `dotnet run --project Client/Client.Windows/Client.Windows.csproj` for Stride3D, depending on the selected client engine.
+Then run or open the client:
 
-After editing DTOs or service contracts under `Shared/`, use the normal build/editor flow:
+- Unity / Unity CN / Tuanjie: open `Client/` in the matching editor and press Play in the generated test scene.
+- Godot: open `Client/` in Godot 4.6, build the C# project, then run `Main.tscn`.
+- Stride3D: open `Client/Client.sln` in Stride Game Studio, or run `dotnet run --project Client/Client.Windows/Client.Windows.csproj`.
+- Console: run `dotnet run --project Client/Client.csproj`.
 
-- Server, Godot, and Stride3D builds run the analyzer/source-generator during compilation.
-- Unity, Unity CN, and Tuanjie compile generated client APIs through the analyzer package restored into the Unity project.
+## Changing Contracts
+
+Edit service interfaces and DTOs under `Shared/Interfaces/`.
+
+Generated RPC glue is compiler output. New starter projects do not create `Generated/` source folders, MSBuild codegen targets, Unity codegen editor scripts, or a local generator tool manifest.
+
+After changing shared contracts, use the normal build/editor flow. `ULinkRPC.Analyzers` runs automatically:
+
+- Server, Godot, Stride3D, and console builds run source generation during compilation.
+- Unity, Unity CN, and Tuanjie run source generation through the analyzer package restored into the Unity project.
+
+When `memorypack` is selected, shared DTOs are generated with MemoryPack attributes and the required MemoryPack package references.
+
+## More Documentation
+
+- Getting started: https://bruce48x.github.io/ULinkRPC/posts/ulinkrpc-getting-started/
+- Godot guide: https://bruce48x.github.io/ULinkRPC/guides/godot-guide/
+- Generated RpcClient reference: https://bruce48x.github.io/ULinkRPC/reference/generated-client/
+- Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
+- Source generation notes: [`design/starter/source-generation.md`](../../design/starter/source-generation.md)

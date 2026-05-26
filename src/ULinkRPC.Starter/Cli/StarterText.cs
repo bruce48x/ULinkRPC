@@ -170,6 +170,12 @@ internal sealed class StarterText
             StarterLanguage.TraditionalChinese => "  3) 使用 Stride Game Studio 開啟 \"Client/Client.sln\"，或執行 \"dotnet run --project Client/Client.Windows/Client.Windows.csproj\"。",
             _ => "  3) Open \"Client/Client.sln\" with Stride Game Studio, or run \"dotnet run --project Client/Client.Windows/Client.Windows.csproj\"."
         },
+        ClientEngineKind.Console => Language switch
+        {
+            StarterLanguage.SimplifiedChinese => "  3) 运行 \"dotnet run --project Client/Client.csproj\" 启动 console 客户端。",
+            StarterLanguage.TraditionalChinese => "  3) 執行 \"dotnet run --project Client/Client.csproj\" 啟動 console 客戶端。",
+            _ => "  3) Run \"dotnet run --project Client/Client.csproj\" to start the console client."
+        },
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -190,6 +196,7 @@ internal sealed class StarterText
         },
         ClientEngineKind.Godot => "Godot",
         ClientEngineKind.Stride3D => "Stride3D",
+        ClientEngineKind.Console => ".NET Console",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -210,6 +217,7 @@ internal sealed class StarterText
         },
         ClientEngineKind.Godot => "Godot 4.6",
         ClientEngineKind.Stride3D => "Stride 4.3",
+        ClientEngineKind.Console => ".NET console",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 }

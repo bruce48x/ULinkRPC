@@ -31,11 +31,20 @@ internal static class StarterOutputManager
 
             Directory.Move(stagingRootPath, targetRootPath);
         }
-        catch
+        catch (Exception generationError)
         {
             if (Directory.Exists(stagingRootPath))
             {
-                Directory.Delete(stagingRootPath, recursive: true);
+                try
+                {
+                    Directory.Delete(stagingRootPath, recursive: true);
+                }
+                catch (Exception cleanupError)
+                {
+                    throw new InvalidOperationException(
+                        $"Project generation failed: {generationError.Message}{Environment.NewLine}Cleanup of staging directory '{stagingRootPath}' also failed: {cleanupError.Message}",
+                        new AggregateException(generationError, cleanupError));
+                }
             }
 
             throw;

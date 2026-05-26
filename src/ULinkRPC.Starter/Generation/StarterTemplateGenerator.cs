@@ -1,7 +1,20 @@
 namespace ULinkRPC.Starter;
 
-internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet, Action<string, string> runGit)
+internal sealed class StarterTemplateGenerator
 {
+    private readonly Action<string, string> _runGit;
+
+    public StarterTemplateGenerator(Action<string, string> runDotNet, Action<string, string> runGit)
+        : this(runGit)
+    {
+        _ = runDotNet;
+    }
+
+    public StarterTemplateGenerator(Action<string, string> runGit)
+    {
+        _runGit = runGit;
+    }
+
     public void GenerateTemplate(string rootPath, string projectName, ClientEngineKind clientEngine, TransportKind transport, SerializerKind serializer, ResolvedVersions versions)
     {
         GenerateTemplate(rootPath, projectName, clientEngine, transport, serializer, clientEngine.GetDefaultNuGetForUnitySource(), versions);
@@ -67,6 +80,9 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
             case ClientEngineKind.Stride3D:
                 StarterStrideTemplate.Generate(context);
                 return;
+            case ClientEngineKind.Console:
+                StarterConsoleTemplate.Generate(context);
+                return;
             default:
                 throw new ArgumentOutOfRangeException(nameof(context.ClientEngine), context.ClientEngine, null);
         }
@@ -74,15 +90,18 @@ internal sealed class StarterTemplateGenerator(Action<string, string> runDotNet,
 
     private void InitializeGit(string rootPath)
     {
-        runGit(rootPath, "init");
+        _runGit(rootPath, "init");
     }
 
-    private void GenerateSolution(string serverPath)
+    private static void GenerateSolution(string serverPath)
     {
         var solutionPath = Path.Combine(serverPath, "Server.slnx");
-        runDotNet(serverPath, "new sln -n \"Server\" --format slnx");
-        runDotNet(serverPath, $"sln \"{solutionPath}\" add \"..{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}Shared.csproj\"");
-        runDotNet(serverPath, $"sln \"{solutionPath}\" add \"Server{Path.DirectorySeparatorChar}Server.csproj\"");
+        StarterFileWriter.Write(solutionPath, """
+<Solution>
+  <Project Path="../Shared/Shared.csproj" />
+  <Project Path="Server/Server.csproj" />
+</Solution>
+""");
     }
 
     private static string MakeCompanyId(string projectName)
@@ -163,7 +182,7 @@ Thumbs.db
 
     private static void GenerateGitAttributes(StarterTemplateContext context)
     {
-        if (context.ClientEngine is not (ClientEngineKind.Godot or ClientEngineKind.Stride3D))
+        if (context.ClientEngine is not (ClientEngineKind.Godot or ClientEngineKind.Stride3D or ClientEngineKind.Console))
             return;
 
         var gitAttributes = """

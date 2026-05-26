@@ -6,7 +6,8 @@ internal enum StarterProjectRole
     Server,
     UnityClient,
     GodotClient,
-    StrideClient
+    StrideClient,
+    ConsoleClient
 }
 
 internal sealed record StarterPackageReference(
@@ -31,6 +32,7 @@ internal static class StarterDependencyPlanner
             StarterProjectRole.UnityClient => CreateUnityClientPlan(context),
             StarterProjectRole.GodotClient => CreateGodotClientPlan(context),
             StarterProjectRole.StrideClient => CreateStrideClientPlan(context),
+            StarterProjectRole.ConsoleClient => CreateConsoleClientPlan(context),
             _ => throw new ArgumentOutOfRangeException(nameof(role), role, null)
         };
 
@@ -96,6 +98,20 @@ internal static class StarterDependencyPlanner
             new("Stride.Particles", StridePackageVersions.Stride),
             new("Stride.UI", StridePackageVersions.Stride),
             new("Stride.Core.Assets.CompilerApp", StridePackageVersions.Stride, IncludeAssets: "build;buildTransitive"),
+            new("ULinkRPC.Core", context.Versions.Core),
+            new("ULinkRPC.Client", context.Versions.Client),
+            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),
+            CreateAnalyzerReference(context)
+        };
+
+        AddSdkSerializerReferenceIfNeeded(context, references);
+        return references;
+    }
+
+    private static IReadOnlyList<StarterPackageReference> CreateConsoleClientPlan(StarterTemplateContext context)
+    {
+        var references = new List<StarterPackageReference>
+        {
             new("ULinkRPC.Core", context.Versions.Core),
             new("ULinkRPC.Client", context.Versions.Client),
             new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),

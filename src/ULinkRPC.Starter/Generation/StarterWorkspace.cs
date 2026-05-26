@@ -76,6 +76,13 @@ internal static class StarterWorkspace
                 clientEngine = ClientEngineKind.Stride3D;
                 return true;
             }
+
+            if (clientProject.Contains("<ULinkRPCGenerateClient>true</ULinkRPCGenerateClient>", StringComparison.Ordinal) &&
+                clientProject.Contains("<OutputType>Exe</OutputType>", StringComparison.Ordinal))
+            {
+                clientEngine = ClientEngineKind.Console;
+                return true;
+            }
         }
 
         var strideGameProjectPath = Path.Combine(clientPath, "Client", "Client.csproj");

@@ -98,6 +98,29 @@ public sealed class StarterDependencyPlannerTests
     }
 
     [Fact]
+    public void ConsoleMemoryPack_DoesNotRepeatSharedSerializerDependencies()
+    {
+        var ids = CreateIds(StarterProjectRole.ConsoleClient, SerializerKind.MemoryPack, ClientEngineKind.Console);
+
+        Assert.Contains("ULinkRPC.Core", ids);
+        Assert.Contains("ULinkRPC.Client", ids);
+        Assert.Contains("ULinkRPC.Transport.WebSocket", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
+        Assert.DoesNotContain("ULinkRPC.Serializer.MemoryPack", ids);
+        Assert.DoesNotContain("MemoryPack", ids);
+        Assert.DoesNotContain("MemoryPack.Core", ids);
+    }
+
+    [Fact]
+    public void ConsoleJson_IncludesJsonSerializer()
+    {
+        var ids = CreateIds(StarterProjectRole.ConsoleClient, SerializerKind.Json, ClientEngineKind.Console);
+
+        Assert.Contains("ULinkRPC.Serializer.Json", ids);
+        Assert.Contains("ULinkRPC.Analyzers", ids);
+    }
+
+    [Fact]
     public void UnityMemoryPack_KeepsExplicitSerializerAndRuntimeDependencies()
     {
         var plan = CreatePlan(StarterProjectRole.UnityClient, SerializerKind.MemoryPack, ClientEngineKind.Tuanjie);
@@ -159,6 +182,7 @@ public sealed class StarterDependencyPlannerTests
         AssertPrivateAnalyzerPackage(StarterProjectRole.Server, ClientEngineKind.Unity);
         AssertPrivateAnalyzerPackage(StarterProjectRole.GodotClient, ClientEngineKind.Godot);
         AssertPrivateAnalyzerPackage(StarterProjectRole.StrideClient, ClientEngineKind.Stride3D);
+        AssertPrivateAnalyzerPackage(StarterProjectRole.ConsoleClient, ClientEngineKind.Console);
     }
 
     private static void AssertPrivateAnalyzerPackage(StarterProjectRole role, ClientEngineKind clientEngine)

@@ -19,7 +19,8 @@ internal enum ClientEngineKind
     UnityCn,
     Tuanjie,
     Godot,
-    Stride3D
+    Stride3D,
+    Console
 }
 
 internal enum NuGetForUnitySourceKind
@@ -37,6 +38,7 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.Tuanjie => true,
         ClientEngineKind.Godot => false,
         ClientEngineKind.Stride3D => false,
+        ClientEngineKind.Console => false,
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -47,6 +49,7 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.Tuanjie => "Tuanjie",
         ClientEngineKind.Godot => "Godot",
         ClientEngineKind.Stride3D => "Stride3D",
+        ClientEngineKind.Console => "Console",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -57,6 +60,7 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.Tuanjie => "Tuanjie (Unity-compatible)",
         ClientEngineKind.Godot => "Godot 4.6",
         ClientEngineKind.Stride3D => "Stride 4.3",
+        ClientEngineKind.Console => ".NET console",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 
@@ -67,6 +71,7 @@ internal static class ClientEngineKindExtensions
         ClientEngineKind.Tuanjie => NuGetForUnitySourceKind.Embedded,
         ClientEngineKind.Godot => NuGetForUnitySourceKind.Embedded,
         ClientEngineKind.Stride3D => NuGetForUnitySourceKind.Embedded,
+        ClientEngineKind.Console => NuGetForUnitySourceKind.Embedded,
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
 }

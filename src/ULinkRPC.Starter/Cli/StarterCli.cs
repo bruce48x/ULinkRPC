@@ -7,7 +7,7 @@ internal static class StarterCli
         var text = StarterText.Current;
         Console.WriteLine(text.UsageHeader);
         Console.WriteLine("  ulinkrpc-starter [--help|-h|--version]");
-        Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]");
+        Console.WriteLine("  ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d|console] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]");
     }
 
     public static bool TryParseArgs(string[] args, out StarterCliOptions options, out string error)
@@ -175,6 +175,7 @@ internal static class StarterCli
         Console.WriteLine(text.ClientEngineOption(3, ClientEngineKind.Tuanjie));
         Console.WriteLine(text.ClientEngineOption(4, ClientEngineKind.Godot));
         Console.WriteLine(text.ClientEngineOption(5, ClientEngineKind.Stride3D));
+        Console.WriteLine(text.ClientEngineOption(6, ClientEngineKind.Console));
         while (true)
         {
             Console.Write("> ");
@@ -186,9 +187,10 @@ internal static class StarterCli
                 case "3": return ClientEngineKind.Tuanjie;
                 case "4": return ClientEngineKind.Godot;
                 case "5": return ClientEngineKind.Stride3D;
+                case "6": return ClientEngineKind.Console;
             }
 
-            Console.WriteLine(text.EnterRange(1, 5));
+            Console.WriteLine(text.EnterRange(1, 6));
         }
     }
 
@@ -277,6 +279,11 @@ internal static class StarterCli
             case "stride3d":
             case "stride-3d":
                 clientEngine = ClientEngineKind.Stride3D;
+                return true;
+            case "console":
+            case "dotnet":
+            case "dotnet-console":
+                clientEngine = ClientEngineKind.Console;
                 return true;
             default: clientEngine = default; return false;
         }

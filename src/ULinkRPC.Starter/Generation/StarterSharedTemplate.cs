@@ -35,6 +35,7 @@ internal static class StarterSharedTemplate
         {
             ClientEngineKind.Godot => "net8.0;net10.0",
             ClientEngineKind.Stride3D => "net10.0",
+            ClientEngineKind.Console => "net10.0",
             _ => "netstandard2.1;net10.0"
         };
 

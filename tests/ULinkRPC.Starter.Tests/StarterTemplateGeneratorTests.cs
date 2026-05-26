@@ -72,7 +72,7 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
-        Assert.Equal("0.11.11", memoryPackVersions.Transport);
+        Assert.Equal("0.11.12", memoryPackVersions.Transport);
         Assert.Equal("0.11.1", memoryPackVersions.Serializer);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntime);
         Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntimeCore);
@@ -181,9 +181,7 @@ public sealed class StarterTemplateGeneratorTests
             var slnxPath = Path.Combine(root, "Server", "Server.slnx");
             var slnx = File.ReadAllText(slnxPath);
 
-            Assert.Contains("new sln -n \"Server\" --format slnx", commands);
-            Assert.Contains($"sln \"{slnxPath}\" add \"..{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}Shared.csproj\"", commands);
-            Assert.Contains($"sln \"{slnxPath}\" add \"Server{Path.DirectorySeparatorChar}Server.csproj\"", commands);
+            Assert.Empty(commands);
             Assert.DoesNotContain("new tool-manifest", commands);
             Assert.DoesNotContain(commands, static command => command.Contains("ulinkrpc-codegen", StringComparison.OrdinalIgnoreCase));
             Assert.Contains("<Project Path=\"../Shared/Shared.csproj\" />", slnx);
@@ -666,6 +664,57 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
+    public void GenerateTemplate_CreatesConsoleClientFiles_WithSourceGenerator()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var commands = new List<string>();
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner());
+
+            generator.GenerateTemplate(root, "Console-Test", ClientEngineKind.Console, TransportKind.WebSocket, SerializerKind.Json, Versions);
+
+            var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
+            var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.csproj"));
+            var program = File.ReadAllText(Path.Combine(root, "Client", "Program.cs"));
+            var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
+            var solution = File.ReadAllText(Path.Combine(root, "Server", "Server.slnx"));
+
+            Assert.Contains("<TargetFrameworks>net10.0</TargetFrameworks>", sharedCsproj);
+            Assert.Contains("<OutputType>Exe</OutputType>", clientCsproj);
+            Assert.Contains("<TargetFramework>net10.0</TargetFramework>", clientCsproj);
+            Assert.Contains("<ULinkRPCGenerateClient>true</ULinkRPCGenerateClient>", clientCsproj);
+            Assert.Contains("<ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>", clientCsproj);
+            Assert.Contains("<ProjectReference Include=\"..\\Shared\\Shared.csproj\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Core\" Version=\"1.2.3\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Client\" Version=\"3.4.5\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
+            Assert.Contains("<PackageReference Include=\"ULinkRPC.Analyzers\" Version=\"0.1.2\">", clientCsproj);
+            Assert.Contains("<PrivateAssets>all</PrivateAssets>", clientCsproj);
+            Assert.Contains("<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>", clientCsproj);
+            Assert.Contains("using Rpc.Generated;", program);
+            Assert.Contains("using Shared.Interfaces;", program);
+            Assert.Contains("using ULinkRPC.Transport.WebSocket;", program);
+            Assert.Contains("using ULinkRPC.Serializer.Json;", program);
+            Assert.Contains("new WsTransport($\"ws://{host}:{port}{NormalizePath(path)}\")", program);
+            Assert.Contains("new JsonRpcSerializer()", program);
+            Assert.Contains("await client.ConnectAsync();", program);
+            Assert.Contains("client.Api.Shared.Ping.PingAsync", program);
+            Assert.Contains("Console.WriteLine($\"Ping ok:", program);
+            Assert.Contains("ULINKRPC_HOST", program);
+            Assert.Contains("Console Client Starter (.NET 10)", clientReadme);
+            Assert.Contains("dotnet run --project Client.csproj -- hello", clientReadme);
+            Assert.DoesNotContain("<Project Path=\"../Client/Client.csproj\" />", solution);
+            Assert.DoesNotContain(commands, command => command.Contains($"{Path.DirectorySeparatorChar}Client{Path.DirectorySeparatorChar}Client.csproj", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void GenerateTemplate_CreatesTuanjieClientFiles_UsingUnityCompatibleSourceGeneration()
     {
         var root = CreateTempRoot();
@@ -783,6 +832,22 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal(ClientEngineKind.Stride3D, options.NewCommand!.ClientEngine);
     }
 
+    [Theory]
+    [InlineData("console")]
+    [InlineData("dotnet")]
+    [InlineData("dotnet-console")]
+    public void TryParseArgs_ParsesConsoleClientEngineAliases(string rawClientEngine)
+    {
+        var ok = StarterCli.TryParseArgs(
+            ["--client-engine", rawClientEngine],
+            out var options,
+            out var error);
+
+        Assert.True(ok);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(ClientEngineKind.Console, options.NewCommand!.ClientEngine);
+    }
+
     [Fact]
     public void TryParseArgs_ParsesNuGetForUnitySource()
     {
@@ -892,12 +957,34 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
+    public void StarterWorkspace_DetectsConsoleStarterProject()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
+            generator.GenerateTemplate(root, "Console-Test", ClientEngineKind.Console, TransportKind.Tcp, SerializerKind.Json, Versions);
+
+            var found = StarterWorkspace.TryResolveProjectContext(Path.Combine(root, "Client"), out var context, out var error);
+
+            Assert.True(found, error);
+            Assert.Equal(ClientEngineKind.Console, context.ClientEngine);
+            Assert.Equal(Path.Combine(root, "Client"), context.ClientPath);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ClientEngine_DefaultNuGetForUnitySource_MatchesExpected()
     {
         Assert.Equal(NuGetForUnitySourceKind.OpenUpm, ClientEngineKind.Unity.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.UnityCn.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Tuanjie.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Stride3D.GetDefaultNuGetForUnitySource());
+        Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Console.GetDefaultNuGetForUnitySource());
     }
 
     [Fact]
@@ -1024,6 +1111,11 @@ public sealed class StarterTemplateGeneratorTests
                 var projectEntry = $"  <Project Path=\"{projectPath}\" />\n";
                 solution = solution.Replace("</Solution>\n", projectEntry + "</Solution>\n", StringComparison.Ordinal);
                 File.WriteAllText(slnxPath, solution);
+                return;
+            }
+
+            if (arguments == "build-server shutdown")
+            {
                 return;
             }
 
