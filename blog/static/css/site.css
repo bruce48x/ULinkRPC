@@ -137,9 +137,74 @@ main.wrap {
   overflow-x: auto;
   padding: 16px;
   border-radius: 16px;
-  background: #1f2937;
+  background: #272822;
   color: #f8fafc;
 }
+
+/* Hugo Chroma syntax highlighting, generated with:
+   hugo gen chromastyles --style=monokai */
+.content .chroma { color: #f8f8f2; background-color: #272822; -webkit-text-size-adjust: none; }
+.content .chroma .err { color: #960050; background-color: #1e0010; }
+.content .chroma .lnlinks { outline: none; text-decoration: none; color: inherit; }
+.content .chroma .lntd { vertical-align: top; padding: 0; margin: 0; border: 0; }
+.content .chroma .lntable { border-spacing: 0; padding: 0; margin: 0; border: 0; }
+.content .chroma .hl { background-color: #3c3d38; }
+.content .chroma .lnt,
+.content .chroma .ln { white-space: pre; user-select: none; margin-right: 0.4em; padding: 0 0.4em; color: #7f7f7f; }
+.content .chroma .line { display: flex; }
+.content .chroma .k,
+.content .chroma .kc,
+.content .chroma .kd,
+.content .chroma .kp,
+.content .chroma .kr,
+.content .chroma .kt,
+.content .chroma .no { color: #66d9ef; }
+.content .chroma .kn,
+.content .chroma .nt,
+.content .chroma .o,
+.content .chroma .ow,
+.content .chroma .gd { color: #f92672; }
+.content .chroma .na,
+.content .chroma .nc,
+.content .chroma .nd,
+.content .chroma .ne,
+.content .chroma .nx,
+.content .chroma .nf,
+.content .chroma .fm,
+.content .chroma .gi { color: #a6e22e; }
+.content .chroma .l,
+.content .chroma .m,
+.content .chroma .mb,
+.content .chroma .mf,
+.content .chroma .mh,
+.content .chroma .mi,
+.content .chroma .il,
+.content .chroma .mo,
+.content .chroma .se { color: #ae81ff; }
+.content .chroma .ld,
+.content .chroma .s,
+.content .chroma .sa,
+.content .chroma .sb,
+.content .chroma .sc,
+.content .chroma .dl,
+.content .chroma .sd,
+.content .chroma .s2,
+.content .chroma .sh,
+.content .chroma .si,
+.content .chroma .sx,
+.content .chroma .sr,
+.content .chroma .s1,
+.content .chroma .ss { color: #e6db74; }
+.content .chroma .c,
+.content .chroma .ch,
+.content .chroma .cm,
+.content .chroma .c1,
+.content .chroma .cs,
+.content .chroma .cp,
+.content .chroma .cpf,
+.content .chroma .gu { color: #75715e; }
+.content .chroma .ge { font-style: italic; }
+.content .chroma .gs { font-weight: 700; }
 
 .content code {
   font-family: "SFMono-Regular", Consolas, monospace;
