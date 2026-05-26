@@ -177,6 +177,8 @@ Read the boundary page before production integration:
 
 - [Design Boundaries](https://bruce48x.github.io/ULinkRPC/posts/design-boundary/)
 
+If you need a higher-level gameplay/business framework on top of communication, see [bruce48x/ULinkGame](https://github.com/bruce48x/ULinkGame). ULinkRPC is intentionally focused on the RPC communication layer.
+
 ## Samples
 
 - `samples/RpcCall.Json`: WebSocket + JSON sample
