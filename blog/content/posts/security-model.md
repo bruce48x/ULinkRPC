@@ -1,48 +1,48 @@
 +++
-title = "安全模型"
+title = "Security Model"
 date = 2026-05-12T09:25:00+08:00
 +++
 
-ULinkRPC 的安全配置位于 frame 层，主要入口是 `TransportSecurityConfig`。它可以启用压缩和对称加密，但它不是完整的身份认证、授权或 TLS 替代方案。
+ULinkRPC security settings live at the frame layer. The main entry point is `TransportSecurityConfig`. It can enable compression and symmetric encryption, but it is not a complete replacement for authentication, authorization, or TLS.
 
-## `TransportSecurityConfig` 做什么
+## What `TransportSecurityConfig` Does
 
-当客户端 `RpcClientOptions.UseSecurity(...)` 或服务端 `RpcServerHostBuilder.UseSecurity(...)` 启用安全配置后，运行时会用 `TransformingTransport` 包住底层 transport。
+When the client enables security through `RpcClientOptions.UseSecurity(...)`, or the server enables it through `RpcServerHostBuilder.UseSecurity(...)`, the runtime wraps the underlying transport with `TransformingTransport`.
 
-当前可配置项包括：
+Current options include:
 
-- `EnableCompression`：发送前压缩 frame。
-- `CompressionThresholdBytes`：达到该尺寸才尝试压缩，默认 `1024`。
-- `MaxDecompressedFrameBytes`：解压后的最大 frame 尺寸，默认来自 `RpcProtocolLimits.DefaultMaxDecompressedFrameBytes`。
-- `EnableEncryption`：启用对称加密。
-- `EncryptionKey` / `EncryptionKeyBase64`：对称密钥来源。
+- `EnableCompression`: compress frames before sending.
+- `CompressionThresholdBytes`: only try compression when the frame reaches this size, default `1024`.
+- `MaxDecompressedFrameBytes`: maximum decompressed frame size, default from `RpcProtocolLimits.DefaultMaxDecompressedFrameBytes`.
+- `EnableEncryption`: enable symmetric encryption.
+- `EncryptionKey` / `EncryptionKeyBase64`: symmetric key source.
 
-加密实现当前使用 AES-CBC 加 HMAC-SHA256。密钥通过 HKDF 派生为加密 key 和 MAC key。接收端会校验 HMAC，校验失败会抛出异常并导致连接失败。
+Encryption currently uses AES-CBC plus HMAC-SHA256. HKDF derives an encryption key and a MAC key from the configured key. The receiver verifies HMAC; verification failure throws and causes the connection to fail.
 
-## 它不做什么
+## What It Does Not Do
 
-`TransportSecurityConfig` 不验证远端身份。只要攻击者拿到同一份对称密钥，就可以构造可通过校验的 frame。
+`TransportSecurityConfig` does not verify remote identity. If an attacker obtains the same symmetric key, they can construct frames that pass verification.
 
-它不提供用户登录、权限校验、会话票据、token 续期或防重放协议。业务身份和授权仍然需要你在服务方法里实现。
+It does not provide user login, permission checks, session tickets, token refresh, or replay protection. Business identity and authorization still need to be implemented in service methods.
 
-它不替代 TLS / WSS。TLS / WSS 提供传输层证书校验、链路加密和成熟的部署生态；ULinkRPC frame 加密只发生在应用 frame 上。
+It does not replace TLS / WSS. TLS / WSS provides transport-layer certificate validation, link encryption, and a mature deployment ecosystem; ULinkRPC frame encryption only applies to application frames.
 
-它不隐藏连接元数据，例如 IP、端口、连接时间、frame 大小级别的流量特征。
+It does not hide connection metadata such as IP, port, connection time, or traffic patterns visible from frame sizes.
 
-## TLS / WSS 的关系
+## Relationship to TLS / WSS
 
-如果你使用 WebSocket 并需要公网传输，优先用 `wss://` 和标准 TLS 终止。ULinkRPC 的 `WsTransport` 当前接收 URI；是否使用 `ws://` 或 `wss://` 取决于你的 endpoint 和宿主配置。
+If you use WebSocket over the public internet, prefer `wss://` and standard TLS termination. ULinkRPC's `WsTransport` currently accepts a URI; whether you use `ws://` or `wss://` depends on your endpoint and host configuration.
 
-`TransportSecurityConfig` 可以作为额外的 frame 级保护层，但客户端和服务端配置必须完全对称。压缩、加密和密钥不一致会导致解码失败。
+`TransportSecurityConfig` can be used as an additional frame-level protection layer, but client and server configuration must match exactly. Mismatched compression, encryption, or keys cause decoding failures.
 
-## 密钥和配置建议
+## Key and Configuration Guidance
 
-不要把生产密钥写死在 Unity、Godot 或团结客户端里。客户端包内的静态密钥可以被提取；如果必须启用 frame 加密，应结合登录、版本、环境和密钥轮换策略评估风险。
+Do not hard-code production keys in Unity, Godot, or Tuanjie clients. Static keys inside client packages can be extracted. If frame encryption is required, evaluate the risk together with login, versioning, environment, and key-rotation strategy.
 
-不要在加密前压缩包含攻击者可控内容和秘密内容的 payload，除非你明确接受压缩侧信道风险。当前配置支持压缩后加密；这对带宽有帮助，但不是所有威胁模型下都适合。
+Do not compress payloads that contain both attacker-controlled content and secrets before encryption unless you explicitly accept compression side-channel risk. The current configuration supports compress-then-encrypt; that can help bandwidth, but it does not fit every threat model.
 
-服务端和客户端同时启用 `MaxDecompressedFrameBytes` 相关限制，防止异常压缩 payload 造成过大内存消耗。
+Enable `MaxDecompressedFrameBytes`-related limits on both server and client to prevent abnormal compressed payloads from causing excessive memory use.
 
-## 当前没有实现的能力
+## Not Implemented Today
 
-当前仓库没有证书管理、mTLS、JWT 验证、服务端鉴权 middleware、自动密钥交换、密钥轮换协议、nonce 持久化防重放，或内置账号系统。
+The current repository does not include certificate management, mTLS, JWT validation, server authorization middleware, automatic key exchange, a key-rotation protocol, persistent nonce-based replay protection, or a built-in account system.

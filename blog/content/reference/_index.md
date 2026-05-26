@@ -2,9 +2,9 @@
 title = "Reference"
 +++
 
-API 和运行时行为参考。
+Reference material for API and runtime behavior.
 
-- [API Reference](/ULinkRPC/reference/api/)：核心 runtime 类型、构造方式和生命周期说明。
-- [Generated RpcClient](/ULinkRPC/reference/generated-client/)：每个 client 项目生成的 `RpcClient` facade、callback binding 和 `Api` 入口。
-- [设计边界](/ULinkRPC/posts/design-boundary/)：阅读 API 前需要的架构背景。
-- [Repository contributing guide](https://github.com/bruce48x/ULinkRPC/blob/main/CONTRIBUTING.md)：维护 reference 页面和 XML documentation 时遵循的仓库规则。
+- [API Reference](/ULinkRPC/reference/api/): core runtime types, construction patterns, and lifecycle notes.
+- [Generated RpcClient](/ULinkRPC/reference/generated-client/): the generated `RpcClient` facade, callback binding, and `Api` entry point for each client project.
+- [Design Boundaries](/ULinkRPC/posts/design-boundary/): architecture context to read before the API reference.
+- [Repository contributing guide](https://github.com/bruce48x/ULinkRPC/blob/main/CONTRIBUTING.md): repository rules for maintaining reference pages and XML documentation.

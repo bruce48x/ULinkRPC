@@ -1,189 +1,189 @@
 +++
-title = "API 稳定性路线图"
+title = "API Stability Roadmap"
 date = 2026-05-15T00:00:00+08:00
 +++
 
-ULinkRPC 当前适合进入 **soft freeze**：主流接入路径、wire protocol 方向和包边界已经基本稳定，但还不适合宣布完整的 hard freeze 或 1.0 API 冻结。
+ULinkRPC is currently ready for a **soft freeze**: the main integration path, wire protocol direction, and package boundaries are mostly stable, but it is not yet ready to declare a full hard freeze or 1.0 API freeze.
 
-这篇文档记录当前判断和后续优化方向。它不是一次性完成清单，而是后续 release 前评估 breaking change 的依据。
+This document records the current judgment and future optimization direction. It is not a one-time checklist; it is the basis for evaluating breaking changes before future releases.
 
-## 当前判断
+## Current Judgment
 
-可以优先稳定的部分：
+Areas that can be stabilized first:
 
-- C# contract-first 工作流：`[RpcService]`、`[RpcMethod]`、`[RpcCallback]`、`[RpcPush]`
-- generated client facade、server binder 和 callback binder 的基本使用方式
-- `ITransport`、`IRpcSerializer`、`RpcClientOptions`、`RpcServerHostBuilder` 这些主入口
-- TCP、WebSocket、KCP、Loopback transport 的包边界
-- JSON 和 MemoryPack serializer 的替换边界
-- request / response / push / keepalive 的基本 wire 语义
+- C# contract-first workflow: `[RpcService]`, `[RpcMethod]`, `[RpcCallback]`, `[RpcPush]`
+- Basic usage of the generated client facade, server binder, and callback binder
+- Main entry points such as `ITransport`, `IRpcSerializer`, `RpcClientOptions`, and `RpcServerHostBuilder`
+- Package boundaries for TCP, WebSocket, KCP, and Loopback transports
+- Replacement boundary between JSON and MemoryPack serializers
+- Basic wire semantics for request / response / push / keepalive
 
-暂不 hard freeze 的部分：
+Areas that should not be hard-frozen yet:
 
-- 低层 frame/envelope/session 类型的 public 承诺边界
-- RPC 错误模型和客户端异常类型
-- push callback 注册和注销模型
-- runtime、transport、session 的重启和复用语义
-- generated facade 的命名规则和冲突处理
-- server-side advanced API，例如 `RpcSession` 构造重载、`RpcServiceRegistry` 和低层 handler delegate
+- Public commitment boundary for low-level frame/envelope/session types
+- RPC error model and client exception types
+- Push callback registration and unregistration model
+- Restart and reuse semantics for runtime, transport, and session objects
+- Naming rules and conflict handling for generated facades
+- Server-side advanced APIs such as `RpcSession` constructor overloads, `RpcServiceRegistry`, and low-level handler delegates
 
-## API 分层
+## API Layers
 
-后续文档和 release note 应把 public API 分成三层。
+Future documentation and release notes should divide public APIs into three layers.
 
 ### Stable API
 
-这层面向普通用户，进入 hard freeze 后应尽量只做兼容新增。
+This layer targets regular users. After a hard freeze, it should mostly receive only compatible additions.
 
 - contract attributes
-- starter 推荐的 client/server 初始化方式
-- generated `RpcClient` facade 的生命周期
+- starter-recommended client/server initialization
+- generated `RpcClient` facade lifetime
 - `RpcClientOptions`
 - `RpcServerHostBuilder`
-- transport 构造入口
-- serializer 构造入口
+- transport construction entry points
+- serializer construction entry points
 
-### Generated-support API
+### Generated-Support API
 
-这层主要服务 source generator 输出。用户可以看到，也可能在高级场景下调用，但它的兼容性应跟 `ULinkRPC.Analyzers` 和 runtime 包版本绑定。
+This layer primarily supports source generator output. Users can see it and may call it in advanced scenarios, but its compatibility should be tied to matching versions of `ULinkRPC.Analyzers` and runtime packages.
 
 - `IRpcClient`
 - `RpcMethod<TArg, TResult>`
 - `RpcPushMethod<TArg>`
 - `RpcGeneratedServicesBinderAttribute`
-- generated server binder 使用的 registry 和 handler 入口
+- registry and handler entry points used by generated server binders
 
-这层发生 breaking change 时，必须明确要求用户重新构建，让 source generator 重新生成胶水代码，并避免出现新版 runtime 配旧版 generated code 的隐式失败。
+When this layer has a breaking change, releases must explicitly require users to rebuild so the source generator regenerates glue code, and they should avoid silent failures from combining a new runtime with old generated code.
 
 ### Advanced API
 
-这层适合 transport、serializer、测试工具和自定义 host 集成。它可以保持 public，但 hard freeze 前要明确哪些是长期承诺，哪些仍可能调整。
+This layer is for transports, serializers, test utilities, and custom host integration. It can remain public, but before a hard freeze the project needs to clarify which parts are long-term commitments and which may still change.
 
 - `TransportFrame`
 - `RpcEnvelopeCodec`
-- envelope/frame DTO
+- envelope/frame DTOs
 - `RpcSession`
 - `RpcServiceRegistry`
 - `IRpcConnectionAcceptor`
 - `TransformingTransport`
 - `TransportSecurityConfig`
 
-如果某个类型只是为了包内协作或测试而 public，应优先收窄可见性；如果确实要保留 public，应补齐文档和契约测试。
+If a type is public only for package-internal cooperation or tests, prefer narrowing its visibility. If it must remain public, add documentation and contract tests.
 
-## 冻结前优化项
+## Pre-Freeze Improvements
 
-### 1. 明确 public 承诺边界
+### 1. Clarify Public Commitment Boundaries
 
-当前 API Reference 会把较多低层类型列为公开 API。冻结前应决定：
+The current API Reference lists many low-level types as public APIs. Before freezing, decide:
 
-- 哪些类型是用户稳定入口
-- 哪些类型只是 generated code 支撑面
-- 哪些类型属于 advanced integration
-- 哪些类型可以改成 internal 或隐藏在更窄的 facade 后面
+- which types are stable user entry points
+- which types only support generated code
+- which types belong to advanced integration
+- which types can become internal or hide behind narrower facades
 
-目标不是减少所有 public 类型，而是避免“临时 public”被用户误认为长期稳定承诺。
+The goal is not to reduce every public type, but to prevent temporary public surface area from being mistaken for a long-term stability promise.
 
-### 2. 强化错误模型
+### 2. Strengthen the Error Model
 
-当前 `RpcStatus` 只有 `Ok`、`NotFound`、`Exception`，客户端默认把非 OK 响应转成 `InvalidOperationException`。
+Today `RpcStatus` only has `Ok`, `NotFound`, and `Exception`, and clients convert non-OK responses to `InvalidOperationException` by default.
 
-冻结前建议引入明确的框架异常类型，例如 `RpcException`，至少包含：
+Before freezing, consider introducing an explicit framework exception type such as `RpcException`, containing at least:
 
 - `RpcStatus Status`
 - `string? ErrorMessage`
-- 可选的 request、service、method 诊断信息
+- optional request, service, and method diagnostics
 
-同时评估是否需要拆出框架级状态，例如 overloaded、decode failure、bad request。业务错误仍应留在应用 DTO 或业务返回模型中，不应强行塞进底层 runtime。
+Also evaluate whether framework-level statuses such as overloaded, decode failure, and bad request should be separated. Business errors should still stay in application DTOs or business return models, not be forced into the low-level runtime.
 
-### 3. 重新审视 push callback API
+### 3. Revisit the Push Callback API
 
-当前 callback 注册是一次性 `RegisterPushHandler(..., Action<T>)`。冻结前需要决定是否支持：
+Callback registration is currently one-shot: `RegisterPushHandler(..., Action<T>)`. Before freezing, decide whether to support:
 
-- 注销 handler
-- async handler
-- 重复注册策略
-- handler 异常是否可观测
-- Unity、团结、Godot 主线程派发是否只保留为应用层责任
+- handler unregistration
+- async handlers
+- duplicate registration policy
+- handler exception observability
+- keeping Unity, Tuanjie, and Godot main-thread dispatch solely as application-layer responsibility
 
-如果要把注册返回值改成 `IDisposable`，或新增 `Func<T, ValueTask>` 形态，应在 hard freeze 前完成。
+If registration should return `IDisposable`, or if a `Func<T, ValueTask>` shape should be added, do it before the hard freeze.
 
-### 4. 固化生命周期语义
+### 4. Lock Down Lifetime Semantics
 
-当前文档已经建议断线后重建 generated client、runtime、transport 和 options。冻结前应进一步明确：
+The current docs already recommend rebuilding the generated client, runtime, transport, and options after disconnects. Before freezing, clarify further:
 
-- `RpcClientRuntime` 是否 single-use
-- `RpcSession` 是否允许 stop 后 restart
-- accepted server transport 的 `ConnectAsync` 应是初始化还是连接动作
-- `ITransport.IsConnected` 是诊断信号还是强一致状态
-- dispose、remote close、keepalive timeout 的事件和 pending request 行为
+- whether `RpcClientRuntime` is single-use
+- whether `RpcSession` may restart after stop
+- whether `ConnectAsync` on accepted server transports is initialization or an actual connection action
+- whether `ITransport.IsConnected` is a diagnostic signal or strongly consistent state
+- event and pending-request behavior for dispose, remote close, and keepalive timeout
 
-这些语义一旦被用户依赖，后续修改成本很高。
+Once users depend on these semantics, changing them becomes expensive.
 
-### 5. 稳定 generated facade 命名规则
+### 5. Stabilize Generated Facade Naming Rules
 
-generated `RpcApi` 当前根据 contract namespace 和 service interface 推导 group/property 名称，并用数字后缀解决冲突。
+Generated `RpcApi` currently derives group/property names from the contract namespace and service interface, and resolves conflicts with numeric suffixes.
 
-冻结前应决定是否需要显式命名能力，例如 service/group alias attribute。否则 generated API 的命名规则本身就是长期兼容承诺。
+Before freezing, decide whether explicit naming support is needed, such as service/group alias attributes. Otherwise, the generated API naming rules themselves become a long-term compatibility promise.
 
-### 6. 保持 Unity 依赖约束准确
+### 6. Keep Unity Dependency Constraints Accurate
 
-`System.Threading.Channels` 是当前 runtime 和 Unity samples 已采用的显式依赖，应保留在允许列表中。
+`System.Threading.Channels` is an explicit dependency already used by the current runtime and Unity samples, and should remain on the allowed list.
 
-`System.IO.Pipelines` 可能通过 transport 或 serializer 依赖链进入 Unity 侧包集合；它的出现本身不再视为违规。新增或扩大相关使用前，应基于 Unity 2022 LTS、iOS、IL2CPP、HybridCLR 做实际验证。
+`System.IO.Pipelines` may enter Unity-side package sets through transport or serializer dependency chains; its presence alone is no longer treated as a violation. Before adding or expanding related usage, validate it against Unity 2022 LTS, iOS, IL2CPP, and HybridCLR.
 
-仍应避免 Unity client 依赖以下能力：
+Unity client code should still avoid:
 
 - `System.Reflection.Emit`
 - runtime code generation
-- JIT-only API
+- JIT-only APIs
 
-新增依赖前应确认 Unity 2022 LTS、iOS、IL2CPP、HybridCLR 的实际兼容性。
+Before adding dependencies, confirm real compatibility with Unity 2022 LTS, iOS, IL2CPP, and HybridCLR.
 
-## 分阶段计划
+## Phased Plan
 
-### Soft freeze 阶段
+### Soft Freeze Phase
 
-当前阶段应优先保证：
+The current phase should prioritize:
 
-- wire protocol 不做无迁移路径的破坏性变更
-- starter 生成路径稳定
-- generated code 与 runtime 版本匹配
-- 主入口 API 只做兼容新增
-- breaking change 必须在 changelog 里显式写出升级方式
+- no breaking wire protocol changes without a migration path
+- stable starter generation paths
+- generated code matching runtime versions
+- compatible additions only for main entry APIs
+- explicit upgrade instructions for breaking changes in the changelog
 
-### Hard freeze 前
+### Before Hard Freeze
 
-进入 1.0 或类似稳定承诺前，应完成：
+Before 1.0 or a similar stability commitment, complete:
 
-- API 分层文档
-- 错误模型定稿
-- callback 注册模型定稿
-- 生命周期语义文档和契约测试
-- generated facade 命名规则定稿
-- 低层 public 类型的保留、收窄或标注
+- API layer documentation
+- finalized error model
+- finalized callback registration model
+- lifetime semantics documentation and contract tests
+- finalized generated facade naming rules
+- retention, narrowing, or annotation of low-level public types
 
-### Hard freeze 后
+### After Hard Freeze
 
-冻结后仍可继续优化：
+After freezing, the project can still improve:
 
-- 性能和分配优化
-- transport 健壮性
-- starter 模板体验
-- 文档和示例
-- 兼容新增 API
+- performance and allocation behavior
+- transport robustness
+- starter template experience
+- documentation and examples
+- compatible new APIs
 
-但应避免修改既有主入口签名、generated API 形状和 wire protocol。确需 breaking change 时，应走 major version、迁移说明和兼容窗口。
+But it should avoid changing existing main entry signatures, generated API shape, and wire protocol. If a breaking change is truly required, use a major version, migration guide, and compatibility window.
 
-## Release 检查问题
+## Release Checklist Questions
 
-每次准备发布涉及 runtime、source generator 或 transport 的版本前，至少检查：
+Before every release that touches runtime, source generator, or transport packages, check at least:
 
-- 是否改变了 generated code 需要调用的 runtime API？
-- 是否要求用户重新构建以刷新 source-generated code？
-- 是否改变了 wire frame、service id、method id、request id 或 payload 语义？
-- 是否改变了断线、dispose、pending request、keepalive timeout 的行为？
-- 是否改变了 generated facade 的类型名、namespace、group 或属性名？
-- 是否新增 Unity 侧依赖？是否验证 IL2CPP 兼容？
-- 是否需要在 changelog 写明 breaking change 或迁移步骤？
+- Did the runtime API called by generated code change?
+- Does the change require users to rebuild and refresh source-generated code?
+- Did wire frame, service id, method id, request id, or payload semantics change?
+- Did disconnect, dispose, pending request, or keepalive timeout behavior change?
+- Did generated facade type names, namespaces, groups, or property names change?
+- Was a Unity-side dependency added? Was IL2CPP compatibility verified?
+- Does the changelog need to document a breaking change or migration step?
 
-这份路线图应随着实现推进持续更新。完成一项冻结前优化后，应把它从风险项转为已稳定约定，并补充对应 reference 文档或测试。
+This roadmap should evolve with implementation progress. After completing a pre-freeze improvement, move it from a risk item to a stable convention and add the matching reference docs or tests.

@@ -1,52 +1,52 @@
 +++
-title = "设计边界"
+title = "Design Boundaries"
 date = 2026-05-12T09:05:00+08:00
 +++
 
-ULinkRPC 的职责边界是通信框架，而不是完整的应用服务器框架。
+ULinkRPC is responsible for communication framework behavior, not for being a complete application server framework.
 
-框架负责：
+The framework handles:
 
-- transport 集成和 frame I/O
-- frame 编码、压缩、加密和限制
-- session 生命周期
-- request / response / push 分发
-- keepalive 和连接关闭语义
-- serializer 边界
+- transport integration and frame I/O
+- frame encoding, compression, encryption, and limits
+- session lifetime
+- request / response / push dispatch
+- keepalive and connection shutdown semantics
+- serializer boundaries
 
-应用层负责：
+The application layer handles:
 
-- 用户登录、账号系统和 token 生命周期
-- 请求级授权和业务权限
-- 业务错误码和可恢复失败
-- 自动重连、状态恢复和请求重放
-- DTO 版本策略和灰度发布
-- Unity、团结或 Godot 主线程派发
+- user login, account systems, and token lifetime
+- request-level authorization and business permissions
+- business error codes and recoverable failures
+- automatic reconnect, state recovery, and request replay
+- DTO versioning strategy and gradual rollout
+- Unity, Tuanjie, or Godot main-thread dispatch
 
-## 认证和授权
+## Authentication and Authorization
 
-`TransportSecurityConfig` 可以提供 frame 级压缩和对称加密，但它不验证远端身份，也不内建用户、角色、租户、资源归属或策略系统。
+`TransportSecurityConfig` can provide frame-level compression and symmetric encryption, but it does not verify remote identity and does not include users, roles, tenants, resource ownership, or policy systems.
 
-认证可以在应用接入层完成，例如登录 RPC、外部 token 校验或 gateway 注入的身份上下文。授权应留在业务层，因为访问规则依赖具体领域模型。
+Authentication can be done at the application integration layer, such as through a login RPC, external token validation, or identity context injected by a gateway. Authorization should stay in business code because access rules depend on the domain model.
 
-## 为什么不内建授权策略
+## Why Authorization Policies Are Not Built In
 
-请求级授权看起来可以做成 middleware，但实际规则通常依赖业务语义：
+Request-level authorization may look like middleware, but real rules usually depend on business semantics:
 
-- 谁拥有这个资源
-- 当前角色能否执行这个动作
-- 房间、战斗、队伍或租户状态是否允许
-- 操作是否幂等、是否可重试
-- 客户端版本是否仍然允许调用旧方法
+- who owns this resource
+- whether the current role can perform this action
+- whether room, battle, party, or tenant state allows it
+- whether the operation is idempotent or retryable
+- whether the client version may still call an old method
 
-这些信息不属于底层 RPC runtime。ULinkRPC 应该把调用正确、安全地送到服务实现，而不是把业务策略固化进通信层。
+This information does not belong in the low-level RPC runtime. ULinkRPC should deliver calls to service implementations correctly and safely, not bake business policy into the communication layer.
 
-## 和生产指南的关系
+## Relationship to Production Guides
 
-上线前应把下面几类策略放在应用层或上层框架中：
+Before production, put these policies in the application layer or an upper framework:
 
-- [错误处理](/ULinkRPC/posts/error-handling/)
-- [安全模型](/ULinkRPC/posts/security-model/)
-- [DTO 版本演进](/ULinkRPC/posts/dto-versioning/)
-- [连接生命周期](/ULinkRPC/posts/connection-lifecycle/)
-- [线程模型](/ULinkRPC/posts/threading-model/)
+- [Error Handling](/ULinkRPC/posts/error-handling/)
+- [Security Model](/ULinkRPC/posts/security-model/)
+- [DTO Versioning](/ULinkRPC/posts/dto-versioning/)
+- [Connection Lifecycle](/ULinkRPC/posts/connection-lifecycle/)
+- [Threading Model](/ULinkRPC/posts/threading-model/)

@@ -1,5 +1,5 @@
 ---
-title: 用 ULinkRPC.Starter 快速创建一个共享C#代码、双端通信的.NET服务端+游戏客户端项目
+title: Quickly Create a Shared-C# .NET Server and Game Client Project with ULinkRPC.Starter
 date: 2026-03-15T12:30:00+08:00
 tags:
   - ulinkrpc
@@ -15,86 +15,86 @@ categories:
   - Tutorial
 ---
 
-如果你现在想开始一个新的 C# 双端项目，用 `ULinkRPC.Starter` 是最佳选择。
+If you want to start a new two-sided C# project today, `ULinkRPC.Starter` is the recommended path.
 
-它现在的定位不只是“初始化脚手架”，而是 ULinkRPC 的项目工具：
+It is no longer just an initialization scaffold. It is the project tool for ULinkRPC:
 
-- 用 `ulinkrpc-starter new` 创建新项目
-- 生成项目自带 Roslyn Source Generator 配置，后续改契约会在正常编译时刷新双端胶水代码
+- Create new projects with `ulinkrpc-starter new`
+- Generate projects with Roslyn Source Generator configuration, so later contract changes refresh server and client glue during normal compilation
 
-它会一次性帮你生成：
+It generates all of this at once:
 
-- `Shared` 共享契约项目
-- `Server` 服务端项目和解决方案
-- `Client` Unity 2022、团结引擎或 Godot 4.x 客户端骨架
-- 默认 `Ping` 契约、服务实现，以及客户端测试入口
-- `ULinkRPC.Analyzers` source generator 配置
+- a `Shared` contract project
+- a `Server` project and solution
+- a `Client` skeleton for Unity 2022, Tuanjie Engine, or Godot 4.x
+- a default `Ping` contract, service implementation, and client test entry point
+- `ULinkRPC.Analyzers` source generator configuration
 
-也就是说，你现在的推荐起步方式是：
+In other words, the recommended starting point is:
 
-**先选 transport 和 serializer，然后让 starter 直接产出一份可运行的最小项目。**
+**Choose the transport and serializer first, then let the starter produce a runnable minimal project.**
 
-## 前提条件
+## Prerequisites
 
-开始之前，请先安装 **.NET 10 SDK**：
+Before starting, install the **.NET 10 SDK**:
 
-- 下载地址：https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+- Download: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
 
-后面的 `dotnet tool install`、`dotnet tool restore`、`dotnet run` 等命令都依赖本机已经可用的 .NET SDK。
+Commands such as `dotnet tool install`, `dotnet tool restore`, and `dotnet run` all require a working local .NET SDK.
 
 ## Quick Start
 
-如果你只想最快跑起来，直接照下面做：
+If you only want the fastest path to a running project:
 
-1. 安装 starter
-2. 生成一份 `websocket + json` 项目
-3. 启动服务端
-4. 打开客户端
-5. 根据引擎完成依赖恢复
-6. 运行默认连接测试
+1. Install the starter.
+2. Generate a `websocket + json` project.
+3. Start the server.
+4. Open the client.
+5. Restore dependencies for the selected engine.
+6. Run the default connection test.
 
-对应命令如下：
+Commands:
 
 ```bash
 dotnet tool install -g ULinkRPC.Starter
 ulinkrpc-starter new --name MyGame --client-engine unity --transport websocket --serializer json
 
-# 或者
+# Or
 ulinkrpc-starter new --name MyGame --client-engine tuanjie --transport websocket --serializer json
 cd MyGame
 dotnet run --project Server/Server/Server.csproj
 ```
 
-如果你选的是 Unity 或团结引擎：
+For Unity or Tuanjie Engine:
 
-- 用 Unity 2022 LTS 或团结引擎打开 `MyGame/Client`
-- 等待导入完成
-- 执行 `NuGet -> Restore Packages`
-- 打开 `Assets/Scenes/ConnectionTest.unity`
-- 点击 Play
+- Open `MyGame/Client` with Unity 2022 LTS or Tuanjie Engine.
+- Wait for import to finish.
+- Run `NuGet -> Restore Packages`.
+- Open `Assets/Scenes/ConnectionTest.unity`.
+- Click Play.
 
-如果你选的是 Godot：
+For Godot:
 
-- 用 Godot 4.x 打开 `MyGame/Client`
-- 等待 Godot 生成并恢复 C# 解决方案
-- 打开 `Main.tscn`
-- 点击 Play
+- Open `MyGame/Client` with Godot 4.x.
+- Wait for Godot to generate and restore the C# solution.
+- Open `Main.tscn`.
+- Click Play.
 
-如果你是第一次接入，我建议先不要从 `memorypack` 开始，先把 `websocket + json` 跑通，再升级到更高性能的组合。
+For a first integration, do not start with `memorypack`. Get `websocket + json` running first, then upgrade to a higher-performance combination.
 
-最短路径可以记成这一句：
+The shortest path is:
 
-**安装 starter -> 生成项目 -> 启动 Server -> 打开 Client -> 恢复依赖 -> 运行默认测试场景。**
+**Install starter -> generate project -> start Server -> open Client -> restore dependencies -> run the default test scene.**
 
-## 先理解最终结构
+## Understand the Final Structure First
 
-starter 生成出来的项目固定是三层：
+The starter always generates a three-layer project:
 
 ```mermaid
 flowchart TB
-    Root["MyGame/"] --> Shared["Shared<br/>共享 DTO / RPC 契约"]
-    Root --> Server["Server<br/>.NET 服务端入口与服务实现"]
-    Root --> Client["Client<br/>Unity / 团结 / Godot 工程"]
+    Root["MyGame/"] --> Shared["Shared<br/>shared DTO / RPC contracts"]
+    Root --> Server["Server<br/>.NET server entry point and service implementations"]
+    Root --> Client["Client<br/>Unity / Tuanjie / Godot project"]
 
     Shared --> SourceGen["ULinkRPC.Analyzers<br/>Source Generator"]
     SourceGen --> ServerGenerated["Compiler Generated<br/>binder / AllServicesBinder"]
@@ -113,50 +113,50 @@ MyGame/
   Client/
 ```
 
-各层职责很明确：
+Each layer has a clear role:
 
 - `Shared/`
-  放共享 DTO、RPC 接口，以及 Unity 场景下使用的 UPM 包定义
+  Shared DTOs, RPC interfaces, and the UPM package definition used in Unity scenarios.
 - `Server/Server/`
-  放服务端入口、服务实现、服务端生成代码
+  Server entry point, service implementations, and server generated code.
 - `Client/`
-  放 Unity 或 Godot 工程、客户端生成代码，以及默认测试入口
+  Unity or Godot project, client generated code, and the default test entry point.
 
-这套结构最重要的点不是“看起来整齐”，而是：
+The important part is not that the structure looks tidy. The important part is:
 
-- 契约只有一份
-- 服务端和客户端同时引用同一份 Shared
-- source generation 永远围绕同一份契约运行
+- There is only one copy of each contract.
+- Server and client both reference the same Shared project.
+- Source generation always runs from the same contracts.
 
-## 安装 starter
+## Install the Starter
 
-先安装全局工具：
+Install the global tool:
 
 ```bash
 dotnet tool install -g ULinkRPC.Starter
 ```
 
-如果已经安装过，更新到最新版：
+If it is already installed, update it:
 
 ```bash
 dotnet tool update -g ULinkRPC.Starter
 ```
 
-## 生成项目
+## Generate a Project
 
-最常用的创建命令是：
+The most common command is:
 
 ```bash
 ulinkrpc-starter new --name MyGame --transport websocket --serializer json
 ```
 
-你也可以省略参数，进入交互模式：
+You can also omit options and enter interactive mode:
 
 ```bash
 ulinkrpc-starter new --name MyGame
 ```
 
-目前可选项是：
+Current options:
 
 - `client-engine`
   - `unity`
@@ -172,70 +172,70 @@ ulinkrpc-starter new --name MyGame
   - `json`
   - `memorypack`
 
-例如，生成一个 `WebSocket + MemoryPack` 项目：
+For example, to generate a `WebSocket + MemoryPack` project:
 
 ```bash
 ulinkrpc-starter new --name MyGame --client-engine godot --transport websocket --serializer memorypack
 ```
 
-## 生成后 starter 做了什么
+## What the Starter Generates
 
-starter 不只是“建几个空目录”，而是会直接做完这些事情：
+The starter does more than create a few empty directories. It directly generates:
 
-1. 生成 `Shared/Shared.csproj`、`Shared.asmdef`、`package.json`
-2. 生成默认 DTO 和 `IPingService`
-3. 生成 `Server/Server/Program.cs` 和 `Services/PingService.cs`
-4. 生成 `Server/Server.slnx` 并把 `Shared`、`Server` 项目都加进去
-5. 生成对应客户端引擎的工程骨架和测试入口
-6. Unity 模式下生成 `manifest.json`、`packages.config`、`NuGet.config`
-7. Unity 模式下生成 `Assets/Scenes/ConnectionTest.unity` 和 `EditorBuildSettings.asset`
-8. Godot 模式下生成 `project.godot`、`Client.csproj`、`Main.tscn`
-9. 添加 `ULinkRPC.Analyzers` source generator 依赖
-10. 配置 server / client 两侧 source generator
-11. 自动 `git init`
+1. `Shared/Shared.csproj`, `Shared.asmdef`, and `package.json`
+2. default DTOs and `IPingService`
+3. `Server/Server/Program.cs` and `Services/PingService.cs`
+4. `Server/Server.slnx` with both `Shared` and `Server` added
+5. the selected client engine skeleton and test entry point
+6. `manifest.json`, `packages.config`, and `NuGet.config` in Unity modes
+7. `Assets/Scenes/ConnectionTest.unity` and `EditorBuildSettings.asset` in Unity modes
+8. `project.godot`, `Client.csproj`, and `Main.tscn` in Godot mode
+9. the `ULinkRPC.Analyzers` source generator dependency
+10. server/client source generator configuration
+11. automatic `git init`
 
-所以它的目标不是“给你一个空模板”，而是“给你一个可直接启动的起点”。
+Its goal is not to give you an empty template. Its goal is to give you a runnable starting point.
 
-## 日常怎么让代码自动更新
+## How Code Updates During Daily Development
 
-starter 第一次生成项目时，会把 `ULinkRPC.Analyzers` 配进 server / client 项目。后续只要按正常方式构建项目，source generator 就会在编译期根据 `Shared/Interfaces/` 里的契约产出两端胶水代码。
+When the starter first creates the project, it configures `ULinkRPC.Analyzers` in the server and client projects. Later, whenever you build normally, the source generator emits server and client glue from the contracts under `Shared/Interfaces/`.
 
-最常见的真实开发顺序其实是这样的：
+A realistic development loop usually looks like this:
 
-1. 先在 `Shared/Interfaces/` 里定义新的接口和 DTO
-2. 正常构建 server / client，或在 Unity / 团结 Editor 里等待脚本编译
-3. 让 source generator 在编译期生成双端胶水代码
-4. 再去补服务端实现
-5. 最后在客户端里调用生成出来的类型安全 API
+1. Define new interfaces and DTOs under `Shared/Interfaces/`.
+2. Build server / client normally, or wait for script compilation in the Unity / Tuanjie Editor.
+3. Let the source generator generate both sides of the glue code at compile time.
+4. Add the server implementation.
+5. Call the generated type-safe API from the client.
 
-你可以把它记成一句话：
+In one sentence:
 
-**Shared 契约变了，正常 build/editor 流程会生成胶水代码；编译通过后，再继续写业务逻辑。**
+**When Shared contracts change, the normal build/editor flow generates the glue code; after compilation passes, continue with business logic.**
 
 ```mermaid
 flowchart LR
-    A["修改 Shared/Interfaces<br/>接口与 DTO"] --> B["source generator 编译期运行"]
-    B --> C["生成 Server binder"]
-    B --> D["生成 Client API"]
-    C --> E["补服务端实现"]
-    D --> F["在客户端调用生成 API"]
-    E --> G["联调运行"]
+    A["Modify Shared/Interfaces<br/>interfaces and DTOs"] --> B["source generator runs during compilation"]
+    B --> C["generate Server binder"]
+    B --> D["generate Client API"]
+    C --> E["add server implementation"]
+    D --> F["call generated API from client"]
+    E --> G["run integration test"]
     F --> G
 ```
 
-### 一个更实际的例子：新增背包查询功能
+### A Practical Example: Add an Inventory Query
 
-假设 starter 默认的 `Ping` 已经跑通了，现在你要开始做第一个真实功能：
+Suppose the default `Ping` already works and you now want the first real feature:
 
-- 玩家打开背包界面
-- 客户端向服务端请求物品列表
-- 服务端返回当前背包内容
+- The player opens the inventory screen.
+- The client requests the item list from the server.
+- The server returns the current inventory contents.
 
-那你的第一步，不是先去改 `Server/Program.cs`，也不是先去手写网络协议分发代码。
+The first step is not editing `Server/Program.cs`, and it is not hand-writing network dispatch code.
 
-第一步应该是先改 `Shared/Interfaces/`。
+The first step is changing `Shared/Interfaces/`.
 
-比如你在 `Shared/Interfaces/` 里新增：
+For example, add these DTOs under `Shared/Interfaces/`:
 
 ```csharp
 namespace Shared.Interfaces
@@ -259,7 +259,7 @@ namespace Shared.Interfaces
 }
 ```
 
-以及新的 RPC 接口：
+And add a new RPC interface:
 
 ```csharp
 using System.Threading.Tasks;
@@ -289,42 +289,42 @@ namespace Shared.Interfaces
 }
 ```
 
-写到这里，服务端和客户端在下一次编译时就会看到新的胶水代码。
+At this point, the next server and client compilation will see new glue code.
 
-### 这时候该做什么
+### What to Do Next
 
-这时候正常构建对应项目即可。
+Build the relevant project normally.
 
-对 Server、Godot、Stride3D，正常构建对应项目即可：
+For Server, Godot, and Stride3D, build the project:
 
 ```bash
 cd MyGame
 dotnet build Server/Server/Server.csproj
 ```
 
-Unity、Unity CN、团结项目则等待 Editor 触发脚本编译。
+For Unity, Unity CN, and Tuanjie projects, wait for the Editor to trigger script compilation.
 
-到这里不需要额外执行某个生成步骤。构建或编辑器脚本编译本身就会触发 source generator。
+No additional generation step is required. The build or editor script compilation itself triggers the source generator.
 
-### 跑完之后会发生什么
+### What Happens After Compilation
 
-编译时，`ULinkRPC.Analyzers` 会根据你刚才写的 `IInventoryService` 和 DTO 生成两边的胶水代码。
+During compilation, `ULinkRPC.Analyzers` generates glue code for both sides from `IInventoryService` and the DTOs.
 
-server 侧会在编译输出中得到 `AllServicesBinder`、`InventoryServiceBinder`，以及相关 callback proxy（如果你定义了 callback）。
+On the server side, the compilation output gets `AllServicesBinder`, `InventoryServiceBinder`, and related callback proxies if you defined callbacks.
 
-client 侧会在编译输出中得到 `RpcApi`、service client stub 和 callback binder。
+On the client side, the compilation output gets `RpcApi`, service client stubs, and callback binders.
 
-这一步的意义是：
+This matters because:
 
-- 服务端现在知道如何把网络请求路由到 `IInventoryService`
-- 客户端现在有了类型安全的调用入口
-- 你不需要手写这些重复的 binder / stub / facade
+- The server now knows how to route network requests to `IInventoryService`.
+- The client now has a type-safe call entry point.
+- You do not need to hand-write repetitive binders, stubs, or facades.
 
-### 然后再去补服务端实现
+### Then Add the Server Implementation
 
-胶水代码由编译器生成后，再去 `Server/Server/Services/` 里写业务实现就顺了。
+After the compiler generates glue code, adding business logic under `Server/Server/Services/` is straightforward.
 
-例如新增一个：
+For example:
 
 ```csharp
 using System.Threading.Tasks;
@@ -350,13 +350,13 @@ namespace Server.Services
 }
 ```
 
-到这里，服务端业务逻辑才算真正接上。
+Now the server business logic is connected.
 
-### 客户端怎么用新的生成代码
+### How the Client Uses the New Generated Code
 
-接着你就可以在客户端逻辑里，直接通过生成出来的 API 发请求，而不是自己拼协议包。
+Next, client logic can send requests through the generated API instead of assembling protocol packets manually.
 
-概念上它会是这种调用方式：
+Conceptually, the call looks like this:
 
 ```csharp
 var reply = await _client.Api.Shared.Inventory.GetInventoryAsync(
@@ -371,107 +371,105 @@ foreach (var item in reply.Items)
 }
 ```
 
-这里最重要的不是具体命名细节，而是这个工作流：
+The exact naming is less important than the workflow:
 
-- 你改的是 `Shared`
-- Source Generator 生成的是“连接 Shared 和运行时”的胶水
-- 服务端实现只关心接口
-- 客户端调用只关心生成后的强类型 API
+- You edit `Shared`.
+- The Source Generator produces glue that connects Shared to the runtime.
+- Server implementations only care about interfaces.
+- Client calls only care about the generated strongly typed API.
 
-### 什么时候一定会触发 Source Generator
+### When Source Generator Must Run
 
-只要你改了这些内容，下一次 build/editor 编译就应该生成新的胶水代码：
+The next build/editor compilation should generate new glue whenever you change:
 
-- 新增 / 删除 / 修改 RPC 接口
-- 新增 / 删除 / 修改 DTO
-- 修改方法签名、参数、返回值
-- 新增 callback 接口
+- added / removed / modified RPC interfaces
+- added / removed / modified DTOs
+- method signatures, parameters, or return values
+- callback interfaces
 
-反过来说，如果你只是改服务内部实现，例如：
+By contrast, changes that only affect service internals do not require attention to glue generation, such as:
 
-- `InventoryService` 里换了一套数据库查询
-- 客户端 UI 从按钮点击改成页面打开自动刷新
+- replacing the database query inside `InventoryService`
+- changing client UI from a button click to auto-refresh on page open
 
-这种不涉及 Shared 契约变化的改动，就不需要关心胶水代码生成。
+### A Useful Rule of Thumb
 
-### 一个很实用的判断方法
+Ask one question:
 
-你可以问自己一个问题：
+**Did this change touch contract definitions under `Shared/Interfaces/`?**
 
-**这次改动有没有动 `Shared/Interfaces/` 里的契约定义？**
+If yes, compile normally first and let the source generator emit new glue code.
 
-如果答案是“有”，那下一步就应该先正常编译，让 source generator 生成新的胶水代码。
+If no, you can usually continue editing service implementations or client logic.
 
-如果答案是“没有”，那通常可以继续改服务实现或客户端逻辑。
+### What You Should Actually Maintain
 
-### 你真正应该维护的是什么
+During future development, the files you should maintain manually are:
 
-后续开发里，真正应该被你手工维护的是：
+- interfaces and DTOs under `Shared/Interfaces/`
+- service implementations under `Server/Server/Services/`
+- your own client business scripts
 
-- `Shared/Interfaces/` 里的接口和 DTO
-- `Server/Server/Services/` 里的服务实现
-- 客户端自己的业务脚本
+The core rule:
 
-核心原则就是：
+**When contracts change, rebuild; do not hand-write glue code.**
 
-**契约改了，就重新编译；不要手写胶水代码。**
+## Starting the Server
 
-## 服务端怎么启动
-
-生成完成后，进入项目根目录：
+After generation, enter the project root:
 
 ```bash
 cd MyGame
 dotnet run --project Server/Server/Server.csproj
 ```
 
-默认示例会启动一个最小 `Ping` 服务。
+The default sample starts a minimal `Ping` service.
 
-如果你选的是：
+If you selected:
 
 - `websocket`
-  默认监听 `ws://127.0.0.1:20000/ws`
+  default listener: `ws://127.0.0.1:20000/ws`
 - `tcp`
-  默认监听 `127.0.0.1:20000`
+  default listener: `127.0.0.1:20000`
 - `kcp`
-  默认监听 `127.0.0.1:20000`
+  default listener: `127.0.0.1:20000`
 
-## 客户端怎么启动
+## Starting the Client
 
-如果你用的是 Unity 或团结引擎，用对应编辑器打开：
+For Unity or Tuanjie Engine, open this directory with the matching editor:
 
 ```text
 MyGame/Client
 ```
 
-首次打开后：
+On first open:
 
-1. 等待编辑器导入项目
-2. 等待 `NuGetForUnity` 导入完成
-3. 在编辑器菜单执行 `NuGet -> Restore Packages`
-4. 打开或确认已自动打开 `Assets/Scenes/ConnectionTest.unity`
-5. 点击 Play
+1. Wait for the editor to import the project.
+2. Wait for `NuGetForUnity` to finish importing.
+3. Run `NuGet -> Restore Packages` from the editor menu.
+4. Open, or confirm that it has automatically opened, `Assets/Scenes/ConnectionTest.unity`.
+5. Click Play.
 
-默认场景里已经挂好了 `RpcConnectionTester`，会自动发起连接并调用一次 `Ping`。
+The default scene already has `RpcConnectionTester` attached. It connects automatically and calls `Ping` once.
 
-如果你用的是 Godot：
+For Godot:
 
-1. 用 Godot 4.x 打开 `MyGame/Client`
-2. 等待 Godot 生成和恢复 C# 工程
-3. 打开 `Main.tscn`
-4. 点击 Play
+1. Open `MyGame/Client` with Godot 4.x.
+2. Wait for Godot to generate and restore the C# project.
+3. Open `Main.tscn`.
+4. Click Play.
 
-默认 `Main.tscn` 上也挂好了 `RpcConnectionTester`，会自动发起连接并调用一次 `Ping`。
+The default `Main.tscn` also has `RpcConnectionTester` attached. It connects automatically and calls `Ping` once.
 
-## 默认代码长什么样
+## What the Default Code Looks Like
 
-默认共享契约会生成在：
+Default shared contracts are generated under:
 
 ```text
 Shared/Interfaces/
 ```
 
-例如：
+For example:
 
 ```csharp
 namespace Shared.Interfaces
@@ -489,51 +487,51 @@ namespace Shared.Interfaces
 }
 ```
 
-如果选择 `memorypack`，starter 也会自动给 DTO 加上对应的 `MemoryPackable` 标记，并处理 Unity 侧所需的 `asmdef` 引用和 `unsafe` 配置。
+If you choose `memorypack`, the starter also adds the matching `MemoryPackable` annotations to DTOs and handles Unity-side `asmdef` references and `unsafe` configuration.
 
-默认服务实现则在：
+The default service implementation is:
 
 ```text
 Server/Server/Services/PingService.cs
 ```
 
-Unity 默认连接脚本在：
+The default Unity connection script is:
 
 ```text
 Client/Assets/Scripts/Rpc/Testing/RpcConnectionTester.cs
 ```
 
-Godot 默认连接脚本在：
+The default Godot connection script is:
 
 ```text
 Client/Scripts/Rpc/Testing/RpcConnectionTester.cs
 ```
 
-这几个文件一起构成了最小可运行闭环。
+Together, these files form the smallest runnable loop.
 
-## 什么时候选 JSON，什么时候选 MemoryPack
+## When to Choose JSON or MemoryPack
 
-如果你只是第一次接入 ULinkRPC，我建议先从：
+For a first ULinkRPC integration, start with:
 
 - `websocket + json`
 
-开始。原因很简单：
+The reason is simple:
 
-- 更容易排错
-- 更容易观察请求和响应形态
-- Unity 初次接入时问题更少
+- easier debugging
+- easier observation of request and response shapes
+- fewer first-integration issues in Unity
 
-当你确认整条链路已经稳定后，再切到：
+After the full path is stable, switch to:
 
 - `websocket + memorypack`
 - `tcp + memorypack`
 - `kcp + memorypack`
 
-`MemoryPack` 更适合后续追求更高性能或更低负载的时候再上。
+`MemoryPack` is a better fit later, when you are optimizing for higher performance or lower load.
 
-## 已知现象：Unity 首次导入 MemoryPack.Generator
+## Known Behavior: Unity First Import of MemoryPack.Generator
 
-如果你生成的是 `memorypack` 项目，Unity 第一次打开时，可能会看到类似这样的 analyzer 引用告警：
+If you generate a `memorypack` project, Unity may show analyzer reference warnings like this during the first open:
 
 ```text
 Assembly '...MemoryPack.Generator.dll' will not be loaded due to errors:
@@ -541,60 +539,60 @@ Unable to resolve reference 'Microsoft.CodeAnalysis'
 Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 ```
 
-当前实际验证结果是：
+Current validation shows:
 
-- 这类告警可能出现在首次导入阶段
-- 关闭 Unity 再重新打开一次，通常会消失
-- 消失后项目可以正常运行
+- These warnings can appear during the first import.
+- Closing and reopening Unity usually makes them disappear.
+- After they disappear, the project can run normally.
 
-所以这更像 Unity / NuGetForUnity / Roslyn analyzer 的首次导入时序问题，而不是 starter 生成结果不可用。
+This is more like a first-import ordering issue between Unity, NuGetForUnity, and Roslyn analyzers than an unusable starter output.
 
-如果你遇到它，建议按这个顺序处理：
+If you see it, handle it in this order:
 
-1. 先完成 `NuGet -> Restore Packages`
-2. 等待导入结束
-3. 关闭 Unity
-4. 重新打开项目
+1. Complete `NuGet -> Restore Packages`.
+2. Wait for import to finish.
+3. Close Unity.
+4. Reopen the project.
 
-## 接下来该怎么扩展
+## How to Extend Next
 
-当 starter 生成的默认 `Ping` 示例已经跑通后，后续开发就按前面的 `Inventory` 例子那条线往前走：
+After the default starter `Ping` sample works, continue along the same path as the `Inventory` example:
 
-1. 先在 `Shared/Interfaces/` 里定义功能契约
-2. 正常编译，让 source generator 生成胶水代码
-3. 再补服务端实现和客户端业务接入
+1. Define feature contracts under `Shared/Interfaces/`.
+2. Compile normally and let the source generator produce glue code.
+3. Add server implementations and client business integration.
 
-日常开发里真正的源头始终是：
+The real source of truth in daily development is always:
 
-**Shared 契约。**
+**Shared contracts.**
 
-## 上线前继续阅读
+## Read Next Before Production
 
-默认 `Ping` 跑通以后，真实项目还需要补齐连接、错误、安全、版本和性能策略。建议继续看这些指南：
+After the default `Ping` works, real projects still need connection, error, security, versioning, and performance strategies. Continue with:
 
-- [错误处理](/ULinkRPC/posts/error-handling/)
-- [安全模型](/ULinkRPC/posts/security-model/)
-- [DTO 版本演进](/ULinkRPC/posts/dto-versioning/)
-- [连接生命周期](/ULinkRPC/posts/connection-lifecycle/)
-- [线程模型](/ULinkRPC/posts/threading-model/)
-- [性能调优](/ULinkRPC/posts/performance-tuning/)
-- [Godot 接入指南](/ULinkRPC/posts/godot-guide/)
-- [技术选型指南](/ULinkRPC/posts/selection-guide/)
+- [Error Handling](/ULinkRPC/posts/error-handling/)
+- [Security Model](/ULinkRPC/posts/security-model/)
+- [DTO Versioning](/ULinkRPC/posts/dto-versioning/)
+- [Connection Lifecycle](/ULinkRPC/posts/connection-lifecycle/)
+- [Threading Model](/ULinkRPC/posts/threading-model/)
+- [Performance Tuning](/ULinkRPC/posts/performance-tuning/)
+- [Godot Integration Guide](/ULinkRPC/posts/godot-guide/)
+- [Technology Selection Guide](/ULinkRPC/posts/selection-guide/)
 
-## 最后总结
+## Final Summary
 
-现在最推荐的 ULinkRPC 入门方式已经很明确：
+The recommended ULinkRPC getting-started path is now clear:
 
-1. 用 `ULinkRPC.Starter` 生成项目
-2. 先跑通默认 `Ping` 示例
-3. 再开始替换成你自己的契约和业务逻辑
+1. Generate a project with `ULinkRPC.Starter`.
+2. Get the default `Ping` sample running.
+3. Replace it with your own contracts and business logic.
 
-这样做的好处是：
+The benefits:
 
-- 项目结构统一
-- Shared 不会从第一天就失控
-- 服务端和客户端引用关系清晰
-- source generation 流程固定
-- transport / serializer 选择可以明确收敛到模板层
+- consistent project structure
+- Shared does not drift from day one
+- clear server/client references
+- fixed source generation flow
+- transport / serializer choices are centralized in the template layer
 
-如果你是第一次接入，我建议就按 starter 的默认结构继续往前长，不要先手工改目录。先让流程稳定，再谈抽象和个性化结构。
+For a first integration, keep growing from the starter's default structure instead of manually reshaping directories first. Stabilize the workflow before designing custom abstractions and project structure.

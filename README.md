@@ -1,7 +1,5 @@
 # ULinkRPC
 
-[中文说明](./README.zh-CN.md)
-
 ULinkRPC is a strongly-typed bidirectional RPC framework for Unity, Godot, and .NET.
 
 It is designed for projects that need:
@@ -163,14 +161,8 @@ flowchart TB
     Core["ULinkRPC.Core"] --> Client["ULinkRPC.Client"]
     Core --> Server["ULinkRPC.Server"]
     Core --> Analyzers["ULinkRPC.Analyzers"]
-    Core --> Transport
-    Core --> Serializer
-    Transport --> Tcp["ULinkRPC.Transport.Tcp"]
-    Transport --> Ws["ULinkRPC.Transport.WebSocket"]
-    Transport --> Kcp["ULinkRPC.Transport.Kcp"]
-    Transport --> Loopback["ULinkRPC.Transport.Loopback"]
-    Serializer --> Json["ULinkRPC.Serializer.Json"]
-    Serializer --> MemoryPack["ULinkRPC.Serializer.MemoryPack"]
+    Core --> Transport["ULinkRPC.Transport.*"]
+    Core --> Serializer["ULinkRPC.Serializer.*"]
 ```
 
 - `ULinkRPC.Core`

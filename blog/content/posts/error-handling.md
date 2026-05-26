@@ -1,54 +1,54 @@
 +++
-title = "错误处理"
+title = "Error Handling"
 date = 2026-05-12T09:20:00+08:00
 +++
 
-这页描述当前 ULinkRPC 运行时已经实现的错误语义。它不是业务错误码设计指南；业务层仍然应该在自己的 DTO 里表达可预期的失败，例如登录失败、背包空间不足、房间不存在。
+This page describes the error semantics currently implemented by the ULinkRPC runtime. It is not a guide to business error-code design; the business layer should still express expected failures in its own DTOs, such as login failure, insufficient inventory space, or a missing room.
 
-## 协议状态
+## Protocol Status
 
-RPC 响应 envelope 使用 `RpcStatus` 表示框架层结果：
+RPC response envelopes use `RpcStatus` for framework-level results:
 
-- `Ok = 0`：服务方法成功返回，payload 是返回 DTO，`void` 返回值使用空 payload。
-- `NotFound = 1`：服务端找不到对应的 `serviceId:methodId` handler。
-- `Exception = 2`：服务端 handler 执行失败、handler 返回了 null 响应，或服务端会话请求队列已满。
+- `Ok = 0`: the service method returned successfully. The payload is the return DTO; `void` returns use an empty payload.
+- `NotFound = 1`: the server could not find a handler for the requested `serviceId:methodId`.
+- `Exception = 2`: the server handler failed, the handler returned a null response, or the server session request queue was full.
 
-这些状态只覆盖框架层。不要把可恢复的业务失败映射成服务端异常；更稳定的做法是返回业务 DTO，例如 `LoginReply { Success, ErrorCode, Message }`。
+These statuses only cover the framework layer. Do not map recoverable business failures to server exceptions; returning a business DTO such as `LoginReply { Success, ErrorCode, Message }` is more stable.
 
-## 服务端异常传播
+## Server Exception Propagation
 
-当前服务端不会把原始异常类型、堆栈、内部消息直接传给客户端。`ServerRequestDispatcher` 会记录服务端日志，然后向客户端返回：
+The current server does not send raw exception types, stacks, or internal messages directly to clients. `ServerRequestDispatcher` records server logs and returns:
 
 ```text
 RpcStatus.Exception
 ErrorMessage = "RPC handler failed."
 ```
 
-找不到 handler 时，错误消息会包含缺失的 `serviceId:methodId`。请求队列满时，状态也是 `Exception`，错误消息为服务端过载提示。
+When a handler is missing, the error message includes the missing `serviceId:methodId`. When the request queue is full, the status is also `Exception` and the message indicates server overload.
 
-这意味着客户端不能依赖服务端异常类型做分支。需要客户端感知的失败必须进入返回 DTO。
+This means clients cannot branch on server exception types. Failures that clients need to understand must be represented in return DTOs.
 
-## 客户端失败模式
+## Client Failure Modes
 
-生成的客户端最终调用 `RpcClientRuntime.CallAsync`。当前行为是：
+Generated clients ultimately call `RpcClientRuntime.CallAsync`. Current behavior:
 
-- 收到非 `Ok` 响应时抛出 `InvalidOperationException`，消息包含 `RpcStatus` 和响应 `ErrorMessage`。
-- 请求的 `CancellationToken` 被取消时，pending request 会被取消。
-- 连接断开、transport 关闭、keepalive 超时等会让 receive loop 结束，并让 pending request 以断开原因失败。
-- dispose 客户端时，pending request 会收到 `ObjectDisposedException`。
+- A non-`Ok` response throws `InvalidOperationException`, with a message containing `RpcStatus` and the response `ErrorMessage`.
+- If the request's `CancellationToken` is canceled, the pending request is canceled.
+- Disconnects, transport close, keepalive timeout, and similar failures end the receive loop and fail pending requests with the disconnect reason.
+- Disposing the client causes pending requests to receive `ObjectDisposedException`.
 
-客户端需要把“RPC 调用失败”和“业务返回失败”分开处理。前者通常意味着连接、协议、服务端 handler 或部署问题；后者是正常游戏流程的一部分。
+Client code should handle "RPC call failed" separately from "business result failed". The former usually means a connection, protocol, server handler, or deployment issue; the latter is part of normal game flow.
 
-## 推荐实践
+## Recommended Practices
 
-在业务 DTO 中定义可预期错误，不要用异常表示正常分支。
+Define expected errors in business DTOs instead of using exceptions for normal branches.
 
-给每个用户触发的 RPC 传入合理的 `CancellationToken`，例如界面关闭、场景切换或对象销毁时取消。
+Pass a reasonable `CancellationToken` to every user-triggered RPC, such as cancellation when a UI closes, a scene changes, or an object is destroyed.
 
-监听 `RpcClientRuntime.Disconnected` 或生成客户端暴露的 dispose / reconnect 流程，断线后由应用层决定是否创建新客户端并重连。
+Listen to `RpcClientRuntime.Disconnected`, or to the dispose / reconnect flow exposed by the generated client, and let the application layer decide whether to create a new client and reconnect.
 
-服务端 handler 内记录业务上下文，但不要把敏感信息放进返回 DTO 或抛出的异常消息。
+Record business context inside server handlers, but do not put sensitive information into return DTOs or thrown exception messages.
 
-## 当前没有实现的能力
+## Not Implemented Today
 
-当前仓库没有通用业务错误码协议、自动重试策略、异常类型到客户端类型的映射、分布式 tracing 集成，或按方法配置的超时策略。需要这些能力时，应在应用层封装。
+The current repository does not include a shared business error-code protocol, automatic retry policy, server exception type to client type mapping, distributed tracing integration, or per-method timeout configuration. Add these in the application layer when needed.

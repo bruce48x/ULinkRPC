@@ -1,5 +1,5 @@
 baseURL = "https://bruce48x.github.io/ULinkRPC/"
-languageCode = "zh-cn"
+languageCode = "en-us"
 title = "ULinkRPC Docs"
 
 [params]
