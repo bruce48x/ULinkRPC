@@ -254,7 +254,7 @@ public class KcpTransportTests
         var sourcePath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "..",
-            "src", "ULinkRPC.Transport.Kcp", "KcpServerTransport.cs"));
+            "src", "ULinkRPC.Transport.Kcp", "Server", "KcpServerTransport.cs"));
 
         var source = File.ReadAllText(sourcePath);
         Assert.DoesNotContain("mem.ToArray()", source, StringComparison.Ordinal);
@@ -266,7 +266,7 @@ public class KcpTransportTests
         var sourcePath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "..",
-            "src", "ULinkRPC.Transport.Kcp", "KcpTransport.cs"));
+            "src", "ULinkRPC.Transport.Kcp", "Client", "KcpTransport.cs"));
 
         var source = File.ReadAllText(sourcePath);
         Assert.DoesNotContain(

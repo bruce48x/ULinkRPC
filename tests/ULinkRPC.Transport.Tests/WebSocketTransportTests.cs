@@ -71,7 +71,7 @@ public class WebSocketTransportTests
         var sourcePath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "..",
-            "src", "ULinkRPC.Transport.WebSocket", "WsConnectionAcceptor.cs"));
+            "src", "ULinkRPC.Transport.WebSocket", "Server", "WsConnectionAcceptor.cs"));
 
         var source = File.ReadAllText(sourcePath);
         Assert.DoesNotContain(
