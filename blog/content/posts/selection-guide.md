@@ -3,13 +3,13 @@ title = "技术选型指南"
 date = 2026-05-12T09:00:00+08:00
 +++
 
-ULinkRPC 适合“C# 服务端 + C# 游戏客户端”共享契约的项目。它的核心价值是把 RPC 接口、DTO、生成代码和 transport 抽象收敛到一个固定工作流。
+ULinkRPC 适合“C# 服务端 + C# 游戏客户端”共享契约的项目。它的核心价值是让两端围绕同一份 C# 接口和 DTO 建立强类型通信边界，并把 transport、serializer 和 runtime 接入收敛到固定工作流。
 
 ## 适合选择 ULinkRPC 的情况
 
 你的服务端是 .NET，客户端是 Unity、团结引擎或 Godot C#。
 
-你希望 `Shared` 契约成为唯一源头，服务端和客户端都从同一套 C# DTO / interface 生成胶水代码。
+你希望 `Shared` 契约成为唯一源头，服务端和客户端都围绕同一套 C# DTO / interface 编译出通信胶水代码。
 
 你需要在 JSON 和 MemoryPack 之间选择，并希望 transport 可以在 TCP、WebSocket、KCP 之间切换。
 
@@ -19,7 +19,7 @@ ULinkRPC 适合“C# 服务端 + C# 游戏客户端”共享契约的项目。�
 
 ## 不适合选择 ULinkRPC 的情况
 
-你的客户端主要不是 C#，例如 TypeScript、C++、Java、Go 或原生移动端。当前仓库没有多语言 schema-first 代码生成。
+你的客户端主要不是 C#，例如 TypeScript、C++、Java、Go 或原生移动端。当前仓库不是面向跨语言 IDL 的 schema-first 工具链。
 
 你需要成熟的服务治理能力，例如服务发现、负载均衡、streaming、deadline propagation、拦截器生态、统一 tracing 和跨语言工具链。这类需求更接近 gRPC 或内部 RPC 平台。
 
@@ -31,7 +31,7 @@ ULinkRPC 适合“C# 服务端 + C# 游戏客户端”共享契约的项目。�
 
 手写消息分发的优点是简单、完全可控、没有生成层。缺点是接口增长后容易出现路由 id、DTO、序列化和调用侧封装不一致。
 
-ULinkRPC 更适合 RPC 方法数量会增长、服务端和客户端都想保留强类型调用入口的项目。代价是必须遵守 Shared 契约、通过正常构建刷新 source-generated glue，不要手改 generated 输出。
+ULinkRPC 更适合 RPC 方法数量会增长、服务端和客户端都想保留强类型调用入口的项目。代价是必须遵守 Shared 契约，并通过正常构建刷新 source-generated glue。
 
 ## 和 schema-first RPC 工具相比
 

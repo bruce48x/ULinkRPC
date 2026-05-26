@@ -59,7 +59,7 @@ starter 会尝试寻找本机 Godot Mono SDK 的 `Godot.NET.Sdk.*.nupkg`。如�
 dotnet build Client/Client.csproj
 ```
 
-Godot 侧生成代码是编译器输出，不需要项目内 `Generated/` 源码目录。服务端实现放在 `Server/Server/Services/`，Godot 业务脚本放在 `Client/Scripts/` 下你自己的目录中。
+Godot 侧通信胶水代码由编译器生成。服务端实现放在 `Server/Server/Services/`，Godot 业务脚本放在 `Client/Scripts/` 下你自己的目录中。
 
 ## Transport 和 serializer
 

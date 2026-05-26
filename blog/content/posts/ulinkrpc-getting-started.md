@@ -198,7 +198,7 @@ starter 不只是“建几个空目录”，而是会直接做完这些事情：
 
 ## 日常怎么让代码自动更新
 
-starter 第一次生成项目时，会把 `ULinkRPC.Analyzers` 配进 server / client 项目。后续日常入口就是正常 build 或编辑器编译，不需要手动运行生成命令，也不需要维护 generated 目录。
+starter 第一次生成项目时，会把 `ULinkRPC.Analyzers` 配进 server / client 项目。后续只要按正常方式构建项目，source generator 就会在编译期根据 `Shared/Interfaces/` 里的契约产出两端胶水代码。
 
 最常见的真实开发顺序其实是这样的：
 
@@ -206,7 +206,7 @@ starter 第一次生成项目时，会把 `ULinkRPC.Analyzers` 配进 server / c
 2. 正常构建 server / client，或在 Unity / 团结 Editor 里等待脚本编译
 3. 让 source generator 在编译期生成双端胶水代码
 4. 再去补服务端实现
-5. 最后在客户端里调用新的 generated API
+5. 最后在客户端里调用生成出来的类型安全 API
 
 你可以把它记成一句话：
 
@@ -231,7 +231,7 @@ flowchart LR
 - 客户端向服务端请求物品列表
 - 服务端返回当前背包内容
 
-那你的第一步，不是先去改 `Server/Program.cs`，也不是先去手写 generated 目录。
+那你的第一步，不是先去改 `Server/Program.cs`，也不是先去手写网络协议分发代码。
 
 第一步应该是先改 `Shared/Interfaces/`。
 
@@ -304,7 +304,7 @@ dotnet build Server/Server/Server.csproj
 
 Unity、Unity CN、团结项目则等待 Editor 触发脚本编译。
 
-没有单独的 starter 生成命令；如果旧项目仍保留 generated-source 输出，迁移到 source generator 后应删除旧输出目录。
+到这里不需要额外执行某个生成步骤。构建或编辑器脚本编译本身就会触发 source generator。
 
 ### 跑完之后会发生什么
 
@@ -412,7 +412,7 @@ foreach (var item in reply.Items)
 - `Server/Server/Services/` 里的服务实现
 - 客户端自己的业务脚本
 
-而不是项目内 generated 目录。新 starter 项目不再创建这些目录，核心原则就是：
+核心原则就是：
 
 **契约改了，就重新编译；不要手写胶水代码。**
 
@@ -566,7 +566,7 @@ Unable to resolve reference 'Microsoft.CodeAnalysis.CSharp'
 
 日常开发里真正的源头始终是：
 
-**Shared 契约，而不是 generated 目录。**
+**Shared 契约。**
 
 ## 上线前继续阅读
 

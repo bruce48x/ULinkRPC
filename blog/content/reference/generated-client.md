@@ -2,7 +2,7 @@
 title = "Generated RpcClient"
 +++
 
-`ULinkRPC.Analyzers` 会通过 Roslyn Source Generator 生成项目专属的 `RpcClient` facade。它不是固定 NuGet 包里的类型，也不再写入项目内 generated 目录；这些类型是编译器生成输出。
+`ULinkRPC.Analyzers` 会通过 Roslyn Source Generator 生成项目专属的 `RpcClient` facade。它不是固定 NuGet 包里的类型，而是当前项目编译时生成的类型。
 
 ## 构造
 
@@ -63,4 +63,4 @@ generated client、service proxies、callback binders 和 server binders 由 `UL
 - Server 项目生成 server binder、callback proxy、`AllServicesBinder` 和 binder assembly attribute。
 - Godot、Stride3D、Unity、Unity CN、Tuanjie 客户端生成 `RpcClient` facade、service client 和 callback binder。
 
-新 starter 项目不需要维护 `Generated/` 目录。旧项目如果仍有 committed generated 文件，迁移到 source generator 后应删除旧 generated 输出，避免和 source generator 生成的类型冲突。
+这些类型会随 `Shared` 契约变化在编译期更新。应用代码只需要维护契约、服务实现和客户端业务逻辑，不要手改生成输出。
