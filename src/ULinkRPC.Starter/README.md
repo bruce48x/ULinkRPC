@@ -12,7 +12,6 @@ Use it when you want to start a new project without manually wiring package refe
   - Unity 2022 LTS with China-friendly defaults for `unity-cn`
   - Tuanjie for `tuanjie`
   - Godot 4.6 C# for `godot`
-  - Stride3D 4.3 for `stride3d`
   - .NET 10 for `console`
 
 ## Install
@@ -45,14 +44,14 @@ ulinkrpc-starter new --name MyConsoleApp --client-engine console --transport tcp
 
 ```bash
 ulinkrpc-starter [--help|-h|--version]
-ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|stride3d|console] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]
+ulinkrpc-starter new [--name MyGame] [--output ./out] [--client-engine unity|unity-cn|tuanjie|godot|console] [--transport tcp|websocket|kcp] [--serializer json|memorypack] [--nugetforunity-source embedded|openupm] [--no-next-steps]
 ```
 
 `new` options:
 
 - `--name`: Project root folder name. Default: `ULinkApp`.
 - `--output`: Parent directory for the generated project. Default: current directory.
-- `--client-engine`: Client type to scaffold: `unity`, `unity-cn`, `tuanjie`, `godot`, `stride3d`, or `console`.
+- `--client-engine`: Client type to scaffold: `unity`, `unity-cn`, `tuanjie`, `godot`, or `console`.
 - `--transport`: Transport package: `tcp`, `websocket`, or `kcp`.
 - `--serializer`: Serializer package: `json` or `memorypack`.
 - `--nugetforunity-source`: Unity-compatible clients only. Choose `embedded` or `openupm`.
@@ -70,7 +69,6 @@ CLI prompts, validation errors, usage text, and next steps follow the system UI 
 | `unity-cn` | Unity 2022 LTS project using embedded `NuGetForUnity` by default |
 | `tuanjie` | Tuanjie-compatible Unity project using embedded `NuGetForUnity` by default |
 | `godot` | Godot 4.6 C# project with a runnable test scene |
-| `stride3d` | Stride3D 4.3 solution with a Windows launcher |
 | `console` | .NET 10 console client with a generated-client ping call |
 
 Default `NuGetForUnity` source:
@@ -123,7 +121,6 @@ Then run or open the client:
 
 - Unity / Unity CN / Tuanjie: open `Client/` in the matching editor and press Play in the generated test scene.
 - Godot: open `Client/` in Godot 4.6, build the C# project, then run `Main.tscn`.
-- Stride3D: open `Client/Client.sln` in Stride Game Studio, or run `dotnet run --project Client/Client.Windows/Client.Windows.csproj`.
 - Console: run `dotnet run --project Client/Client.csproj`.
 
 ## Changing Contracts
@@ -134,7 +131,7 @@ Generated RPC glue is compiler output. New starter projects do not create `Gener
 
 After changing shared contracts, use the normal build/editor flow. `ULinkRPC.Analyzers` runs automatically:
 
-- Server, Godot, Stride3D, and console builds run source generation during compilation.
+- Server, Godot, and console builds run source generation during compilation.
 - Unity, Unity CN, and Tuanjie run source generation through the analyzer package restored into the Unity project.
 
 When `memorypack` is selected, shared DTOs are generated with MemoryPack attributes and the required MemoryPack package references.

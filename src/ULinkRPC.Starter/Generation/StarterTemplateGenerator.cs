@@ -77,9 +77,6 @@ internal sealed class StarterTemplateGenerator
             case ClientEngineKind.Godot:
                 StarterGodotTemplate.Generate(context);
                 return;
-            case ClientEngineKind.Stride3D:
-                StarterStrideTemplate.Generate(context);
-                return;
             case ClientEngineKind.Console:
                 StarterConsoleTemplate.Generate(context);
                 return;
@@ -182,7 +179,7 @@ Thumbs.db
 
     private static void GenerateGitAttributes(StarterTemplateContext context)
     {
-        if (context.ClientEngine is not (ClientEngineKind.Godot or ClientEngineKind.Stride3D or ClientEngineKind.Console))
+        if (context.ClientEngine is not (ClientEngineKind.Godot or ClientEngineKind.Console))
             return;
 
         var gitAttributes = """

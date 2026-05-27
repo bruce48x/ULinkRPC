@@ -25,7 +25,7 @@ Deletion was gated on these checks:
 
 - `ULinkRPC.Analyzers` is the only generator implementation used by starter-generated projects.
 - Unity 2022 LTS, Unity CN, and Tuanjie compile `Rpc.Generated` client APIs through the analyzer/source-generator path.
-- Server, Godot, Stride3D, Unity, Unity CN, and Tuanjie starter smoke tests cover generated client/server glue without committed generated source.
+- Server, Godot, Unity, Unity CN, and Tuanjie starter smoke tests cover generated client/server glue without committed generated source.
 - Source-generator tests cover service clients, callback binders, facade shape, server binders, callback proxies, id constants, referenced contract assemblies, and failure diagnostics.
 - Public docs and starter README no longer teach `ULinkRPC.CodeGen` as a normal workflow.
 

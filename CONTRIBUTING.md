@@ -62,7 +62,7 @@ No circular dependencies between assemblies.
 
 ### Assembly boundaries
 
-- `ULinkRPC.Core` defines shared abstractions and protocol primitives. It must not depend on concrete transports, serializers, client runtime, server runtime, Unity, Godot, or Stride.
+- `ULinkRPC.Core` defines shared abstractions and protocol primitives. It must not depend on concrete transports, serializers, client runtime, server runtime, Unity, or Godot.
 - `ULinkRPC.Client` and `ULinkRPC.Server` depend on `ULinkRPC.Core`, not on concrete transport or serializer packages.
 - Transport packages implement `ITransport` and connection acceptors without leaking transport-specific assumptions into core RPC code.
 - Serializer packages implement `IRpcSerializer` without owning transport or session behavior.

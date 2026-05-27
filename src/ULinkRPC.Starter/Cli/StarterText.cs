@@ -164,12 +164,6 @@ internal sealed class StarterText
             StarterLanguage.TraditionalChinese => "  3) 使用 Godot 4.6 開啟 \"Client\" 並建置 C# 方案。",
             _ => "  3) Open \"Client\" with Godot 4.6 and build the C# solution."
         },
-        ClientEngineKind.Stride3D => Language switch
-        {
-            StarterLanguage.SimplifiedChinese => "  3) 使用 Stride Game Studio 打开 \"Client/Client.sln\"，或运行 \"dotnet run --project Client/Client.Windows/Client.Windows.csproj\"。",
-            StarterLanguage.TraditionalChinese => "  3) 使用 Stride Game Studio 開啟 \"Client/Client.sln\"，或執行 \"dotnet run --project Client/Client.Windows/Client.Windows.csproj\"。",
-            _ => "  3) Open \"Client/Client.sln\" with Stride Game Studio, or run \"dotnet run --project Client/Client.Windows/Client.Windows.csproj\"."
-        },
         ClientEngineKind.Console => Language switch
         {
             StarterLanguage.SimplifiedChinese => "  3) 运行 \"dotnet run --project Client/Client.csproj\" 启动 console 客户端。",
@@ -195,7 +189,6 @@ internal sealed class StarterText
             _ => "Tuanjie"
         },
         ClientEngineKind.Godot => "Godot",
-        ClientEngineKind.Stride3D => "Stride3D",
         ClientEngineKind.Console => ".NET Console",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };
@@ -216,7 +209,6 @@ internal sealed class StarterText
             _ => clientEngine.GetStarterClientLabel()
         },
         ClientEngineKind.Godot => "Godot 4.6",
-        ClientEngineKind.Stride3D => "Stride 4.3",
         ClientEngineKind.Console => ".NET console",
         _ => throw new ArgumentOutOfRangeException(nameof(clientEngine), clientEngine, null)
     };

@@ -70,28 +70,10 @@ internal static class StarterWorkspace
         if (File.Exists(clientProjectPath))
         {
             var clientProject = File.ReadAllText(clientProjectPath);
-            if (clientProject.Contains("Stride.CommunityToolkit", StringComparison.Ordinal) ||
-                clientProject.Contains("Stride.Engine", StringComparison.Ordinal))
-            {
-                clientEngine = ClientEngineKind.Stride3D;
-                return true;
-            }
-
             if (clientProject.Contains("<ULinkRPCGenerateClient>true</ULinkRPCGenerateClient>", StringComparison.Ordinal) &&
                 clientProject.Contains("<OutputType>Exe</OutputType>", StringComparison.Ordinal))
             {
                 clientEngine = ClientEngineKind.Console;
-                return true;
-            }
-        }
-
-        var strideGameProjectPath = Path.Combine(clientPath, "Client", "Client.csproj");
-        if (File.Exists(Path.Combine(clientPath, "Client.sln")) && File.Exists(strideGameProjectPath))
-        {
-            var clientProject = File.ReadAllText(strideGameProjectPath);
-            if (clientProject.Contains("Stride.Engine", StringComparison.Ordinal))
-            {
-                clientEngine = ClientEngineKind.Stride3D;
                 return true;
             }
         }

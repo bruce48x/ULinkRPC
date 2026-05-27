@@ -295,7 +295,7 @@ At this point, the next server and client compilation will see new glue code.
 
 Build the relevant project normally.
 
-For Server, Godot, and Stride3D, build the project:
+For Server and Godot, build the project:
 
 ```bash
 cd MyGame

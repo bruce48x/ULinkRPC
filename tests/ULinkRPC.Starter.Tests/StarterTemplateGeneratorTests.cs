@@ -586,84 +586,6 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void GenerateTemplate_CreatesStrideClientFiles_WithSourceGenerator()
-    {
-        var root = CreateTempRoot();
-        try
-        {
-            var commands = new List<string>();
-            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(commands), CreateFakeGitRunner());
-
-            generator.GenerateTemplate(root, "Stride-Test", ClientEngineKind.Stride3D, TransportKind.WebSocket, SerializerKind.Json, Versions);
-
-            var sharedCsproj = File.ReadAllText(Path.Combine(root, "Shared", "Shared.csproj"));
-            var solution = File.ReadAllText(Path.Combine(root, "Client", "Client.sln"));
-            var clientCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client", "Client.csproj"));
-            var windowsCsproj = File.ReadAllText(Path.Combine(root, "Client", "Client.Windows", "Client.Windows.csproj"));
-            var clientReadme = File.ReadAllText(Path.Combine(root, "Client", "README.md"));
-            var gamePackage = File.ReadAllText(Path.Combine(root, "Client", "Client", "Client.sdpkg"));
-            var gameSettings = File.ReadAllText(Path.Combine(root, "Client", "Client", "Assets", "GameSettings.sdgamesettings"));
-            var windowsPackage = File.ReadAllText(Path.Combine(root, "Client", "Client.Windows", "Client.Windows.sdpkg"));
-            var program = File.ReadAllText(Path.Combine(root, "Client", "Client.Windows", "Program.cs"));
-            var testerScript = File.ReadAllText(Path.Combine(root, "Client", "Client", "Scripts", "Rpc", "Testing", "RpcConnectionTester.cs"));
-            var generatedClientApi = Path.Combine(root, "Client", "Client", "Scripts", "Rpc", "Generated", "RpcApi.cs");
-
-            Assert.DoesNotContain(commands, static command => command.Contains("ulinkrpc-codegen", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains("<TargetFrameworks>net10.0</TargetFrameworks>", sharedCsproj);
-            Assert.Contains("Client.Windows\\Client.Windows.csproj", solution);
-            Assert.Contains("Client\\Client.csproj", solution);
-            Assert.Contains("<Project Sdk=\"Microsoft.NET.Sdk\">", clientCsproj);
-            Assert.Contains("<TargetFrameworks>net10.0-windows</TargetFrameworks>", clientCsproj);
-            Assert.Contains("<ULinkRPCGenerateClient>true</ULinkRPCGenerateClient>", clientCsproj);
-            Assert.Contains("<ULinkRPCGeneratedNamespace>Rpc.Generated</ULinkRPCGeneratedNamespace>", clientCsproj);
-            Assert.Contains("<ProjectReference Include=\"..\\..\\Shared\\Shared.csproj\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"Stride.Engine\" Version=\"4.3.0.2507\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"Stride.Core.Assets.CompilerApp\" Version=\"4.3.0.2507\">", clientCsproj);
-            Assert.Contains("<IncludeAssets>build;buildTransitive</IncludeAssets>", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Transport.WebSocket\" Version=\"4.5.6\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Serializer.Json\" Version=\"5.6.7\" />", clientCsproj);
-            Assert.Contains("<PackageReference Include=\"ULinkRPC.Analyzers\" Version=\"0.1.2\">", clientCsproj);
-            Assert.Contains("<PrivateAssets>all</PrivateAssets>", clientCsproj);
-            Assert.Contains("<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>", clientCsproj);
-            Assert.DoesNotContain("ULinkRPCGenerateCode", clientCsproj, StringComparison.Ordinal);
-            Assert.DoesNotContain("ulinkrpc-codegen", clientCsproj, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("<TargetFramework>net10.0-windows</TargetFramework>", windowsCsproj);
-            Assert.Contains("<OutputType>Exe</OutputType>", windowsCsproj);
-            Assert.Contains("<NuGetAudit>false</NuGetAudit>", windowsCsproj);
-            Assert.Contains("<ULinkRPCGenerateClient>false</ULinkRPCGenerateClient>", windowsCsproj);
-            Assert.Contains("<ProjectReference Include=\"..\\Client\\Client.csproj\" />", windowsCsproj);
-            Assert.Contains("Name: Client", gamePackage);
-            Assert.Contains("Path: !dir Effects", gamePackage);
-            Assert.Contains("!GameSettingsAsset", gameSettings);
-            Assert.Contains("DefaultBackBufferWidth: 1280", gameSettings);
-            Assert.Contains("Name: Client.Windows", windowsPackage);
-            Assert.Contains("Stride3D Client Starter", clientReadme);
-            Assert.Contains("Client.sln", clientReadme);
-            Assert.Contains("dotnet run --project Client.Windows/Client.Windows.csproj", clientReadme);
-            Assert.Contains("using Stride.Engine;", program);
-            Assert.Contains("internal sealed class RpcStarterGame : Game", program);
-            Assert.Contains("protected override async Task LoadContent()", program);
-            Assert.Contains("_ = Task.Run(_tester.ConnectAndPingAsync);", program);
-            Assert.Contains("namespace Client.Rpc.Testing;", testerScript);
-            Assert.Contains("using Rpc.Generated;", testerScript);
-            Assert.Contains("using Shared.Interfaces;", testerScript);
-            Assert.Contains("using ULinkRPC.Transport.WebSocket;", testerScript);
-            Assert.Contains("using ULinkRPC.Serializer.Json;", testerScript);
-            Assert.Contains("new WsTransport($\"ws://{_host}:{_port}{NormalizePath(_path)}\")", testerScript);
-            Assert.Contains("new JsonRpcSerializer()", testerScript);
-            Assert.Contains("await _client.ConnectAsync(_cts.Token).ConfigureAwait(false);", testerScript);
-            Assert.Contains("}).ConfigureAwait(false);", testerScript);
-            Assert.Contains("await _client.DisposeAsync().ConfigureAwait(false);", testerScript);
-            Assert.Contains("Console.WriteLine($\"Ping ok:", testerScript);
-            Assert.False(File.Exists(generatedClientApi));
-        }
-        finally
-        {
-            Directory.Delete(root, recursive: true);
-        }
-    }
-
-    [Fact]
     public void GenerateTemplate_CreatesConsoleClientFiles_WithSourceGenerator()
     {
         var root = CreateTempRoot();
@@ -817,19 +739,17 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Theory]
-    [InlineData("stride")]
-    [InlineData("stride3d")]
-    [InlineData("stride-3d")]
-    public void TryParseArgs_ParsesStrideClientEngineAliases(string rawClientEngine)
+    [InlineData("removed-engine")]
+    public void TryParseArgs_RejectsUnknownClientEngine(string rawClientEngine)
     {
         var ok = StarterCli.TryParseArgs(
             ["--client-engine", rawClientEngine],
             out var options,
             out var error);
 
-        Assert.True(ok);
-        Assert.Equal(string.Empty, error);
-        Assert.Equal(ClientEngineKind.Stride3D, options.NewCommand!.ClientEngine);
+        Assert.False(ok);
+        Assert.Equal(StarterText.Current.InvalidClientEngineValue, error);
+        Assert.Null(options);
     }
 
     [Theory]
@@ -936,27 +856,6 @@ public sealed class StarterTemplateGeneratorTests
     }
 
     [Fact]
-    public void StarterWorkspace_DetectsStrideStarterProject()
-    {
-        var root = CreateTempRoot();
-        try
-        {
-            var generator = new StarterTemplateGenerator(CreateFakeDotNetRunner(), CreateFakeGitRunner());
-            generator.GenerateTemplate(root, "Stride-Test", ClientEngineKind.Stride3D, TransportKind.Tcp, SerializerKind.Json, Versions);
-
-            var found = StarterWorkspace.TryResolveProjectContext(Path.Combine(root, "Client"), out var context, out var error);
-
-            Assert.True(found, error);
-            Assert.Equal(ClientEngineKind.Stride3D, context.ClientEngine);
-            Assert.Equal(Path.Combine(root, "Client"), context.ClientPath);
-        }
-        finally
-        {
-            Directory.Delete(root, recursive: true);
-        }
-    }
-
-    [Fact]
     public void StarterWorkspace_DetectsConsoleStarterProject()
     {
         var root = CreateTempRoot();
@@ -983,7 +882,6 @@ public sealed class StarterTemplateGeneratorTests
         Assert.Equal(NuGetForUnitySourceKind.OpenUpm, ClientEngineKind.Unity.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.UnityCn.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Tuanjie.GetDefaultNuGetForUnitySource());
-        Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Stride3D.GetDefaultNuGetForUnitySource());
         Assert.Equal(NuGetForUnitySourceKind.Embedded, ClientEngineKind.Console.GetDefaultNuGetForUnitySource());
     }
 

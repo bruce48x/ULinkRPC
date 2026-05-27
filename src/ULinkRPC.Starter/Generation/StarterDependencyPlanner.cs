@@ -6,7 +6,6 @@ internal enum StarterProjectRole
     Server,
     UnityClient,
     GodotClient,
-    StrideClient,
     ConsoleClient
 }
 
@@ -31,7 +30,6 @@ internal static class StarterDependencyPlanner
             StarterProjectRole.Server => CreateServerPlan(context),
             StarterProjectRole.UnityClient => CreateUnityClientPlan(context),
             StarterProjectRole.GodotClient => CreateGodotClientPlan(context),
-            StarterProjectRole.StrideClient => CreateStrideClientPlan(context),
             StarterProjectRole.ConsoleClient => CreateConsoleClientPlan(context),
             _ => throw new ArgumentOutOfRangeException(nameof(role), role, null)
         };
@@ -77,27 +75,6 @@ internal static class StarterDependencyPlanner
     {
         var references = new List<StarterPackageReference>
         {
-            new("ULinkRPC.Core", context.Versions.Core),
-            new("ULinkRPC.Client", context.Versions.Client),
-            new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),
-            CreateAnalyzerReference(context)
-        };
-
-        AddSdkSerializerReferenceIfNeeded(context, references);
-        return references;
-    }
-
-    private static IReadOnlyList<StarterPackageReference> CreateStrideClientPlan(StarterTemplateContext context)
-    {
-        var references = new List<StarterPackageReference>
-        {
-            new("Stride.Engine", StridePackageVersions.Stride),
-            new("Stride.Video", StridePackageVersions.Stride),
-            new("Stride.Physics", StridePackageVersions.Stride),
-            new("Stride.Navigation", StridePackageVersions.Stride),
-            new("Stride.Particles", StridePackageVersions.Stride),
-            new("Stride.UI", StridePackageVersions.Stride),
-            new("Stride.Core.Assets.CompilerApp", StridePackageVersions.Stride, IncludeAssets: "build;buildTransitive"),
             new("ULinkRPC.Core", context.Versions.Core),
             new("ULinkRPC.Client", context.Versions.Client),
             new(NuGetVersionResolver.GetTransportPackage(context.Transport), context.Versions.Transport),

@@ -20,11 +20,10 @@ Starter templates should render dependency plans. They should not independently 
 - `Server/Server/Server.csproj`
 - Unity / Tuanjie client `Assets/packages.config`
 - Godot client `Client.csproj`
-- Stride3D client projects
 
 Those projects do not consume dependencies through the same mechanism.
 
-- Server, Godot, and Stride3D consume `Shared` through SDK-style `.csproj` `ProjectReference`.
+- Server and Godot consume `Shared` through SDK-style `.csproj` `ProjectReference`.
 - Unity and Tuanjie consume `Shared` as a local UPM source package and restore runtime DLLs through NuGetForUnity `packages.config`.
 
 Dependency ownership is therefore based on both feature selection and consumer model.
@@ -37,7 +36,7 @@ The planner owns one package plan per generated project role:
 - `Server`
 - `UnityClient`
 - `GodotClient`
-- `StrideClient`
+- `ConsoleClient`
 
 The plan returns `StarterPackageReference` values with package id, version, `manuallyInstalled`, `PrivateAssets`, and `IncludeAssets` metadata.
 
@@ -84,22 +83,6 @@ When `json` is selected, Godot also directly references `ULinkRPC.Serializer.Jso
 
 When `memorypack` is selected, Godot does not repeat serializer/runtime packages already provided by `Shared.csproj`.
 
-### Stride3D Client
-
-Stride3D consumes `Shared.csproj` through `ProjectReference`.
-
-Stride3D directly references:
-
-- required Stride packages
-- `ULinkRPC.Core`
-- `ULinkRPC.Client`
-- selected transport package
-- `ULinkRPC.Analyzers` as a private analyzer/source-generator package
-
-When `json` is selected, Stride3D also directly references `ULinkRPC.Serializer.Json`.
-
-When `memorypack` is selected, Stride3D does not repeat serializer/runtime packages already provided by `Shared.csproj`.
-
 ### Unity / Tuanjie Client
 
 Unity and Tuanjie consume `Shared` through a local UPM source package, not through SDK-style transitive restore.
@@ -114,7 +97,7 @@ Their `Assets/packages.config` must keep explicit runtime packages needed by Uni
 - serializer-specific Unity runtime dependencies
 - KCP runtime dependencies when KCP transport is selected
 
-This is intentionally different from Server, Godot, and Stride3D. Do not remove Unity/Tuanjie serializer entries just because `Shared.csproj` contains a matching package reference.
+This is intentionally different from Server and Godot. Do not remove Unity/Tuanjie serializer entries just because `Shared.csproj` contains a matching package reference.
 
 ## Testing Requirements
 
@@ -122,8 +105,8 @@ This is intentionally different from Server, Godot, and Stride3D. Do not remove 
 
 - `Shared + memorypack` includes MemoryPack serializer/runtime/generator packages.
 - `Shared + json` does not include `ULinkRPC.Serializer.Json`.
-- Server, Godot, and Stride3D avoid redundant MemoryPack serializer/runtime declarations.
-- Server, Godot, and Stride3D include JSON serializer packages for JSON projects.
+- Server and Godot avoid redundant MemoryPack serializer/runtime declarations.
+- Server and Godot include JSON serializer packages for JSON projects.
 - SDK-style generated projects include `ULinkRPC.Analyzers` with private analyzer metadata.
 - Unity/Tuanjie keep explicit serializer, analyzer, transport runtime, and serializer runtime dependencies.
 

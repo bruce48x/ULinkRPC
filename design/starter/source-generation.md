@@ -15,7 +15,7 @@ The legacy CLI generator has been removed from the repository. New work must tar
 ## Goals
 
 - Generated RPC glue is compiler output, not user-managed source files.
-- Normal `dotnet build`, Unity/Tuanjie script compilation, Godot C# build, and Stride3D build produce the required RPC glue without extra commands.
+- Normal `dotnet build`, Unity/Tuanjie script compilation, and Godot C# build produce the required RPC glue without extra commands.
 - Runtime packages remain free of Roslyn, MSBuild, Unity Editor APIs, reflection emit, and runtime code generation.
 - Contract attributes remain the explicit protocol declaration surface.
 - The migration preserves deterministic generated code and generated API names as much as possible.
@@ -70,9 +70,9 @@ Server projects reference the analyzer/source-generator package and set `ULinkRP
 
 The generator emits `AllServicesBinder` and the assembly attribute into the server compilation. Existing runtime discovery through `RpcGeneratedServicesBinderAttribute` remains valid.
 
-### Godot and Stride3D
+### Godot
 
-Godot and Stride3D client projects reference the analyzer/source-generator package and set `ULinkRPCGenerateClient=true`.
+Godot client projects reference the analyzer/source-generator package and set `ULinkRPCGenerateClient=true`.
 
 Generated client types compile into the client project assembly. No `Scripts/Rpc/Generated/` files are required for new starter projects.
 
@@ -116,7 +116,7 @@ The route stays valid only while these checks pass:
 
 - Source-generated server binder discovery works through `RpcServerHostBuilder`.
 - Source-generated client facade compiles and executes behavior tests for service calls and callbacks.
-- Starter-generated Server, Godot, and Stride3D projects build without generated source directories or codegen hooks.
+- Starter-generated Server and Godot projects build without generated source directories or codegen hooks.
 - Unity 2022 LTS and Tuanjie compile generated client APIs through the intended package path.
 - Public docs describe source generation as the normal workflow.
 
