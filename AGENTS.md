@@ -1,3 +1,3 @@
 # Agent Instructions
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions and workflows.
+This file contains no rules, preferences, or instructions. All agent and contributor guidance lives in [CONTRIBUTING.md](CONTRIBUTING.md), which is the single authority for this repository.

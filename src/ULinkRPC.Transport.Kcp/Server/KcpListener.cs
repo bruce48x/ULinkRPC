@@ -130,7 +130,22 @@ namespace ULinkRPC.Transport.Kcp
                     break;
                 }
 #else
-                received = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);
+                try
+                {
+                    received = await _socket.ReceiveFromAsync(new ArraySegment<byte>(buffer), SocketFlags.None, any).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (SocketException) when (_cts.IsCancellationRequested)
+                {
+                    break;
+                }
 #endif
                 if (received.RemoteEndPoint is not IPEndPoint remoteEndPoint)
                     continue;

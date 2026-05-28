@@ -235,8 +235,15 @@ The workflow uses the `release` GitHub environment and `NuGet/login@v1` with `se
 
 Each package version is defined in its `.csproj` via the `<Version>` property.
 
-- Bump versions before pushing to `main` when publishing a new release.
-- Do not bump versions for pure refactors, test-only changes, or docs-only changes unless a release specifically requires it.
+**Critical rule — any change to library code under `src/` MUST bump the package version before pushing.** The CI workflow pushes to nuget.org with `--skip-duplicate`, so a push without a version bump silently skips publishing. The new code never reaches nuget.org, and downstream consumers get stale packages.
+
+- Bump the `<Version>` in every modified `src/*/*.csproj` whenever you change source files in that package.
+- Bump even for small bug fixes — the version is the only signal that triggers a publish.
+- Do not bump versions for pure refactors, test-only changes, or docs-only changes unless those changes are in `src/` and need to ship.
+
+If you forget: the CI run will succeed (pack + push with `--skip-duplicate`), but the updated package won't appear on nuget.org. The fix is to bump the version in a follow-up commit and push again.
+
+**Starter sync rule — when you bump a library package version, you MUST also update `src/ULinkRPC.Starter/ReleaseVersions.json`** so that newly scaffolded projects reference the latest package. Bump the Starter's own `<Version>` in its `.csproj` at the same time (the Starter is itself a published package that changed).
 
 For local verification only, pack all package projects without publishing:
 
