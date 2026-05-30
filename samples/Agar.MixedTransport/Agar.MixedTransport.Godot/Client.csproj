@@ -1,4 +1,4 @@
-<Project Sdk="Godot.NET.Sdk/4.6.1">
+<Project Sdk="Godot.NET.Sdk/4.6.2">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -17,10 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.csproj" />
-    <ProjectReference Include="..\..\..\src\ULinkRPC.Analyzers\ULinkRPC.Analyzers.csproj"
-                      ReferenceOutputAssembly="false"
-                      OutputItemType="Analyzer"
-                      PrivateAssets="all" />
+    <ProjectReference Include="..\..\..\src\ULinkRPC.Analyzers\ULinkRPC.Analyzers.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" PrivateAssets="all" />
     <ProjectReference Include="..\..\..\src\ULinkRPC.Core\ULinkRPC.Core.csproj" />
     <ProjectReference Include="..\..\..\src\ULinkRPC.Client\ULinkRPC.Client.csproj" />
     <ProjectReference Include="..\..\..\src\ULinkRPC.Transport.Tcp\ULinkRPC.Transport.Tcp.csproj" />
