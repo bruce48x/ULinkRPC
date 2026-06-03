@@ -64,6 +64,11 @@ internal static class StarterUnityTemplate
 {{BuildNuGetForUnityDependencyLine(context)}}
     "com.unity.ide.rider": "3.0.39",
     "com.unity.ide.visualstudio": "2.0.23",
+    "com.unity.modules.audio": "1.0.0",
+    "com.unity.modules.imageconversion": "1.0.0",
+    "com.unity.modules.physics": "1.0.0",
+    "com.unity.modules.physics2d": "1.0.0",
+    "com.unity.modules.screencapture": "1.0.0",
     "com.unity.modules.uielements": "1.0.0",
     "com.unity.ugui": "1.0.0",
     "com.{{context.CompanyId}}.shared": "file:../../{{context.SharedProjectName}}"
