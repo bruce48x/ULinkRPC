@@ -251,6 +251,8 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 service.NotificationMethods = notificationContract.Methods;
             }
 
+            ValidateGeneratedApiNames(services);
+
             return services
                 .OrderBy(static service => service.ServiceId)
                 .ThenBy(static service => service.FullName, StringComparer.Ordinal)
@@ -323,14 +325,24 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 throw new InvalidOperationException($"RPC service '{type.Name}' must declare at least one [RpcMethod] contract.");
 
             TryGetTypeArgument(attribute, out var notificationContractName, out var notificationContractFullName);
+            var fullName = TypeName(type);
+            var apiGroup = GetNamedString(attribute, "ApiGroup");
+            var apiName = GetNamedString(attribute, "ApiName");
+            if (apiGroup is not null)
+                ValidateExplicitApiIdentifier(type.Name, "ApiGroup", apiGroup);
+            if (apiName is not null)
+                ValidateExplicitApiIdentifier(type.Name, "ApiName", apiName);
+
             return new RpcServiceModel(
                 type.Name,
-                TypeName(type),
+                fullName,
                 type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
                 serviceId,
                 methods,
                 notificationContractName,
-                notificationContractFullName);
+                notificationContractFullName,
+                apiGroup ?? Naming.GetFacadeGroupName(fullName),
+                apiName ?? Naming.GetFacadeServicePropertyName(type.Name));
         }
 
         private static NotificationContractModel? TryCreateNotificationContract(INamedTypeSymbol type, AttributeData attribute)
@@ -450,6 +462,24 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             return false;
         }
 
+        private static string? GetNamedString(AttributeData attribute, string name)
+        {
+            foreach (var pair in attribute.NamedArguments)
+            {
+                if (string.Equals(pair.Key, name, StringComparison.Ordinal) && pair.Value.Value is string value)
+                    return value.Trim();
+            }
+
+            return null;
+        }
+
+        private static void ValidateExplicitApiIdentifier(string serviceName, string propertyName, string value)
+        {
+            if (!Naming.IsValidIdentifier(value))
+                throw new InvalidOperationException(
+                    $"RPC service '{serviceName}' uses invalid {propertyName} '{value}'. {propertyName} must be a valid C# identifier.");
+        }
+
         private static string TypeName(ITypeSymbol type) =>
             "global::" + type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty);
 
@@ -465,6 +495,22 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                     throw new InvalidOperationException($"Duplicate ServiceId {service.ServiceId} found on '{existingName}' and '{service.InterfaceName}'. Each [RpcService] must have a unique id.");
 
                 seen.Add(service.ServiceId, service.InterfaceName);
+            }
+        }
+
+        private static void ValidateGeneratedApiNames(IReadOnlyList<RpcServiceModel> services)
+        {
+            var duplicates = services
+                .GroupBy(static service => service.ApiGroupName + "." + service.ApiName, StringComparer.Ordinal)
+                .Where(static group => group.Count() > 1)
+                .ToArray();
+
+            foreach (var group in duplicates)
+            {
+                var serviceNames = string.Join(", ", group
+                    .Select(static service => service.FullName)
+                    .OrderBy(static name => name, StringComparer.Ordinal));
+                throw new InvalidOperationException($"Duplicate generated API service name '{group.Key}' for services: {serviceNames}.");
             }
         }
 
@@ -596,7 +642,7 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
         public static string GenerateFacade(List<RpcServiceModel> services, string generatedNamespace)
         {
             var groups = services
-                .GroupBy(static service => Naming.GetFacadeGroupName(service.FullName))
+                .GroupBy(static service => service.ApiGroupName)
                 .OrderBy(static group => group.Key, StringComparer.Ordinal)
                 .Select(static group => new FacadeGroupModel(group.Key, group.OrderBy(static service => service.InterfaceName, StringComparer.Ordinal).ToList()))
                 .ToList();
@@ -629,11 +675,11 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 writer.OpenBlock($"public {group.GroupName}RpcGroup(IRpcClient client)");
                 writer.Line("if (client is null) throw new ArgumentNullException(nameof(client));");
                 foreach (var service in group.Services)
-                    writer.Line($"{Naming.GetFacadeServicePropertyName(service.InterfaceName)} = new {Naming.GetClientTypeName(service.InterfaceName)}(client);");
+                    writer.Line($"{service.ApiName} = new {Naming.GetClientTypeName(service.InterfaceName)}(client);");
                 writer.CloseBlock();
                 writer.Line();
                 foreach (var service in group.Services)
-                    writer.Line($"public {service.FullName} {Naming.GetFacadeServicePropertyName(service.InterfaceName)} {{ get; }}");
+                    writer.Line($"public {service.FullName} {service.ApiName} {{ get; }}");
                 writer.CloseBlock();
                 writer.Line();
             }
@@ -924,7 +970,9 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             int serviceId,
             List<RpcMethodModel> methods,
             string? notificationContractInterfaceName,
-            string? notificationContractFullName)
+            string? notificationContractFullName,
+            string apiGroupName,
+            string apiName)
         {
             InterfaceName = interfaceName;
             FullName = fullName;
@@ -933,6 +981,8 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             Methods = methods;
             NotificationContractInterfaceName = notificationContractInterfaceName;
             NotificationContractFullName = notificationContractFullName;
+            ApiGroupName = apiGroupName;
+            ApiName = apiName;
         }
 
         public string InterfaceName { get; }
@@ -943,6 +993,8 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
         public string? NotificationContractInterfaceName { get; }
         public string? NotificationContractFullName { get; }
         public string? NotificationContractInterfaceFullName => NotificationContractFullName;
+        public string ApiGroupName { get; }
+        public string ApiName { get; }
         public List<RpcNotificationMethodModel> NotificationMethods { get; set; } = new();
         public bool HasNotificationContract => NotificationContractFullName is not null && NotificationMethods.Count > 0;
     }
@@ -1062,6 +1114,9 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             var firstDot = noGlobal.IndexOf('.');
             return firstDot < 0 ? "Default" : ToPascalIdentifier(noGlobal.Substring(0, firstDot));
         }
+
+        public static bool IsValidIdentifier(string value)
+            => !string.IsNullOrWhiteSpace(value) && SyntaxFacts.IsValidIdentifier(value);
 
         private static string ToCamelCase(string value) =>
             string.IsNullOrEmpty(value) ? "value" : char.ToLowerInvariant(value[0]) + value.Substring(1);

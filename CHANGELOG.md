@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.11 / 0.1.8
+
+- Release packages:
+	- `ULinkRPC.Core` `0.11.11`
+	- `ULinkRPC.Analyzers` `0.1.8`
+- Added `RpcServiceAttribute.ApiGroup` and `RpcServiceAttribute.ApiName` so long-lived projects can explicitly lock generated `client.Api.<group>.<service>` names.
+- Changed source generation to fail fast on duplicate generated API service names instead of producing ambiguous facade properties.
+- Documented explicit generated API naming guidance for projects that want stable facade names across namespace or interface refactors.
+
 ## 0.11.10 / 0.11.6 / 0.1.7
 
 - Release packages:

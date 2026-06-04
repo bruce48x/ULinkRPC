@@ -118,9 +118,9 @@ Once users depend on these semantics, changing them becomes expensive.
 
 ### 5. Stabilize Generated Facade Naming Rules
 
-Generated `RpcApi` currently derives group/property names from the contract namespace and service interface, and resolves conflicts with numeric suffixes.
+Generated `RpcApi` derives group/property names from the contract namespace and service interface by default.
 
-Before freezing, decide whether explicit naming support is needed, such as service/group alias attributes. Otherwise, the generated API naming rules themselves become a long-term compatibility promise.
+Long-lived contracts can now use `RpcServiceAttribute.ApiGroup` and `RpcServiceAttribute.ApiName` to explicitly lock `client.Api.<group>.<service>` names across namespace or interface refactors. Duplicate generated names fail source generation instead of receiving unstable numeric suffixes.
 
 ### 6. Keep Unity Dependency Constraints Accurate
 

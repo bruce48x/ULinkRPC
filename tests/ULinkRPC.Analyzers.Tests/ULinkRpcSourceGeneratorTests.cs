@@ -140,6 +140,51 @@ public sealed class ULinkRpcSourceGeneratorTests
         Assert.Contains("return receiver.OnNotifyAsync(arg);", callbackBinder);
     }
 
+    [Fact]
+    public void SourceGenerator_ServiceApiNames_OverrideConventionNames()
+    {
+        var compilation = AnalyzerTestHelpers.CreateCompilation(ContractWithExplicitApiNamesSource);
+        var runResult = AnalyzerTestHelpers.RunGenerator(
+            compilation,
+            new Dictionary<string, string>
+            {
+                ["build_property.ULinkRPCGenerateClient"] = "true"
+            },
+            out var outputCompilation);
+
+        Assert.Empty(runResult.Diagnostics);
+        Assert.Empty(AnalyzerTestHelpers.ErrorDiagnostics(outputCompilation));
+
+        var rpcApi = runResult.Results
+            .Single()
+            .GeneratedSources
+            .Single(static source => source.HintName == "RpcApi.g.cs")
+            .SourceText
+            .ToString();
+
+        Assert.Contains("public GameplayRpcGroup Gameplay { get; }", rpcApi);
+        Assert.Contains("public global::Example.Contracts.IInventoryService Bag { get; }", rpcApi);
+        Assert.DoesNotContain("public ExampleRpcGroup Example { get; }", rpcApi);
+        Assert.DoesNotContain("public global::Example.Contracts.IInventoryService Inventory { get; }", rpcApi);
+    }
+
+    [Fact]
+    public void SourceGenerator_DuplicateServiceApiNames_ReportDiagnostic()
+    {
+        var compilation = AnalyzerTestHelpers.CreateCompilation(ContractWithDuplicateApiNamesSource);
+        var runResult = AnalyzerTestHelpers.RunGenerator(
+            compilation,
+            new Dictionary<string, string>
+            {
+                ["build_property.ULinkRPCGenerateClient"] = "true"
+            },
+            out _);
+
+        var diagnostic = Assert.Single(runResult.Diagnostics);
+        Assert.Equal("ULRPCGEN001", diagnostic.Id);
+        Assert.Contains("Duplicate generated API service name 'World.Player'", diagnostic.GetMessage());
+    }
+
     private const string ContractWithCallbackSource = """
         using System.Threading.Tasks;
         using ULinkRPC.Core;
@@ -238,6 +283,49 @@ public sealed class ULinkRpcSourceGeneratorTests
 
                 [RpcNotification(2)]
                 ValueTask OnNotifyAsync(NotifyRequest request);
+            }
+        }
+        """;
+
+    private const string ContractWithExplicitApiNamesSource = """
+        using System.Threading.Tasks;
+        using ULinkRPC.Core;
+
+        namespace Example.Contracts
+        {
+            public sealed class InventoryRequest { }
+            public sealed class InventoryReply { }
+
+            [RpcService(1, ApiGroup = "Gameplay", ApiName = "Bag")]
+            public interface IInventoryService
+            {
+                [RpcMethod(1)]
+                ValueTask<InventoryReply> GetAsync(InventoryRequest request);
+            }
+        }
+        """;
+
+    private const string ContractWithDuplicateApiNamesSource = """
+        using System.Threading.Tasks;
+        using ULinkRPC.Core;
+
+        namespace Example.Contracts
+        {
+            public sealed class PlayerRequest { }
+            public sealed class PlayerReply { }
+
+            [RpcService(1, ApiGroup = "World", ApiName = "Player")]
+            public interface IPlayerService
+            {
+                [RpcMethod(1)]
+                ValueTask<PlayerReply> GetAsync(PlayerRequest request);
+            }
+
+            [RpcService(2, ApiGroup = "World", ApiName = "Player")]
+            public interface IAvatarService
+            {
+                [RpcMethod(1)]
+                ValueTask<PlayerReply> GetAsync(PlayerRequest request);
             }
         }
         """;

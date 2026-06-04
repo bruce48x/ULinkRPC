@@ -39,7 +39,7 @@ The same generated client instance should not be reused as an automatic reconnec
 
 ## `Api` Facade
 
-`client.Api` lazily creates a `RpcApi`. `RpcApi` generates groups from the first segment of the service namespace and properties from service interfaces.
+`client.Api` lazily creates a `RpcApi`. By default, `RpcApi` generates groups from the first segment of the service namespace and properties from service interfaces.
 
 For example, `Game.Rpc.Contracts.IPlayerService` usually generates an entry point similar to:
 
@@ -48,7 +48,16 @@ var player = client.Api.Game.Player;
 var reply = await player.LoginAsync(request, ct);
 ```
 
-Exact group and property names depend on contract namespaces and interface names. The generated code is the source of truth for the current project; if naming conflicts occur, follow the generated result.
+Long-lived projects can lock these names explicitly on the service contract:
+
+```csharp
+[RpcService(1, ApiGroup = "Game", ApiName = "Player")]
+public interface IPlayerService
+{
+}
+```
+
+Generated API names must be unique within each group. If two services would generate the same `client.Api.<group>.<name>` path, generation fails so the contract can choose an explicit `ApiGroup` or `ApiName`.
 
 ## Notification Base Class
 

@@ -14,6 +14,8 @@ namespace ULinkRPC.Core
         }
 
         public int ServiceId { get; }
+        public string? ApiGroup { get; set; }
+        public string? ApiName { get; set; }
         public Type? NotificationContract { get; set; }
     }
 

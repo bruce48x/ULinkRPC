@@ -629,6 +629,14 @@ Decoded response envelope with an owned payload frame slice.
 
 Marks an interface as an RPC service. ServiceId must be stable across versions.
 
+### Property `ULinkRPC.Core.RpcServiceAttribute.ApiGroup`
+
+Optional generated `client.Api.<group>` group name. Use this to keep generated facade names stable across namespace refactors.
+
+### Property `ULinkRPC.Core.RpcServiceAttribute.ApiName`
+
+Optional generated `client.Api.<group>.<service>` property name. Use this to keep generated facade names stable across interface renames.
+
 ### Type `ULinkRPC.Core.RpcStatus`
 
 Describes the outcome of an RPC response.
