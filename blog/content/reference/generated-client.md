@@ -35,7 +35,7 @@ Each notification receiver type can be registered only once. Registering the sam
 - `Disconnected` directly forwards the runtime disconnect event.
 - `Options` returns the `RpcClientOptions` passed at construction.
 
-The same generated client instance should not be reused as an automatic reconnect object. After disconnecting, the application layer should dispose the current instance and create a new transport, serializer, options object, and generated client.
+The same generated client instance must not be reused as an automatic reconnect object. After disconnecting or disposing, the application layer should dispose the current instance and create a new transport, serializer, options object, and generated client.
 
 ## `Api` Facade
 

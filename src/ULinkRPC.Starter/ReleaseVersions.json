@@ -1,6 +1,6 @@
 {
   "Core": "0.11.11",
-  "Server": "0.11.9",
+  "Server": "0.11.10",
   "Client": "0.11.6",
   "TransportTcp": "0.11.4",
   "TransportWebSocket": "0.11.6",

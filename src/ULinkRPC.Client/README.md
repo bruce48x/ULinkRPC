@@ -54,6 +54,8 @@ await client.ConnectAsync(ct);
 
 `RpcClient.Api` is generated per contract set and exposes grouped service clients after the connection is configured.
 
+`RpcClientRuntime` and the generated `RpcClient` are single-use connection objects. After disconnecting or disposing, create a new transport, options object, and generated client for reconnect.
+
 ## Server Notifications
 
 Generated notification binders register one handler per notification method. Duplicate registration fails fast because notifications model a contract implementation, not a general event subscription list.

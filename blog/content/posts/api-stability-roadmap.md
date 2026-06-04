@@ -106,13 +106,14 @@ Handler exceptions and unhandled notification frames are observable through runt
 
 ### 4. Lock Down Lifetime Semantics
 
-The current docs already recommend rebuilding the generated client, runtime, transport, and options after disconnects. Before freezing, clarify further:
+The current lifecycle direction is:
 
-- whether `RpcClientRuntime` is single-use
-- whether `RpcSession` may restart after stop
-- whether `ConnectAsync` on accepted server transports is initialization or an actual connection action
-- whether `ITransport.IsConnected` is a diagnostic signal or strongly consistent state
-- event and pending-request behavior for dispose, remote close, and keepalive timeout
+- `RpcClientRuntime` and the generated `RpcClient` are single-use connection objects.
+- `RpcSession` represents one accepted connection and cannot restart after stop, disconnect, timeout, or dispose.
+- Cleanup methods such as `StopAsync` and `DisposeAsync` are idempotent, but idempotent cleanup does not mean restartability.
+- `ConnectAsync` on accepted server transports initializes per-connection state over an already accepted connection.
+- `ITransport.IsConnected` is a best-known local diagnostic signal, not a strongly consistent pre-send check.
+- Application reconnect flows should create a new transport, options object, generated client/runtime, and server session.
 
 Once users depend on these semantics, changing them becomes expensive.
 

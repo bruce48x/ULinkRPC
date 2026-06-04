@@ -544,6 +544,10 @@ Serializer for RPC method payloads (arguments and return values). Envelope encod
 
 Transport boundary for RPC: sends and receives complete frames (one message). TCP/WS/KCP differences are hidden below this interface.
 
+### Property `ULinkRPC.Core.ITransport.IsConnected`
+
+Best-known local connection state for diagnostics. This value is not a synchronization primitive and does not guarantee that the next send or receive will succeed.
+
 ### Type `ULinkRPC.Core.LengthPrefix`
 
 Network framing: uint32 length prefix (big-endian) + payload bytes. Matches Unity client's LengthPrefix for wire compatibility.
@@ -717,6 +721,8 @@ Stops background loops, fails pending requests, and disposes the transport.
 ### Method `ULinkRPC.Client.RpcClientRuntime.StartAsync(System.Threading.CancellationToken)`
 
 Connects the transport and starts background runtime loops.
+
+Remarks: A runtime is a single-use connection object. Calling `StartAsync` after it has already started throws `InvalidOperationException`; after disconnect or dispose, create a new runtime instead of restarting the old one.
 
 Parameters:
 - `ct`: Cancellation token for the initial transport connection.
@@ -1082,6 +1088,8 @@ Parameters:
 
 Connects the transport and starts the session receive loop.
 
+Remarks: A session represents one accepted connection. Calling `StartAsync` after the session has already started, stopped, disconnected, or been disposed throws `InvalidOperationException`.
+
 Parameters:
 - `ct`: Cancellation token for the initial transport connection.
 
@@ -1091,6 +1099,8 @@ Exceptions:
 ### Method `ULinkRPC.Server.RpcSession.StopAsync`
 
 Requests session shutdown and waits for in-flight requests to complete.
+
+Remarks: `StopAsync` is idempotent cleanup, not a pause operation. After it completes, the session is terminal and cannot be started again.
 
 ### Method `ULinkRPC.Server.RpcSession.WaitForCompletionAsync`
 

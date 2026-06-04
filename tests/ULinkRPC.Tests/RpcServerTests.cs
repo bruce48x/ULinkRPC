@@ -159,7 +159,7 @@ public class RpcSessionTests
     }
 
     [Fact]
-    public async Task StopAsync_ThenStartAgain_Succeeds()
+    public async Task StartAsync_AfterStopOnSameSession_Throws()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
@@ -168,7 +168,21 @@ public class RpcSessionTests
         await server.StartAsync();
         await server.StopAsync();
 
-        // After stop, _started is reset to 0, so creating a new transport to re-start
+        await Assert.ThrowsAsync<InvalidOperationException>(() => server.StartAsync().AsTask());
+
+        await clientTransport.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task StartAsync_AfterStopOnNewSession_Succeeds()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+        var server = new RpcSession(serverTransport, serializer);
+
+        await server.StartAsync();
+        await server.StopAsync();
+
         LoopbackTransport.CreatePair(out var clientTransport2, out var serverTransport2);
         var server2 = new RpcSession(serverTransport2, serializer);
         await server2.StartAsync();

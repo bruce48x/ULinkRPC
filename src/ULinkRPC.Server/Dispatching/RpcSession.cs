@@ -43,6 +43,7 @@ namespace ULinkRPC.Server
         private Task? _loop;
         private int _disposed;
         private int _started;
+        private int _terminated;
         private int _transportDisposed;
         private long _disconnectReasonSet;
         private Exception? _disconnectReason;
@@ -247,6 +248,9 @@ namespace ULinkRPC.Server
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
             ThrowIfDisposed();
+            if (Volatile.Read(ref _terminated) != 0)
+                throw new InvalidOperationException("RpcSession cannot be restarted after it has stopped.");
+
             if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
                 throw new InvalidOperationException("RpcSession already started.");
 
@@ -510,6 +514,7 @@ namespace ULinkRPC.Server
         private void ResetRuntimeState(CancellationTokenSource serverCts)
         {
             _scopedServices.Clear();
+            Interlocked.Exchange(ref _terminated, 1);
 
             if (ReferenceEquals(_cts, serverCts))
             {
@@ -587,6 +592,7 @@ namespace ULinkRPC.Server
             _loop = null;
             _keepAliveLoop = null;
             Interlocked.Exchange(ref _started, 0);
+            Interlocked.Exchange(ref _terminated, 1);
             _scopedServices.Clear();
         }
 
