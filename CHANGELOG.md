@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.12 / 0.11.11
+
+- Release packages:
+	- `ULinkRPC.Core` `0.11.12`
+	- `ULinkRPC.Server` `0.11.11`
+- Replaced the ambiguous `RpcStatus.Exception` with framework-specific statuses: `HandlerError`, `Overloaded`, `BadRequest`, and `ProtocolError`.
+- Updated server request dispatch so handler failures return `HandlerError` and request queue saturation returns `Overloaded`.
+- Documented that `RpcStatus` is framework-only; business failures belong in business DTOs.
+
 ## 0.11.11 / 0.1.8
 
 - Release packages:

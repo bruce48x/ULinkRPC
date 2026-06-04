@@ -31,9 +31,13 @@ A client-to-server RPC request.
 
 A server-to-client RPC response.
 
-### Field `ULinkRPC.Core.RpcStatus.Exception`
+### Field `ULinkRPC.Core.RpcStatus.BadRequest`
 
-The server failed while handling the request.
+The request reached the RPC layer but was invalid for the target RPC contract.
+
+### Field `ULinkRPC.Core.RpcStatus.HandlerError`
+
+The server handler failed or returned an invalid framework response.
 
 ### Field `ULinkRPC.Core.RpcStatus.NotFound`
 
@@ -42,6 +46,14 @@ The target service or method was not found.
 ### Field `ULinkRPC.Core.RpcStatus.Ok`
 
 The request completed successfully and the payload contains the serialized return value.
+
+### Field `ULinkRPC.Core.RpcStatus.Overloaded`
+
+The server could not accept the request because it is overloaded.
+
+### Field `ULinkRPC.Core.RpcStatus.ProtocolError`
+
+The peer violated the RPC wire protocol or connection state machine.
 
 ### Field `ULinkRPC.Core.RpcVoid.Instance`
 
@@ -63,7 +75,7 @@ Type parameters:
 Returns: The deserialized response DTO.
 
 Exceptions:
-- `System.InvalidOperationException`: Thrown by the default runtime when the remote response status is not `ULinkRPC.Core.RpcStatus.Ok`.
+- `ULinkRPC.Core.RpcException`: Thrown by the default runtime when the remote response status is not `ULinkRPC.Core.RpcStatus.Ok`.
 
 ### Method `ULinkRPC.Core.IRpcClient.RegisterNotificationHandler(ULinkRPC.Core.RpcNotificationMethod<T0>,System.Func<T0,System.Threading.Tasks.ValueTask>)`
 
@@ -643,7 +655,7 @@ Optional generated `client.Api.<group>.<service>` property name. Use this to kee
 
 ### Type `ULinkRPC.Core.RpcStatus`
 
-Describes the outcome of an RPC response.
+Describes framework-level RPC response outcomes only. It does not represent business failures. Non-`Ok` responses are surfaced by the client runtime as `ULinkRPC.Core.RpcException`; use `RpcException.Status` for machine-readable observability and retry decisions.
 
 ### Type `ULinkRPC.Core.RpcVoid`
 

@@ -11,7 +11,10 @@ RPC response envelopes use `RpcStatus` for framework-level results:
 
 - `Ok = 0`: the service method returned successfully. The payload is the return DTO; `void` returns use an empty payload.
 - `NotFound = 1`: the server could not find a handler for the requested `serviceId:methodId`.
-- `Exception = 2`: the server handler failed, the handler returned a null response, or the server session request queue was full.
+- `HandlerError = 2`: the server handler failed or returned an invalid framework response.
+- `Overloaded = 3`: the server could not accept the request because it is overloaded, such as when a request queue is full.
+- `BadRequest = 4`: the request reached the RPC layer but was invalid for the target RPC contract.
+- `ProtocolError = 5`: the peer violated the wire protocol or connection state machine.
 
 These statuses only cover the framework layer. Do not map recoverable business failures to server exceptions; returning a business DTO such as `LoginReply { Success, ErrorCode, Message }` is more stable.
 
@@ -20,11 +23,11 @@ These statuses only cover the framework layer. Do not map recoverable business f
 The current server does not send raw exception types, stacks, or internal messages directly to clients. `ServerRequestDispatcher` records server logs and returns:
 
 ```text
-RpcStatus.Exception
+RpcStatus.HandlerError
 ErrorMessage = "RPC handler failed."
 ```
 
-When a handler is missing, the error message includes the missing `serviceId:methodId`. When the request queue is full, the status is also `Exception` and the message indicates server overload.
+When a handler is missing, the error message includes the missing `serviceId:methodId`. When the request queue is full, the status is `Overloaded` and the message indicates server overload.
 
 This means clients cannot branch on server exception types. Failures that clients need to understand must be represented in return DTOs.
 
@@ -32,7 +35,7 @@ This means clients cannot branch on server exception types. Failures that client
 
 Generated clients ultimately call `RpcClientRuntime.CallAsync`. Current behavior:
 
-- A non-`Ok` response throws `InvalidOperationException`, with a message containing `RpcStatus` and the response `ErrorMessage`.
+- A non-`Ok` response throws `RpcException`, with `Status`, `ErrorMessage`, `RequestId`, `ServiceId`, and `MethodId`.
 - If the request's `CancellationToken` is canceled, the pending request is canceled.
 - Disconnects, transport close, keepalive timeout, and similar failures end the receive loop and fail pending requests with the disconnect reason.
 - Disposing the client causes pending requests to receive `ObjectDisposedException`.

@@ -99,7 +99,7 @@ public class RpcSessionTests
     }
 
     [Fact]
-    public async Task HandlerThrows_ReturnsException()
+    public async Task HandlerThrows_ReturnsHandlerError()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
@@ -129,7 +129,7 @@ public class RpcSessionTests
 
         using var resp = await ReceiveResponseAsync(clientTransport);
 
-        Assert.Equal(RpcStatus.Exception, resp.Status);
+        Assert.Equal(RpcStatus.HandlerError, resp.Status);
         Assert.Equal("RPC handler failed.", resp.ErrorMessage);
         Assert.DoesNotContain("test error", resp.ErrorMessage);
         Assert.DoesNotContain(nameof(InvalidOperationException), resp.ErrorMessage);
@@ -503,7 +503,7 @@ public class RpcSessionTests
 
         using var overloadResponse = await ReceiveResponseAsync(clientTransport);
         Assert.Equal(3u, overloadResponse.RequestId);
-        Assert.Equal(RpcStatus.Exception, overloadResponse.Status);
+        Assert.Equal(RpcStatus.Overloaded, overloadResponse.Status);
         Assert.Contains("overloaded", overloadResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
 
         releaseFirstRequest.TrySetResult();

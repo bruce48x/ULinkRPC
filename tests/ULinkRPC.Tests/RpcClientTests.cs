@@ -121,7 +121,7 @@ public class RpcClientRuntimeTests
     }
 
     [Fact]
-    public async Task CallAsync_ServerError_ThrowsOnClient()
+    public async Task CallAsync_HandlerError_ThrowsRpcException()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
@@ -137,11 +137,11 @@ public class RpcClientRuntimeTests
 
         var ex = await Assert.ThrowsAsync<RpcException>(() =>
             client.CallAsync(EchoMethod, "test").AsTask());
-        Assert.Equal(RpcStatus.Exception, ex.Status);
+        Assert.Equal(RpcStatus.HandlerError, ex.Status);
         Assert.Equal("RPC handler failed.", ex.ErrorMessage);
         Assert.Equal(1, ex.ServiceId);
         Assert.Equal(1, ex.MethodId);
-        Assert.Contains("Exception", ex.Message);
+        Assert.Contains("HandlerError", ex.Message);
 
         await client.DisposeAsync();
         await server.StopAsync();

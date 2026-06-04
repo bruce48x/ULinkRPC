@@ -61,7 +61,7 @@ Reduce payloads for high-frequency RPCs first:
 - `MaxQueuedRequestsPerSession`, default 256.
 - `MaxPendingAcceptedConnections`, default from the connection acceptor.
 
-When the queue is full, the server returns `RpcStatus.Exception` and an overload message. Before increasing these values, confirm whether service methods block, access shared locks, or create more memory pressure.
+When the queue is full, the server returns `RpcStatus.Overloaded` and an overload message. Before increasing these values, confirm whether service methods block, access shared locks, or create more memory pressure.
 
 ## Current Benchmark Status
 

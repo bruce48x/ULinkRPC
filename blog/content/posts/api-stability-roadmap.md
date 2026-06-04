@@ -84,7 +84,7 @@ The goal is not to reduce every public type, but to prevent temporary public sur
 
 ### 2. Strengthen the Error Model
 
-Today `RpcStatus` only has `Ok`, `NotFound`, and `Exception`.
+`RpcStatus` is a framework-only status taxonomy: `Ok`, `NotFound`, `HandlerError`, `Overloaded`, `BadRequest`, and `ProtocolError`. Business failures stay in business DTOs.
 
 Clients now throw `RpcException` for non-OK remote responses. `RpcException` is the dedicated framework exception for remote RPC failures and exposes:
 
@@ -94,7 +94,7 @@ Clients now throw `RpcException` for non-OK remote responses. `RpcException` is 
 - service id
 - method id
 
-Before freezing, evaluate whether framework-level statuses such as overloaded, decode failure, and bad request should be separated. Business errors should still stay in application DTOs or business return models, not be forced into the low-level runtime.
+Before freezing, continue tightening where each status is produced, especially around decode failures and protocol violations. Business errors should still stay in application DTOs or business return models, not be forced into the low-level runtime.
 
 ### 3. Stabilize Server Notification API
 

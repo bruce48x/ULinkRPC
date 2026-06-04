@@ -32,7 +32,7 @@ namespace ULinkRPC.Core
     }
 
     /// <summary>
-    /// Describes the outcome of an RPC response.
+    /// Describes the framework-level outcome of an RPC response.
     /// </summary>
     public enum RpcStatus : byte
     {
@@ -47,9 +47,24 @@ namespace ULinkRPC.Core
         NotFound = 1,
 
         /// <summary>
-        /// The server failed while handling the request.
+        /// The server handler failed or returned an invalid framework response.
         /// </summary>
-        Exception = 2
+        HandlerError = 2,
+
+        /// <summary>
+        /// The server could not accept the request because it is overloaded.
+        /// </summary>
+        Overloaded = 3,
+
+        /// <summary>
+        /// The request reached the RPC layer but was invalid for the target RPC contract.
+        /// </summary>
+        BadRequest = 4,
+
+        /// <summary>
+        /// The peer violated the RPC wire protocol or connection state machine.
+        /// </summary>
+        ProtocolError = 5
     }
 
     /// <summary>

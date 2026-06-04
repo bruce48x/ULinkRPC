@@ -52,7 +52,7 @@ internal sealed class ServerRequestDispatcher
         var response = new RpcResponseEnvelope
         {
             RequestId = requestId,
-            Status = RpcStatus.Exception,
+            Status = RpcStatus.Overloaded,
             Payload = Array.Empty<byte>(),
             ErrorMessage = "RPC server is overloaded; request queue is full."
         };
@@ -78,7 +78,7 @@ internal sealed class ServerRequestDispatcher
                 resp = new RpcResponseEnvelope
                 {
                     RequestId = req.RequestId,
-                    Status = RpcStatus.Exception,
+                    Status = RpcStatus.HandlerError,
                     Payload = Array.Empty<byte>(),
                     ErrorMessage = "RPC handler returned null response."
                 };
@@ -94,7 +94,7 @@ internal sealed class ServerRequestDispatcher
             resp = new RpcResponseEnvelope
             {
                 RequestId = req.RequestId,
-                Status = RpcStatus.Exception,
+                Status = RpcStatus.HandlerError,
                 Payload = Array.Empty<byte>(),
                 ErrorMessage = HandlerExecutionErrorMessage
             };
@@ -126,7 +126,7 @@ internal sealed class ServerRequestDispatcher
                 LogHandlerFailure(session, req, ex);
                 using var errFrame = RpcEnvelopeCodec.EncodeResponse(
                     req.RequestId,
-                    RpcStatus.Exception,
+                    RpcStatus.HandlerError,
                     ReadOnlyMemory<byte>.Empty,
                     HandlerExecutionErrorMessage);
                 await _sender.SendAsync(errFrame.Memory, ct).ConfigureAwait(false);
