@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,11 @@ namespace ULinkRPC.Server
     /// <param name="req">Request envelope.</param>
     /// <param name="ct">Cancellation token for request processing.</param>
     /// <returns>Response envelope to send back to the client.</returns>
+    /// <remarks>
+    ///     Runtime-internal handler wiring. Regular applications should define RPC contracts and service
+    ///     implementations, then let generated binders register handlers.
+    /// </remarks>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public delegate ValueTask<RpcResponseEnvelope> RpcHandler(RpcRequestEnvelope req, CancellationToken ct);
 
     /// <summary>
@@ -19,8 +25,10 @@ namespace ULinkRPC.Server
     /// <remarks>
     ///     A session owns receive, dispatch, optional keepalive, and server push for one transport connection.
     ///     Generated server binders usually create session-scoped service instances through
-    ///     <see cref="GetOrAddScopedService{TService}"/>.
+    ///     <see cref="GetOrAddScopedService{TService}"/>. Regular server applications should use
+    ///     <see cref="RpcServerHostBuilder"/> instead of constructing sessions directly.
     /// </remarks>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public sealed class RpcSession : IAsyncDisposable
     {
         private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RpcHandler> _handlers = new();

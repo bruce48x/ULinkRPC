@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using ULinkRPC.Core;
@@ -29,6 +30,11 @@ public sealed class RpcServerHostBuilder
     /// <summary>
     ///     Registry used for generated and manually configured service handlers.
     /// </summary>
+    /// <remarks>
+    ///     Generated-support API. Regular applications should bind generated services through the builder
+    ///     instead of mutating the registry directly.
+    /// </remarks>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public RpcServiceRegistry ServiceRegistry { get; } = new();
 
     /// <summary>
@@ -202,6 +208,11 @@ public sealed class RpcServerHostBuilder
     /// </summary>
     /// <param name="configure">Registry configuration callback.</param>
     /// <returns>This builder.</returns>
+    /// <remarks>
+    ///     Generated-support and advanced runtime configuration. Regular applications should prefer generated
+    ///     service binding through <see cref="BindGeneratedServicesFromAssembly"/>.
+    /// </remarks>
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public RpcServerHostBuilder ConfigureServices(Action<RpcServiceRegistry> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);

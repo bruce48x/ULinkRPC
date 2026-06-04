@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.13 / 0.3.7
+
+- Release packages:
+	- `ULinkRPC.Server` `0.11.13`
+	- `ULinkRPC.Starter` `0.3.7`
+- Marked runtime-internal server APIs such as `RpcSession`, low-level handler delegates, and registry mutation entry points with `EditorBrowsable(Never)`.
+- Added tests that keep runtime-internal server APIs hidden from normal IntelliSense.
+- Updated the starter release manifest to reference `ULinkRPC.Server` `0.11.13`.
+
 ## 0.11.12 / 0.3.6
 
 - Release packages:

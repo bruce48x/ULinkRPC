@@ -840,7 +840,7 @@ Exceptions:
 
 Manually configures service handlers.
 
-Remarks: This is generated-binder support and advanced runtime configuration. Regular server applications should prefer generated service binding through `RpcServerHostBuilder` and should not hand-write `(serviceId, methodId)` handler dictionaries.
+Remarks: Generated-support and advanced runtime configuration. Regular applications should prefer generated service binding through `ULinkRPC.Server.RpcServerHostBuilder.BindGeneratedServicesFromAssembly(System.Reflection.Assembly)`.
 
 Parameters:
 - `configure`: Registry configuration callback.
@@ -1088,7 +1088,7 @@ Type parameters:
 
 Registers a low-level request handler for one service method.
 
-Remarks: This is runtime-internal handler wiring. Regular applications should define RPC contracts and service implementations, then let generated binders register handlers.
+Remarks: Runtime-internal handler wiring. Regular applications should define RPC contracts and service implementations, then let generated binders register handlers.
 
 Parameters:
 - `serviceId`: Stable service id.
@@ -1164,7 +1164,7 @@ Remote endpoint of the connected client, if the underlying transport supports it
 
 Low-level handler for a decoded RPC request.
 
-Remarks: This delegate is runtime-internal handler wiring, not a normal application extension point.
+Remarks: Runtime-internal handler wiring. Regular applications should define RPC contracts and service implementations, then let generated binders register handlers.
 
 Parameters:
 - `req`: Request envelope.
