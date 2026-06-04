@@ -178,7 +178,7 @@ namespace ULinkRPC.Client
 
                 using var resp = await tcs.Task.ConfigureAwait(false);
                 if (resp.Status != RpcStatus.Ok)
-                    throw new InvalidOperationException($"RPC failed: {resp.Status}, {resp.ErrorMessage}");
+                    throw new RpcException(resp.Status, resp.ErrorMessage, id, method.ServiceId, method.MethodId);
 
                 if (typeof(TResult) == typeof(RpcVoid))
                     return (TResult)(object)RpcVoid.Instance;

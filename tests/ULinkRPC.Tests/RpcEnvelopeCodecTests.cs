@@ -27,6 +27,51 @@ public class RpcEnvelopeCodecTests
     }
 
     [Fact]
+    public void EncodeRequest_MatchesWireProtocolV1GoldenBytes()
+    {
+        var request = new RpcRequestEnvelope
+        {
+            RequestId = 1,
+            ServiceId = 2,
+            MethodId = 3,
+            Payload = new byte[] { 0xAA, 0xBB, 0xCC }
+        };
+
+        using var encoded = RpcEnvelopeCodec.EncodeRequest(request);
+
+        Assert.Equal(new byte[]
+        {
+            0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x02,
+            0x00, 0x00, 0x00, 0x03,
+            0x00, 0x00, 0x00, 0x03,
+            0xAA, 0xBB, 0xCC
+        }, encoded.ToArray());
+    }
+
+    [Fact]
+    public void DecodeRequest_ReadsWireProtocolV1GoldenBytes()
+    {
+        using var frame = TransportFrame.CopyOf(new byte[]
+        {
+            0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x02,
+            0x00, 0x00, 0x00, 0x03,
+            0x00, 0x00, 0x00, 0x03,
+            0xAA, 0xBB, 0xCC
+        });
+
+        using var decoded = RpcEnvelopeCodec.DecodeRequest(frame);
+
+        Assert.Equal(1u, decoded.RequestId);
+        Assert.Equal(2, decoded.ServiceId);
+        Assert.Equal(3, decoded.MethodId);
+        Assert.Equal(new byte[] { 0xAA, 0xBB, 0xCC }, decoded.Payload.ToArray());
+    }
+
+    [Fact]
     public void ResponseRoundTrip_PreservesAllFields()
     {
         var original = new RpcResponseEnvelope
@@ -47,6 +92,50 @@ public class RpcEnvelopeCodecTests
     }
 
     [Fact]
+    public void EncodeResponseOk_MatchesWireProtocolV1GoldenBytes()
+    {
+        var response = new RpcResponseEnvelope
+        {
+            RequestId = 0x01020304,
+            Status = RpcStatus.Ok,
+            Payload = new byte[] { 0x10, 0x20 }
+        };
+
+        using var encoded = RpcEnvelopeCodec.EncodeResponse(response);
+
+        Assert.Equal(new byte[]
+        {
+            0x02,
+            0x01, 0x02, 0x03, 0x04,
+            0x00,
+            0x00, 0x00, 0x00, 0x02,
+            0x10, 0x20,
+            0x00
+        }, encoded.ToArray());
+    }
+
+    [Fact]
+    public void DecodeResponseOk_ReadsWireProtocolV1GoldenBytes()
+    {
+        using var frame = TransportFrame.CopyOf(new byte[]
+        {
+            0x02,
+            0x01, 0x02, 0x03, 0x04,
+            0x00,
+            0x00, 0x00, 0x00, 0x02,
+            0x10, 0x20,
+            0x00
+        });
+
+        using var decoded = RpcEnvelopeCodec.DecodeResponse(frame);
+
+        Assert.Equal(0x01020304u, decoded.RequestId);
+        Assert.Equal(RpcStatus.Ok, decoded.Status);
+        Assert.Equal(new byte[] { 0x10, 0x20 }, decoded.Payload.ToArray());
+        Assert.Null(decoded.ErrorMessage);
+    }
+
+    [Fact]
     public void ResponseRoundTrip_WithErrorMessage()
     {
         var original = new RpcResponseEnvelope
@@ -62,6 +151,53 @@ public class RpcEnvelopeCodecTests
 
         Assert.Equal(RpcStatus.Exception, decoded.Status);
         Assert.Equal("something went wrong", decoded.ErrorMessage);
+    }
+
+    [Fact]
+    public void EncodeResponseError_MatchesWireProtocolV1GoldenBytes()
+    {
+        var response = new RpcResponseEnvelope
+        {
+            RequestId = 7,
+            Status = RpcStatus.Exception,
+            Payload = Array.Empty<byte>(),
+            ErrorMessage = "fail"
+        };
+
+        using var encoded = RpcEnvelopeCodec.EncodeResponse(response);
+
+        Assert.Equal(new byte[]
+        {
+            0x02,
+            0x00, 0x00, 0x00, 0x07,
+            0x02,
+            0x00, 0x00, 0x00, 0x00,
+            0x01,
+            0x00, 0x00, 0x00, 0x04,
+            0x66, 0x61, 0x69, 0x6C
+        }, encoded.ToArray());
+    }
+
+    [Fact]
+    public void DecodeResponseError_ReadsWireProtocolV1GoldenBytes()
+    {
+        using var frame = TransportFrame.CopyOf(new byte[]
+        {
+            0x02,
+            0x00, 0x00, 0x00, 0x07,
+            0x02,
+            0x00, 0x00, 0x00, 0x00,
+            0x01,
+            0x00, 0x00, 0x00, 0x04,
+            0x66, 0x61, 0x69, 0x6C
+        });
+
+        using var decoded = RpcEnvelopeCodec.DecodeResponse(frame);
+
+        Assert.Equal(7u, decoded.RequestId);
+        Assert.Equal(RpcStatus.Exception, decoded.Status);
+        Assert.True(decoded.Payload.IsEmpty);
+        Assert.Equal("fail", decoded.ErrorMessage);
     }
 
     [Fact]
@@ -212,6 +348,47 @@ public class RpcEnvelopeCodecTests
     }
 
     [Fact]
+    public void EncodePush_MatchesWireProtocolV1GoldenBytes()
+    {
+        var push = new RpcPushEnvelope
+        {
+            ServiceId = 2,
+            MethodId = 3,
+            Payload = new byte[] { 0xAA, 0xBB }
+        };
+
+        using var encoded = RpcEnvelopeCodec.EncodePush(push);
+
+        Assert.Equal(new byte[]
+        {
+            0x03,
+            0x00, 0x00, 0x00, 0x02,
+            0x00, 0x00, 0x00, 0x03,
+            0x00, 0x00, 0x00, 0x02,
+            0xAA, 0xBB
+        }, encoded.ToArray());
+    }
+
+    [Fact]
+    public void DecodePush_ReadsWireProtocolV1GoldenBytes()
+    {
+        using var frame = TransportFrame.CopyOf(new byte[]
+        {
+            0x03,
+            0x00, 0x00, 0x00, 0x02,
+            0x00, 0x00, 0x00, 0x03,
+            0x00, 0x00, 0x00, 0x02,
+            0xAA, 0xBB
+        });
+
+        using var decoded = RpcEnvelopeCodec.DecodePush(frame);
+
+        Assert.Equal(2, decoded.ServiceId);
+        Assert.Equal(3, decoded.MethodId);
+        Assert.Equal(new byte[] { 0xAA, 0xBB }, decoded.Payload.ToArray());
+    }
+
+    [Fact]
     public void KeepAlivePingRoundTrip_PreservesTimestamp()
     {
         var original = new RpcKeepAlivePingEnvelope
@@ -226,6 +403,37 @@ public class RpcEnvelopeCodecTests
     }
 
     [Fact]
+    public void EncodeKeepAlivePing_MatchesWireProtocolV1GoldenBytes()
+    {
+        var ping = new RpcKeepAlivePingEnvelope
+        {
+            TimestampTicksUtc = 0x0102030405060708L
+        };
+
+        using var encoded = RpcEnvelopeCodec.EncodeKeepAlivePing(ping);
+
+        Assert.Equal(new byte[]
+        {
+            0x04,
+            0x01, 0x02, 0x03, 0x04,
+            0x05, 0x06, 0x07, 0x08
+        }, encoded.ToArray());
+    }
+
+    [Fact]
+    public void DecodeKeepAlivePing_ReadsWireProtocolV1GoldenBytes()
+    {
+        var decoded = RpcEnvelopeCodec.DecodeKeepAlivePing(new byte[]
+        {
+            0x04,
+            0x01, 0x02, 0x03, 0x04,
+            0x05, 0x06, 0x07, 0x08
+        });
+
+        Assert.Equal(0x0102030405060708L, decoded.TimestampTicksUtc);
+    }
+
+    [Fact]
     public void KeepAlivePongRoundTrip_PreservesTimestamp()
     {
         var original = new RpcKeepAlivePongEnvelope
@@ -237,6 +445,37 @@ public class RpcEnvelopeCodecTests
         var decoded = RpcEnvelopeCodec.DecodeKeepAlivePong(encoded.Span);
 
         Assert.Equal(original.TimestampTicksUtc, decoded.TimestampTicksUtc);
+    }
+
+    [Fact]
+    public void EncodeKeepAlivePong_MatchesWireProtocolV1GoldenBytes()
+    {
+        var pong = new RpcKeepAlivePongEnvelope
+        {
+            TimestampTicksUtc = 0x1122334455667788L
+        };
+
+        using var encoded = RpcEnvelopeCodec.EncodeKeepAlivePong(pong);
+
+        Assert.Equal(new byte[]
+        {
+            0x05,
+            0x11, 0x22, 0x33, 0x44,
+            0x55, 0x66, 0x77, 0x88
+        }, encoded.ToArray());
+    }
+
+    [Fact]
+    public void DecodeKeepAlivePong_ReadsWireProtocolV1GoldenBytes()
+    {
+        var decoded = RpcEnvelopeCodec.DecodeKeepAlivePong(new byte[]
+        {
+            0x05,
+            0x11, 0x22, 0x33, 0x44,
+            0x55, 0x66, 0x77, 0x88
+        });
+
+        Assert.Equal(0x1122334455667788L, decoded.TimestampTicksUtc);
     }
 
     [Fact]

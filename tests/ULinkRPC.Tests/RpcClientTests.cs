@@ -135,8 +135,12 @@ public class RpcClientRuntimeTests
         var client = new RpcClientRuntime(clientTransport, serializer);
         await client.StartAsync();
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<RpcException>(() =>
             client.CallAsync(EchoMethod, "test").AsTask());
+        Assert.Equal(RpcStatus.Exception, ex.Status);
+        Assert.Equal("RPC handler failed.", ex.ErrorMessage);
+        Assert.Equal(1, ex.ServiceId);
+        Assert.Equal(1, ex.MethodId);
         Assert.Contains("Exception", ex.Message);
 
         await client.DisposeAsync();

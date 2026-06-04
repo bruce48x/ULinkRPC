@@ -10,6 +10,10 @@ These documents are contributor-facing. Public user documentation and blog conte
 - [Dependency Planning](starter/dependency-planning.md)
 - [Unity Shared Source Link](starter/unity-shared-source-link.md)
 
+## Protocol
+
+- [Wire Protocol v1](protocol/wire-protocol-v1.md)
+
 ## Archive
 
 - [ULinkRPC.CodeGen Removal Roadmap](archive/starter/codegen-removal-roadmap.md)

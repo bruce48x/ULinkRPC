@@ -22,7 +22,7 @@ namespace ULinkRPC.Core
         /// <param name="arg">Request DTO instance, or <see langword="null"/> for void-style requests.</param>
         /// <param name="ct">Cancellation token for the outbound send and response wait.</param>
         /// <returns>The deserialized response DTO.</returns>
-        /// <exception cref="InvalidOperationException">
+        /// <exception cref="RpcException">
         ///     Thrown by the default runtime when the remote response status is not <see cref="RpcStatus.Ok"/>.
         /// </exception>
         ValueTask<TResult> CallAsync<TArg, TResult>(RpcMethod<TArg, TResult> method, TArg? arg,

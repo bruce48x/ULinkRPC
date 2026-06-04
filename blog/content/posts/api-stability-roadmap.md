@@ -21,7 +21,7 @@ Areas that can be stabilized first:
 Areas that should not be hard-frozen yet:
 
 - Public commitment boundary for low-level frame/envelope/session types
-- RPC error model and client exception types
+- RPC status taxonomy and remaining error model details
 - Push callback registration and unregistration model
 - Restart and reuse semantics for runtime, transport, and session objects
 - Naming rules and conflict handling for generated facades
@@ -85,15 +85,17 @@ The goal is not to reduce every public type, but to prevent temporary public sur
 
 ### 2. Strengthen the Error Model
 
-Today `RpcStatus` only has `Ok`, `NotFound`, and `Exception`, and clients convert non-OK responses to `InvalidOperationException` by default.
+Today `RpcStatus` only has `Ok`, `NotFound`, and `Exception`.
 
-Before freezing, consider introducing an explicit framework exception type such as `RpcException`, containing at least:
+Clients now throw `RpcException` for non-OK remote responses. `RpcException` is the dedicated framework exception for remote RPC failures and exposes:
 
 - `RpcStatus Status`
 - `string? ErrorMessage`
-- optional request, service, and method diagnostics
+- request id
+- service id
+- method id
 
-Also evaluate whether framework-level statuses such as overloaded, decode failure, and bad request should be separated. Business errors should still stay in application DTOs or business return models, not be forced into the low-level runtime.
+Before freezing, evaluate whether framework-level statuses such as overloaded, decode failure, and bad request should be separated. Business errors should still stay in application DTOs or business return models, not be forced into the low-level runtime.
 
 ### 3. Revisit the Push Callback API
 
