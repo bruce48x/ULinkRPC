@@ -31,7 +31,7 @@ The sample server enables connection keepalive by default and also accepts:
 
 Open `samples/RpcCall.Json/RpcCall.Json.Unity`, load `Assets/Scenes/WsConnectionTest.unity`, and press Play.
 
-The Unity client opens multiple WebSocket connections to `ws://127.0.0.1:20000/ws`, logs in, then keeps calling `IncrStep()`. The server maintains one counter per connection and pushes updates through `IPlayerCallback.OnNotify(...)`.
+The Unity client opens multiple WebSocket connections to `ws://127.0.0.1:20000/ws`, logs in, then keeps calling `IncrStep()`. The server maintains one counter per connection and sends updates through `IPlayerNotifications.OnNotify(...)`.
 
 The Unity client entry now uses `RpcClientOptions` plus the generated `RpcClient.Api` facade:
 

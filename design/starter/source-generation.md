@@ -8,7 +8,7 @@ Date: 2026-05-23
 
 ULinkRPC uses Roslyn source generators as the RPC glue generation route for starter-generated projects.
 
-The generated client facade, service clients, callback binders, server binders, and server binder assembly attribute should be produced during C# compilation by an analyzer/source-generator package. New starter projects should not depend on project-local `Generated/` directories, MSBuild `ULinkRPCGenerateCode` targets, Unity Editor codegen postprocessors, or local generator tool manifests for the daily workflow.
+The generated client facade, service clients, notification binders, server binders, and server binder assembly attribute should be produced during C# compilation by an analyzer/source-generator package. New starter projects should not depend on project-local `Generated/` directories, MSBuild `ULinkRPCGenerateCode` targets, Unity Editor codegen postprocessors, or local generator tool manifests for the daily workflow.
 
 The legacy CLI generator has been removed from the repository. New work must target `ULinkRPC.Analyzers`.
 
@@ -25,7 +25,7 @@ The legacy CLI generator has been removed from the repository. New work must tar
 
 - Do not introduce runtime proxy generation.
 - Do not replace C# contracts with an IDL.
-- Do not remove explicit protocol ids from `[RpcService]`, `[RpcMethod]`, `[RpcCallback]`, or `[RpcPush]`.
+- Do not remove explicit protocol ids from `[RpcService]`, `[RpcMethod]`, `[RpcNotificationContract]`, or `[RpcNotification]`.
 - Do not require Unity players or game runtime assemblies to reference Roslyn.
 - Do not keep generated files committed for new starter projects after source generator parity is reached.
 
@@ -35,8 +35,8 @@ Source generation still requires attributes. They are the protocol contract, not
 
 - `[RpcService(id)]` marks service interfaces.
 - `[RpcMethod(id)]` marks RPC methods.
-- `[RpcCallback(typeof(IService))]` marks callback interfaces.
-- `[RpcPush(id)]` marks server-to-client push methods.
+- `[RpcNotificationContract(typeof(IService))]` marks server-to-client notification interfaces.
+- `[RpcNotification(id)]` marks server-to-client notification methods.
 
 The generator must support ids expressed as constants, such as `RpcContractIds.Services.Ping`, because starter already generates centralized id constants.
 
@@ -55,7 +55,7 @@ The generator should inspect the current compilation and referenced contract ass
 
 Generation mode is controlled by MSBuild/analyzer-config properties:
 
-- `ULinkRPCGenerateClient`: emits client facade, service clients, and callback binders.
+- `ULinkRPCGenerateClient`: emits client facade, service clients, and notification binders.
 - `ULinkRPCGenerateServer`: emits server binders, callback proxies, `AllServicesBinder`, and the assembly-level `RpcGeneratedServicesBinder` attribute.
 - `ULinkRPCGeneratedNamespace`: defaults to `Rpc.Generated` for clients.
 - `ULinkRPCServerGeneratedNamespace`: defaults to `Server.Generated` for starter server projects.

@@ -3,7 +3,7 @@ using ULinkRPC.Core;
 
 namespace Shared.Interfaces;
 
-[RpcService(RpcContractIds.Services.Battle, Callback = typeof(IBattleCallback))]
+[RpcService(RpcContractIds.Services.Battle, NotificationContract = typeof(IBattleNotifications))]
 public interface IBattleService
 {
     [RpcMethod(RpcContractIds.BattleServiceMethods.JoinAsync)]
@@ -13,9 +13,9 @@ public interface IBattleService
     ValueTask<CommandReply> UpdateInputAsync(PlayerInputRequest request);
 }
 
-[RpcCallback(typeof(IBattleService))]
-public interface IBattleCallback
+[RpcNotificationContract(typeof(IBattleService))]
+public interface IBattleNotifications
 {
-    [RpcPush(RpcContractIds.BattleCallbackPushes.OnSnapshot)]
+    [RpcNotification(RpcContractIds.BattleNotifications.OnSnapshot)]
     void OnSnapshot(WorldSnapshotReply snapshot);
 }

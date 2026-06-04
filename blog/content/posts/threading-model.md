@@ -10,10 +10,10 @@ The ULinkRPC runtime uses background `Task`s for receive, push, request dispatch
 `RpcClientRuntime.StartAsync` starts:
 
 - receive loop: reads transport frames and handles responses, pushes, and keepalive ping / pong.
-- push loop: reads pushes from an internal queue and invokes registered push handlers.
+- notification loop: reads server notification frames from an internal queue and invokes registered notification handlers.
 - keepalive loop: sends pings and detects timeouts when keepalive is enabled.
 
-Push handlers run on the runtime's push loop. The code comments are explicit: push handlers are not marshaled to the Unity main thread.
+Notification handlers run on the runtime's notification loop. The code comments are explicit: notification handlers are not marshaled to the Unity main thread.
 
 For normal RPC calls, the `await` continuation is determined by the caller context. However, the runtime uses `ConfigureAwait(false)` heavily, so do not rely on it to return you to the engine main thread.
 
@@ -30,7 +30,7 @@ Generated server binders usually create session-scoped services through `GetOrAd
 
 ## Unity / Tuanjie Main-Thread Responsibility
 
-Do not directly access UnityEngine objects from push handlers, background RPC continuations, or service callbacks unless you have confirmed you are on the main thread.
+Do not directly access UnityEngine objects from notification handlers, background RPC continuations, or service notifications unless you have confirmed you are on the main thread.
 
 Recommended pattern:
 

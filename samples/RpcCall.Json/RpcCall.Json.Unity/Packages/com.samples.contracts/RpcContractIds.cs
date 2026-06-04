@@ -13,7 +13,7 @@ namespace Game.Rpc.Contracts
             public const int IncrStep = 2;
         }
 
-        public static class PlayerCallbackPushes
+        public static class PlayerNotifications
         {
             public const int OnNotify = 1;
         }

@@ -4,13 +4,13 @@ namespace RpcCall.MemoryPack.Server.Services;
 
 public class InventoryService : IInventoryService
 {
-    private readonly IInventoryCallback _callback;
+    private readonly IInventoryNotifications _notifications;
     private int _revision;
     private bool _announced;
 
-    public InventoryService(IInventoryCallback callback)
+    public InventoryService(IInventoryNotifications notifications)
     {
-        _callback = callback;
+        _notifications = notifications;
     }
 
     public ValueTask<RevisionReply> GetRevisionAsync(RevisionRequest req)
@@ -18,7 +18,7 @@ public class InventoryService : IInventoryService
         if (!_announced)
         {
             _announced = true;
-            _callback.OnInventoryNotify(new InventoryNotify
+            _notifications.OnInventoryNotify(new InventoryNotify
             {
                 Message = "Inventory ready."
             });
@@ -33,7 +33,7 @@ public class InventoryService : IInventoryService
     public ValueTask<RevisionReply> IncrRevision(RevisionRequest req)
     {
         _revision++;
-        _callback.OnInventoryNotify(new InventoryNotify
+        _notifications.OnInventoryNotify(new InventoryNotify
         {
             Message = $"Inventory revision => {_revision}"
         });

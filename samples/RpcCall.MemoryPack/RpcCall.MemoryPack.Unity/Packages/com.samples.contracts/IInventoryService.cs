@@ -3,7 +3,7 @@ using ULinkRPC.Core;
 
 namespace Game.Rpc.Contracts
 {
-    [RpcService(RpcContractIds.Services.Inventory, Callback = typeof(IInventoryCallback))]
+    [RpcService(RpcContractIds.Services.Inventory, NotificationContract = typeof(IInventoryNotifications))]
     public interface IInventoryService
     {
         [RpcMethod(RpcContractIds.InventoryServiceMethods.GetRevisionAsync)]
@@ -13,10 +13,10 @@ namespace Game.Rpc.Contracts
         ValueTask<RevisionReply> IncrRevision(RevisionRequest req);
     }
 
-    [RpcCallback(typeof(IInventoryService))]
-    public interface IInventoryCallback
+    [RpcNotificationContract(typeof(IInventoryService))]
+    public interface IInventoryNotifications
     {
-        [RpcPush(RpcContractIds.InventoryCallbackPushes.OnInventoryNotify)]
+        [RpcNotification(RpcContractIds.InventoryNotifications.OnInventoryNotify)]
         void OnInventoryNotify(InventoryNotify notify);
     }
 }

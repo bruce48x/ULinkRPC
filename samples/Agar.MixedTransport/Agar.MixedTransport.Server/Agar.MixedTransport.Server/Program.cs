@@ -23,7 +23,7 @@ var battleBuilder = RpcServerHostBuilder.Create()
     .UseKeepAlive(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30))
     .ConfigureServices(registry => BattleServiceBinder.BindFactory(
         registry,
-        session => new BattleService(session, new BattleCallbackProxy(session), loginTickets, world)))
+        session => new BattleService(session, new BattleNotificationsProxy(session), loginTickets, world)))
     .UseAcceptor(new KcpConnectionAcceptor(
         kcpPort,
         RpcConnectionAdmissionDefaults.MaxPendingAcceptedConnections,

@@ -116,10 +116,10 @@ Server-to-client push notification. Push frames do not carry a request id.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `FrameType` | `byte` | Must be `3`. |
-| `ServiceId` | `int32` | Stable service id associated with the callback contract. |
-| `MethodId` | `int32` | Stable push method id from `[RpcPush]`. |
+| `ServiceId` | `int32` | Stable service id associated with the notification contract. |
+| `MethodId` | `int32` | Stable notification method id from `[RpcNotification]`. |
 | `PayloadLength` | `int32` | Number of payload bytes. |
-| `Payload` | `byte[PayloadLength]` | Serialized push DTO bytes. |
+| `Payload` | `byte[PayloadLength]` | Serialized notification DTO bytes. |
 
 Example:
 

@@ -218,14 +218,14 @@ namespace ULinkRPC.Server
         }
 
         /// <summary>
-        ///     Sends a server-to-client push frame.
+        ///     Sends a server-to-client notification.
         /// </summary>
-        /// <typeparam name="TArg">Push DTO type.</typeparam>
+        /// <typeparam name="TArg">Notification DTO type.</typeparam>
         /// <param name="serviceId">Stable service id.</param>
-        /// <param name="methodId">Stable push method id.</param>
-        /// <param name="arg">Push DTO instance.</param>
+        /// <param name="methodId">Stable notification method id.</param>
+        /// <param name="arg">Notification DTO instance.</param>
         /// <param name="ct">Cancellation token for the send operation.</param>
-        public async ValueTask PushAsync<TArg>(int serviceId, int methodId, TArg arg, CancellationToken ct = default)
+        public async ValueTask SendNotificationAsync<TArg>(int serviceId, int methodId, TArg arg, CancellationToken ct = default)
         {
             ThrowIfDisposed();
             using var payload = arg is null ? TransportFrame.Empty : _serializer.SerializeFrame(arg);

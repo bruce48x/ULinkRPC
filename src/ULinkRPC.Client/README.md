@@ -26,6 +26,7 @@ Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
 
 - `RpcClientOptions`
 - `RpcClientRuntime`
+- notification diagnostics through `UnhandledNotificationReceived` and `NotificationHandlerException`
 
 ## Recommended Entry
 
@@ -52,6 +53,14 @@ await client.ConnectAsync(ct);
 ```
 
 `RpcClient.Api` is generated per contract set and exposes grouped service clients after the connection is configured.
+
+## Server Notifications
+
+Generated notification binders register one handler per notification method. Duplicate registration fails fast because notifications model a contract implementation, not a general event subscription list.
+
+`RpcClientRuntime` accepts asynchronous notification handlers through `Func<T, ValueTask>`. Synchronous handlers can still use the convenience overload.
+
+Notification handler exceptions do not disconnect the transport. Observe them through `NotificationHandlerException`. Server notification frames without a registered handler are reported through `UnhandledNotificationReceived`.
 
 ## KeepAlive
 

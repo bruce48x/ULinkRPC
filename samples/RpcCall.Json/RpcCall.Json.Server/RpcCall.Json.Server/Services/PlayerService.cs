@@ -4,17 +4,17 @@ namespace RpcCall.Json.Server.Services;
 
 public class PlayerService: IPlayerService
 {
-    private readonly IPlayerCallback _callback;
+    private readonly IPlayerNotifications _notifications;
     private int _step;
 
-    public PlayerService(IPlayerCallback callback)
+    public PlayerService(IPlayerNotifications notifications)
     {
-        _callback = callback;
+        _notifications = notifications;
     }
 
     public ValueTask<LoginReply> LoginAsync(LoginRequest req)
     {
-        _callback.OnNotify(new PlayerNotify
+        _notifications.OnNotify(new PlayerNotify
         {
             Message = $"Welcome {req.Account}, login request accepted."
         });
@@ -31,7 +31,7 @@ public class PlayerService: IPlayerService
     public ValueTask<StepReply> IncrStep(StepRequest req)
     {
         _step++;
-        _callback.OnNotify(new PlayerNotify
+        _notifications.OnNotify(new PlayerNotify
         {
             Message = $"IncrStep => {_step}"
         });

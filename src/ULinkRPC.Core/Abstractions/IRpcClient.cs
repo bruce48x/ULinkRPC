@@ -9,7 +9,7 @@ namespace ULinkRPC.Core
     /// </summary>
     /// <remarks>
     ///     Application code normally uses the generated client facade instead of this interface directly.
-    ///     Implementations are responsible for request correlation, response decoding, and server push dispatch.
+    ///     Implementations are responsible for request correlation, response decoding, and server notification dispatch.
     /// </remarks>
     public interface IRpcClient
     {
@@ -29,15 +29,18 @@ namespace ULinkRPC.Core
             CancellationToken ct = default);
 
         /// <summary>
-        ///     Registers a handler for a server-to-client push method.
+        ///     Registers the handler for a server-to-client notification method.
         /// </summary>
-        /// <typeparam name="TArg">Push DTO type.</typeparam>
-        /// <param name="method">Generated push descriptor containing the service id and push method id.</param>
-        /// <param name="handler">Handler invoked with the deserialized push DTO.</param>
+        /// <typeparam name="TArg">Notification DTO type.</typeparam>
+        /// <param name="method">Generated notification descriptor containing the service id and notification method id.</param>
+        /// <param name="handler">Handler invoked with the deserialized notification DTO.</param>
+        /// <exception cref="InvalidOperationException">
+        ///     Thrown when a handler is already registered for the notification method.
+        /// </exception>
         /// <remarks>
-        ///     The default runtime invokes handlers from its internal push-processing loop. It does not marshal
-        ///     callbacks to the Unity main thread.
+        ///     The default runtime invokes handlers from its internal notification-processing loop. It does not marshal
+        ///     notifications to the Unity main thread.
         /// </remarks>
-        void RegisterPushHandler<TArg>(RpcPushMethod<TArg> method, Action<TArg> handler);
+        void RegisterNotificationHandler<TArg>(RpcNotificationMethod<TArg> method, Func<TArg, ValueTask> handler);
     }
 }

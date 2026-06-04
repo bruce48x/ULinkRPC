@@ -12,10 +12,10 @@ public sealed class RpcContractIdAnalyzer : DiagnosticAnalyzer
 {
     public const string InvalidServiceIdDiagnosticId = "ULRPC001";
     public const string InvalidMethodIdDiagnosticId = "ULRPC002";
-    public const string InvalidPushIdDiagnosticId = "ULRPC003";
+    public const string InvalidNotificationIdDiagnosticId = "ULRPC003";
     public const string DuplicateServiceIdDiagnosticId = "ULRPC004";
     public const string DuplicateMethodIdDiagnosticId = "ULRPC005";
-    public const string DuplicatePushIdDiagnosticId = "ULRPC006";
+    public const string DuplicateNotificationIdDiagnosticId = "ULRPC006";
 
     private static readonly DiagnosticDescriptor InvalidServiceIdRule = new(
         InvalidServiceIdDiagnosticId,
@@ -34,10 +34,10 @@ public sealed class RpcContractIdAnalyzer : DiagnosticAnalyzer
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor InvalidPushIdRule = new(
-        InvalidPushIdDiagnosticId,
-        "RPC push id must be greater than 0",
-        "RPC push method '{0}' uses invalid PushId {1}; [RpcPush] id must be greater than 0",
+    private static readonly DiagnosticDescriptor InvalidNotificationIdRule = new(
+        InvalidNotificationIdDiagnosticId,
+        "RPC notification id must be greater than 0",
+        "RPC notification method '{0}' uses invalid NotificationId {1}; [RpcNotification] id must be greater than 0",
         "ULinkRPC.Contracts",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -59,10 +59,10 @@ public sealed class RpcContractIdAnalyzer : DiagnosticAnalyzer
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor DuplicatePushIdRule = new(
-        DuplicatePushIdDiagnosticId,
-        "RPC push id must be unique within a callback interface",
-        "Duplicate PushId {0} found in RPC callback interface '{1}': {2}",
+    private static readonly DiagnosticDescriptor DuplicateNotificationIdRule = new(
+        DuplicateNotificationIdDiagnosticId,
+        "RPC notification id must be unique within a notification contract",
+        "Duplicate NotificationId {0} found in RPC notification contract '{1}': {2}",
         "ULinkRPC.Contracts",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -70,10 +70,10 @@ public sealed class RpcContractIdAnalyzer : DiagnosticAnalyzer
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(
         InvalidServiceIdRule,
         InvalidMethodIdRule,
-        InvalidPushIdRule,
+        InvalidNotificationIdRule,
         DuplicateServiceIdRule,
         DuplicateMethodIdRule,
-        DuplicatePushIdRule);
+        DuplicateNotificationIdRule);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -114,8 +114,8 @@ public sealed class RpcContractIdAnalyzer : DiagnosticAnalyzer
                     AnalyzeMethodIds(symbolContext, type, "RpcMethodAttribute", InvalidMethodIdRule, DuplicateMethodIdRule);
                 }
 
-                if (GetAttribute(type, "RpcCallbackAttribute") is not null)
-                    AnalyzeMethodIds(symbolContext, type, "RpcPushAttribute", InvalidPushIdRule, DuplicatePushIdRule);
+                if (GetAttribute(type, "RpcNotificationContractAttribute") is not null)
+                    AnalyzeMethodIds(symbolContext, type, "RpcNotificationAttribute", InvalidNotificationIdRule, DuplicateNotificationIdRule);
             }, SymbolKind.NamedType);
 
             compilationContext.RegisterCompilationEndAction(compilationEndContext =>

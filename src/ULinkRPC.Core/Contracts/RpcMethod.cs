@@ -30,17 +30,17 @@ namespace ULinkRPC.Core
     }
 
     /// <summary>
-    ///     Typed descriptor for a server-to-client push method.
+    ///     Typed descriptor for a server-to-client notification method.
     /// </summary>
-    /// <typeparam name="TArg">Push DTO type.</typeparam>
-    public readonly struct RpcPushMethod<TArg>
+    /// <typeparam name="TArg">Notification DTO type.</typeparam>
+    public readonly struct RpcNotificationMethod<TArg>
     {
         /// <summary>
-        ///     Creates a push descriptor from stable protocol ids.
+        ///     Creates a notification descriptor from stable protocol ids.
         /// </summary>
         /// <param name="serviceId">Stable service id declared by <see cref="RpcServiceAttribute"/>.</param>
-        /// <param name="methodId">Stable push method id declared by <see cref="RpcPushAttribute"/>.</param>
-        public RpcPushMethod(int serviceId, int methodId)
+        /// <param name="methodId">Stable notification method id declared by <see cref="RpcNotificationAttribute"/>.</param>
+        public RpcNotificationMethod(int serviceId, int methodId)
         {
             ServiceId = serviceId;
             MethodId = methodId;
@@ -52,7 +52,7 @@ namespace ULinkRPC.Core
         public int ServiceId { get; }
 
         /// <summary>
-        ///     Stable push method id used on the wire.
+        ///     Stable notification method id used on the wire.
         /// </summary>
         public int MethodId { get; }
     }

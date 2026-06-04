@@ -14,7 +14,7 @@ public class RpcClientRuntimeTests
     private static readonly RpcMethod<string, string> EchoMethod = new(1, 1);
     private static readonly RpcMethod<string, RpcVoid> VoidMethod = new(1, 1);
     private static readonly RpcMethod<int, int> DoubleMethod = new(1, 1);
-    private static readonly RpcPushMethod<string> NotifyPushMethod = new(1, 1);
+    private static readonly RpcNotificationMethod<string> NotifyNotificationMethod = new(1, 1);
 
     private static byte[] SerializeBytes<T>(IRpcSerializer serializer, T value)
     {
@@ -266,7 +266,7 @@ public class RpcClientRuntimeTests
     }
 
     [Fact]
-    public async Task PushHandler_ReceivesPushFromServer()
+    public async Task NotificationHandler_ReceivesNotificationFromServer()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
@@ -278,7 +278,7 @@ public class RpcClientRuntimeTests
 
         string? receivedMessage = null;
         var pushReceived = new TaskCompletionSource<bool>();
-        client.RegisterPushHandler(NotifyPushMethod, (payload) =>
+        client.RegisterNotificationHandler(NotifyNotificationMethod, (payload) =>
         {
             receivedMessage = payload;
             pushReceived.TrySetResult(true);
@@ -286,7 +286,7 @@ public class RpcClientRuntimeTests
 
         await client.StartAsync();
 
-        await server.PushAsync(1, 1, "hello from server");
+        await server.SendNotificationAsync(1, 1, "hello from server");
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         cts.Token.Register(() => pushReceived.TrySetCanceled());
@@ -299,7 +299,7 @@ public class RpcClientRuntimeTests
     }
 
     [Fact]
-    public async Task PushHandler_Exception_DoesNotDisconnectClient()
+    public async Task NotificationHandler_Exception_DoesNotDisconnectClient()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
@@ -319,10 +319,10 @@ public class RpcClientRuntimeTests
         await server.StartAsync();
 
         var client = new RpcClientRuntime(clientTransport, serializer);
-        client.RegisterPushHandler(NotifyPushMethod, _ => throw new InvalidOperationException("push exploded"));
+        client.RegisterNotificationHandler(NotifyNotificationMethod, _ => throw new InvalidOperationException("notification exploded"));
 
         await client.StartAsync();
-        await server.PushAsync(1, 1, "boom");
+        await server.SendNotificationAsync(1, 1, "boom");
         await Task.Delay(50);
 
         var response = await client.CallAsync(EchoMethod, "still-alive");
@@ -333,7 +333,116 @@ public class RpcClientRuntimeTests
     }
 
     [Fact]
-    public async Task SlowPushHandler_DoesNotBlockResponses()
+    public async Task NotificationHandler_Exception_RaisesObservableEvent()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcSession(serverTransport, serializer);
+        await server.StartAsync();
+
+        var client = new RpcClientRuntime(clientTransport, serializer);
+        var observed = new TaskCompletionSource<RpcNotificationHandlerExceptionContext>(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.NotificationHandlerException += context => observed.TrySetResult(context);
+        client.RegisterNotificationHandler(NotifyNotificationMethod, _ => throw new InvalidOperationException("notification exploded"));
+
+        await client.StartAsync();
+        await server.SendNotificationAsync(1, 1, "boom");
+
+        var context = await observed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, context.ServiceId);
+        Assert.Equal(1, context.MethodId);
+        Assert.Equal(typeof(string), context.PayloadType);
+        Assert.Equal("notification exploded", context.Exception.Message);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task UnhandledNotification_RaisesObservableEvent()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcSession(serverTransport, serializer);
+        await server.StartAsync();
+
+        var client = new RpcClientRuntime(clientTransport, serializer);
+        var observed = new TaskCompletionSource<RpcUnhandledNotificationContext>(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.UnhandledNotificationReceived += context => observed.TrySetResult(context);
+
+        await client.StartAsync();
+        await server.SendNotificationAsync(1, 1, "unhandled");
+
+        var context = await observed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, context.ServiceId);
+        Assert.Equal(1, context.MethodId);
+        Assert.True(context.PayloadLength > 0);
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public void RegisterNotificationHandler_DuplicateHandler_Throws()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out _);
+        var serializer = new JsonRpcSerializer();
+        var client = new RpcClientRuntime(clientTransport, serializer);
+
+        client.RegisterNotificationHandler(NotifyNotificationMethod, _ => { });
+
+        Assert.Throws<InvalidOperationException>(() =>
+            client.RegisterNotificationHandler(NotifyNotificationMethod, _ => { }));
+    }
+
+    [Fact]
+    public async Task AsyncNotificationHandler_IsAwaitedBeforeNextNotification()
+    {
+        LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
+        var serializer = new JsonRpcSerializer();
+
+        var server = new RpcSession(serverTransport, serializer);
+        await server.StartAsync();
+
+        var handled = new ConcurrentQueue<string>();
+        var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondHandled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var client = new RpcClientRuntime(clientTransport, serializer);
+        client.RegisterNotificationHandler<string>(NotifyNotificationMethod, async payload =>
+        {
+            if (payload == "first")
+            {
+                firstStarted.TrySetResult();
+                await releaseFirst.Task;
+            }
+
+            handled.Enqueue(payload);
+            if (payload == "second")
+                secondHandled.TrySetResult();
+        });
+
+        await client.StartAsync();
+
+        await server.SendNotificationAsync(1, 1, "first");
+        await firstStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await server.SendNotificationAsync(1, 1, "second");
+        await Task.Delay(100);
+
+        Assert.Empty(handled);
+
+        releaseFirst.SetResult();
+        await secondHandled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(new[] { "first", "second" }, handled.ToArray());
+
+        await client.DisposeAsync();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task SlowNotificationHandler_DoesNotBlockResponses()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out var serverTransport);
         var serializer = new JsonRpcSerializer();
@@ -353,37 +462,37 @@ public class RpcClientRuntimeTests
         await server.StartAsync();
 
         var pushStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var releasePushHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseNotificationHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var client = new RpcClientRuntime(clientTransport, serializer);
-        client.RegisterPushHandler(NotifyPushMethod, _ =>
+        client.RegisterNotificationHandler(NotifyNotificationMethod, _ =>
         {
             pushStarted.TrySetResult();
-            releasePushHandler.Task.GetAwaiter().GetResult();
+            releaseNotificationHandler.Task.GetAwaiter().GetResult();
         });
 
         await client.StartAsync();
 
-        await server.PushAsync(1, 1, "block");
+        await server.SendNotificationAsync(1, 1, "block");
         await pushStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         var response = await client.CallAsync(EchoMethod, "fast");
         Assert.Equal("fast-reply", response);
 
-        releasePushHandler.TrySetResult();
+        releaseNotificationHandler.TrySetResult();
 
         await client.DisposeAsync();
         await server.StopAsync();
     }
 
     [Fact]
-    public void RegisterPushHandler_NullHandler_Throws()
+    public void RegisterNotificationHandler_NullHandler_Throws()
     {
         LoopbackTransport.CreatePair(out var clientTransport, out _);
         var serializer = new JsonRpcSerializer();
         var client = new RpcClientRuntime(clientTransport, serializer);
 
         Assert.Throws<ArgumentNullException>(() =>
-            client.RegisterPushHandler(NotifyPushMethod, null!));
+            client.RegisterNotificationHandler(NotifyNotificationMethod, null!));
     }
 
     [Fact]

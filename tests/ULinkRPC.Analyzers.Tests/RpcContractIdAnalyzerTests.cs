@@ -16,7 +16,7 @@ public sealed class RpcContractIdAnalyzerTests
                 public sealed class Request { }
                 public sealed class Reply { }
 
-                [RpcService(1, Callback = typeof(IFirstCallback))]
+                [RpcService(1, NotificationContract = typeof(IFirstNotifications))]
                 public interface IFirstService
                 {
                     [RpcMethod(1)]
@@ -40,17 +40,17 @@ public sealed class RpcContractIdAnalyzerTests
                     System.Threading.Tasks.ValueTask<Reply> InvalidAsync(Request request);
                 }
 
-                [RpcCallback(typeof(IFirstService))]
-                public interface IFirstCallback
+                [RpcNotificationContract(typeof(IFirstService))]
+                public interface IFirstNotifications
                 {
-                    [RpcPush(0)]
-                    void InvalidPush(Request request);
+                    [RpcNotification(0)]
+                    void InvalidNotification(Request request);
 
-                    [RpcPush(2)]
-                    void PushOne(Request request);
+                    [RpcNotification(2)]
+                    void NotificationOne(Request request);
 
-                    [RpcPush(2)]
-                    void PushDuplicate(Request request);
+                    [RpcNotification(2)]
+                    void NotificationDuplicate(Request request);
                 }
             }
             """);
@@ -61,11 +61,11 @@ public sealed class RpcContractIdAnalyzerTests
         Assert.Contains(RpcContractIdAnalyzer.InvalidServiceIdDiagnosticId, ids);
         Assert.Contains(RpcContractIdAnalyzer.DuplicateServiceIdDiagnosticId, ids);
         Assert.Contains(RpcContractIdAnalyzer.DuplicateMethodIdDiagnosticId, ids);
-        Assert.Contains(RpcContractIdAnalyzer.InvalidPushIdDiagnosticId, ids);
-        Assert.Contains(RpcContractIdAnalyzer.DuplicatePushIdDiagnosticId, ids);
+        Assert.Contains(RpcContractIdAnalyzer.InvalidNotificationIdDiagnosticId, ids);
+        Assert.Contains(RpcContractIdAnalyzer.DuplicateNotificationIdDiagnosticId, ids);
 
         Assert.Equal(2, diagnostics.Count(static diagnostic => diagnostic.Id == RpcContractIdAnalyzer.DuplicateServiceIdDiagnosticId));
         Assert.Equal(2, diagnostics.Count(static diagnostic => diagnostic.Id == RpcContractIdAnalyzer.DuplicateMethodIdDiagnosticId));
-        Assert.Equal(2, diagnostics.Count(static diagnostic => diagnostic.Id == RpcContractIdAnalyzer.DuplicatePushIdDiagnosticId));
+        Assert.Equal(2, diagnostics.Count(static diagnostic => diagnostic.Id == RpcContractIdAnalyzer.DuplicateNotificationIdDiagnosticId));
     }
 }

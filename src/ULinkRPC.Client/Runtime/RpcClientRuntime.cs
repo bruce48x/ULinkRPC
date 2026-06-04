@@ -6,17 +6,17 @@ using ULinkRPC.Core;
 namespace ULinkRPC.Client
 {
     /// <summary>
-    ///     Handles a serialized server-to-client push payload.
+    ///     Handles a serialized server-to-client notification payload.
     /// </summary>
-    /// <param name="payload">Serialized push payload.</param>
-    public delegate void RpcPushPayloadHandler(ReadOnlySpan<byte> payload);
+    /// <param name="payload">Serialized notification payload.</param>
+    public delegate ValueTask RpcNotificationPayloadHandler(ReadOnlyMemory<byte> payload);
 
     /// <summary>
-    ///     Default client runtime for ULinkRPC request/response calls and server push dispatch.
+    ///     Default client runtime for ULinkRPC request/response calls and server notification dispatch.
     /// </summary>
     /// <remarks>
-    ///     The runtime owns background receive, push, and keepalive loops after <see cref="StartAsync"/>.
-    ///     Push handlers run on the runtime push loop and are not marshalled to the Unity main thread.
+    ///     The runtime owns background receive, notification, and keepalive loops after <see cref="StartAsync"/>.
+    ///     Notification handlers run on the runtime notification loop and are not marshalled to the Unity main thread.
     /// </remarks>
     public sealed class RpcClientRuntime : IAsyncDisposable, IRpcClient
     {
@@ -24,7 +24,7 @@ namespace ULinkRPC.Client
         private readonly RpcKeepAliveState _keepAliveState;
         private readonly SerializedFrameSender _sender;
         private readonly RpcPendingRequestCollection _pending = new();
-        private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RpcPushPayloadHandler> _pushHandlers = new();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<(int serviceId, int methodId), RegisteredNotificationHandler> _notificationHandlers = new();
         private readonly Channel<RpcPushFrame> _pushQueue = Channel.CreateUnbounded<RpcPushFrame>(new UnboundedChannelOptions
         {
             SingleReader = true,
@@ -82,6 +82,16 @@ namespace ULinkRPC.Client
         public event Action<Exception?>? Disconnected;
 
         /// <summary>
+        ///     Raised when a server-to-client notification frame has no registered handler.
+        /// </summary>
+        public event Action<RpcUnhandledNotificationContext>? UnhandledNotificationReceived;
+
+        /// <summary>
+        ///     Raised when a registered notification handler throws.
+        /// </summary>
+        public event Action<RpcNotificationHandlerExceptionContext>? NotificationHandlerException;
+
+        /// <summary>
         ///     Last UTC timestamp at which the runtime sent a frame.
         /// </summary>
         public DateTimeOffset LastSendAt => _keepAliveState.LastSendAt;
@@ -131,21 +141,37 @@ namespace ULinkRPC.Client
         }
 
         /// <inheritdoc />
-        public void RegisterPushHandler<TArg>(RpcPushMethod<TArg> method, Action<TArg> handler)
+        public void RegisterNotificationHandler<TArg>(RpcNotificationMethod<TArg> method, Func<TArg, ValueTask> handler)
         {
             ThrowIfDisposed();
             if (handler is null) throw new ArgumentNullException(nameof(handler));
-            _pushHandlers[(method.ServiceId, method.MethodId)] = payload =>
+            var registered = _notificationHandlers.TryAdd((method.ServiceId, method.MethodId), new RegisteredNotificationHandler(typeof(TArg), payload =>
             {
                 if (typeof(TArg) == typeof(RpcVoid))
                 {
-                    handler((TArg)(object)RpcVoid.Instance);
-                    return;
+                    return handler((TArg)(object)RpcVoid.Instance);
                 }
 
                 var value = _serializer.Deserialize<TArg>(payload);
-                handler(value);
-            };
+                return handler(value);
+            }));
+
+            if (!registered)
+                throw new InvalidOperationException(
+                    $"Notification handler already registered for {method.ServiceId}:{method.MethodId}.");
+        }
+
+        /// <summary>
+        ///     Registers a synchronous handler for a server-to-client notification method.
+        /// </summary>
+        public void RegisterNotificationHandler<TArg>(RpcNotificationMethod<TArg> method, Action<TArg> handler)
+        {
+            if (handler is null) throw new ArgumentNullException(nameof(handler));
+            RegisterNotificationHandler(method, arg =>
+            {
+                handler(arg);
+                return default;
+            });
         }
 
         /// <inheritdoc />
@@ -311,15 +337,26 @@ namespace ULinkRPC.Client
                 {
                     using (push)
                     {
-                        if (!_pushHandlers.TryGetValue((push.ServiceId, push.MethodId), out var handler))
+                        if (!_notificationHandlers.TryGetValue((push.ServiceId, push.MethodId), out var registration))
+                        {
+                            UnhandledNotificationReceived?.Invoke(new RpcUnhandledNotificationContext(
+                                push.ServiceId,
+                                push.MethodId,
+                                push.Payload.Length));
                             continue;
+                        }
 
                         try
                         {
-                            handler(push.Payload.Span);
+                            await registration.Handler(push.Payload.Memory).ConfigureAwait(false);
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            NotificationHandlerException?.Invoke(new RpcNotificationHandlerExceptionContext(
+                                push.ServiceId,
+                                push.MethodId,
+                                registration.PayloadType,
+                                ex));
                         }
                     }
                 }
@@ -373,5 +410,17 @@ namespace ULinkRPC.Client
                 throw new ObjectDisposedException(nameof(RpcClientRuntime));
         }
 
+        private sealed class RegisteredNotificationHandler
+        {
+            public RegisteredNotificationHandler(Type payloadType, RpcNotificationPayloadHandler handler)
+            {
+                PayloadType = payloadType;
+                Handler = handler;
+            }
+
+            public Type PayloadType { get; }
+
+            public RpcNotificationPayloadHandler Handler { get; }
+        }
     }
 }

@@ -98,7 +98,7 @@ flowchart TB
 
     Shared --> SourceGen["ULinkRPC.Analyzers<br/>Source Generator"]
     SourceGen --> ServerGenerated["Compiler Generated<br/>binder / AllServicesBinder"]
-    SourceGen --> ClientGenerated["Compiler Generated<br/>proxy / RpcApi / callback binder"]
+    SourceGen --> ClientGenerated["Compiler Generated<br/>proxy / RpcApi / notification binder"]
     Server --> ServerGenerated
     Client --> ClientGenerated
 ```
@@ -312,7 +312,7 @@ During compilation, `ULinkRPC.Analyzers` generates glue code for both sides from
 
 On the server side, the compilation output gets `AllServicesBinder`, `InventoryServiceBinder`, and related callback proxies if you defined callbacks.
 
-On the client side, the compilation output gets `RpcApi`, service client stubs, and callback binders.
+On the client side, the compilation output gets `RpcApi`, service client stubs, and notification binders.
 
 This matters because:
 

@@ -14,7 +14,7 @@ public sealed class BattleWorld : IAsyncDisposable
     private const float TickSeconds = 0.05f;
     private readonly object _gate = new();
     private readonly Dictionary<string, PlayerState> _players = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IBattleCallback> _subscribers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IBattleNotifications> _subscribers = new(StringComparer.Ordinal);
     private readonly List<FoodPellet> _food = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _loop;
@@ -66,11 +66,11 @@ public sealed class BattleWorld : IAsyncDisposable
         }
     }
 
-    public void RegisterSubscriber(string playerId, IBattleCallback callback)
+    public void RegisterSubscriber(string playerId, IBattleNotifications notifications)
     {
         lock (_gate)
         {
-            _subscribers[playerId] = callback;
+            _subscribers[playerId] = notifications;
         }
     }
 
@@ -103,7 +103,7 @@ public sealed class BattleWorld : IAsyncDisposable
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(TickSeconds));
         while (await timer.WaitForNextTickAsync(_cts.Token).ConfigureAwait(false))
         {
-            List<(IBattleCallback callback, WorldSnapshotReply snapshot)> deliveries;
+            List<(IBattleNotifications notifications, WorldSnapshotReply snapshot)> deliveries;
             lock (_gate)
             {
                 _tick++;
@@ -119,7 +119,7 @@ public sealed class BattleWorld : IAsyncDisposable
             {
                 try
                 {
-                    delivery.callback.OnSnapshot(delivery.snapshot);
+                    delivery.notifications.OnSnapshot(delivery.snapshot);
                 }
                 catch
                 {
@@ -128,9 +128,9 @@ public sealed class BattleWorld : IAsyncDisposable
         }
     }
 
-    private List<(IBattleCallback callback, WorldSnapshotReply snapshot)> BuildSnapshots_NoLock()
+    private List<(IBattleNotifications notifications, WorldSnapshotReply snapshot)> BuildSnapshots_NoLock()
     {
-        var deliveries = new List<(IBattleCallback callback, WorldSnapshotReply snapshot)>(_subscribers.Count);
+        var deliveries = new List<(IBattleNotifications notifications, WorldSnapshotReply snapshot)>(_subscribers.Count);
         foreach (var pair in _subscribers)
         {
             if (!_players.TryGetValue(pair.Key, out var self))

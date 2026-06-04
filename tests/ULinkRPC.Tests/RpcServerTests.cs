@@ -409,13 +409,13 @@ public class RpcSessionTests
     }
 
     [Fact]
-    public async Task PushAsync_ConcurrentCalls_AreSerializedOnTransport()
+    public async Task SendNotificationAsync_ConcurrentCalls_AreSerializedOnTransport()
     {
         var transport = new ConcurrentSendDetectTransport();
         var server = new RpcSession(transport, new JsonRpcSerializer());
 
         var sends = Enumerable.Range(0, 24)
-            .Select(i => server.PushAsync(1, 1, i).AsTask())
+            .Select(i => server.SendNotificationAsync(1, 1, i).AsTask())
             .ToArray();
 
         await Task.WhenAll(sends);
@@ -651,13 +651,13 @@ public class RpcSessionTests
     }
 
     [Fact]
-    public async Task PushAsync_WhenSendFails_PropagatesAndDisposeStillCompletes()
+    public async Task SendNotificationAsync_WhenSendFails_PropagatesAndDisposeStillCompletes()
     {
         var transport = new ThrowingSendSessionTransport();
         var server = new RpcSession(transport, new JsonRpcSerializer());
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            server.PushAsync(1, 1, "send-fail").AsTask());
+            server.SendNotificationAsync(1, 1, "send-fail").AsTask());
 
         Assert.Equal("send failed", ex.Message);
 

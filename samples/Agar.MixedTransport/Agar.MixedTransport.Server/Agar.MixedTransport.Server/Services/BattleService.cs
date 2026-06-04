@@ -7,15 +7,15 @@ namespace Agar.MixedTransport.Server.Services;
 public sealed class BattleService : IBattleService
 {
     private readonly RpcSession _session;
-    private readonly IBattleCallback _callback;
+    private readonly IBattleNotifications _notifications;
     private readonly LoginTicketStore _loginTickets;
     private readonly BattleWorld _world;
     private LoginGrant? _grant;
 
-    public BattleService(RpcSession session, IBattleCallback callback, LoginTicketStore loginTickets, BattleWorld world)
+    public BattleService(RpcSession session, IBattleNotifications notifications, LoginTicketStore loginTickets, BattleWorld world)
     {
         _session = session;
-        _callback = callback;
+        _notifications = notifications;
         _loginTickets = loginTickets;
         _world = world;
         _session.Disconnected += _ => Unsubscribe();
@@ -35,7 +35,7 @@ public sealed class BattleService : IBattleService
 
         _grant = grant;
         var joined = _world.JoinOrRespawn(grant.PlayerId, grant.Account);
-        _world.RegisterSubscriber(grant.PlayerId, _callback);
+        _world.RegisterSubscriber(grant.PlayerId, _notifications);
         return ValueTask.FromResult(new BattleJoinReply
         {
             Code = 0,

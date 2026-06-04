@@ -9,7 +9,7 @@ ULinkRPC contracts start from shared C# interfaces and DTOs. The source generato
 
 `[RpcService(id)]` and `[RpcMethod(id)]` are part of protocol routing. Do not reuse a service id or method id that has already shipped. After deleting a method, keep a record of its id so old clients cannot route requests to a new meaning by accident.
 
-As in the default starter project, prefer collecting ids into `const int` groups such as `RpcContractIds`: put all service ids under `Services`, each service's method ids under the matching `XxxServiceMethods`, and callback push ids under `XxxCallbackPushes`. The ids remain explicit protocol contracts, while reviews become easier and ids are less likely to be scattered across many interface files.
+As in the default starter project, prefer collecting ids into `const int` groups such as `RpcContractIds`: put all service ids under `Services`, each service's method ids under the matching `XxxServiceMethods`, and notification ids under `XxxNotifications`. The ids remain explicit protocol contracts, while reviews become easier and ids are less likely to be scattered across many interface files.
 
 `ULinkRPC.Analyzers` rejects non-positive ids, duplicate service ids, duplicate method ids within one service, and duplicate push ids within one callback interface, so these mistakes surface during normal C# editing and builds.
 

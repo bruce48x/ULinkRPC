@@ -37,7 +37,7 @@ The Unity client opens multiple TCP connections. Each connection uses three inde
 - `IInventoryService`
 - `IQuestService`
 
-Each service has its own callback contract. After the player login succeeds, the client keeps calling:
+Each service has its own notification contract. After the player login succeeds, the client keeps calling:
 
 - `IPlayerService.IncrStep()`
 - `IInventoryService.IncrRevision()`
@@ -45,9 +45,9 @@ Each service has its own callback contract. After the player login succeeds, the
 
 The server pushes updates back through:
 
-- `IPlayerCallback.OnPlayerNotify(...)`
-- `IInventoryCallback.OnInventoryNotify(...)`
-- `IQuestCallback.OnQuestNotify(...)`
+- `IPlayerNotifications.OnPlayerNotify(...)`
+- `IInventoryNotifications.OnInventoryNotify(...)`
+- `IQuestNotifications.OnQuestNotify(...)`
 
 The shared MemoryPack DTOs in `Packages/com.samples.contracts/ExampleDtos.cs` use `GenerateType.VersionTolerant` plus explicit `MemoryPackOrder(...)` numbering. This keeps payload evolution safer when newer and older client/server builds coexist, so adding optional fields later is less likely to break cross-version communication.
 

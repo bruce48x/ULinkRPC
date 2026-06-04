@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.11.10 / 0.11.6 / 0.1.7
+
+- Release packages:
+	- `ULinkRPC.Core` `0.11.10`
+	- `ULinkRPC.Client` `0.11.6`
+	- `ULinkRPC.Analyzers` `0.1.7`
+- Renamed the user-facing server-to-client API from push/callback terminology to notification terminology:
+	- `[RpcNotificationContract]`
+	- `[RpcNotification]`
+	- `RpcNotificationMethod<T>`
+	- `RegisterNotificationHandler(...)`
+	- `SendNotificationAsync(...)`
+- Changed notification handler registration to use `Func<T, ValueTask>` as the core handler shape, while keeping a synchronous convenience overload on `RpcClientRuntime`.
+- Made duplicate notification handler registration fail fast instead of replacing the existing handler.
+- Added observable notification failure events for unhandled notification frames and notification handler exceptions.
+- Updated source generation to support `[RpcNotification]` methods returning either `void` or `ValueTask`.
+
 ## 0.11.9 / 0.11.5
 
 - Release packages:

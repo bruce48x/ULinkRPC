@@ -40,7 +40,7 @@ flowchart LR
     B --> C["Runtime Layer<br/>request, response, Push, KeepAlive"]
     C --> D["Transport Layer<br/>TCP / WebSocket / KCP"]
 
-    A1["[RpcService] / [RpcMethod]<br/>[RpcCallback] / [RpcPush]"] -.defines semantics.-> A
+    A1["[RpcService] / [RpcMethod]<br/>[RpcNotificationContract] / [RpcNotification]"] -.defines semantics.-> A
     C1["RpcClientRuntime / RpcSession<br/>RpcEnvelopeCodec / IRpcSerializer"] -.implements.-> C
     D1["complete frame send/receive"] -.abstracts.-> D
 ```
@@ -51,20 +51,20 @@ This layer only cares about shared interfaces and DTOs:
 
 - `[RpcService]` marks service interfaces.
 - `[RpcMethod]` marks methods clients can call.
-- `[RpcCallback]` marks the callback interface for a service.
-- `[RpcPush]` marks methods pushed by the server.
+- `[RpcNotificationContract]` marks the server-to-client notification interface for a service.
+- `[RpcNotification]` marks server-to-client notification methods.
 
-It defines what can be called and what can be pushed. It does not handle network details.
+It defines what can be called and what notifications can be sent. It does not handle network details.
 
 ### 2. Source Generation Layer: Translate Contracts into Runnable Glue
 
 This layer is handled by the Roslyn source generator in `ULinkRPC.Analyzers`. It reads RPC contract symbols from the current compilation and referenced assemblies, then generates:
 
 - client service proxies
-- client callback binders
+- client notification binders
 - the client unified entry point `RpcApi`
 - server binders
-- server callback proxies
+- server notification proxies
 - server `AllServicesBinder`
 
 The generation layer translates interface definitions into code that can send, receive, and dispatch packets.
@@ -76,8 +76,8 @@ The runtime is built from several parts:
 - `ITransport`: sends and receives complete frames.
 - `IRpcSerializer`: converts objects to/from payloads.
 - `RpcEnvelopeCodec`: converts RPC headers to/from binary frames.
-- `RpcClientRuntime`: manages client requests, pending responses, and pushes.
-- `RpcSession`: receives, dispatches, responds, and pushes on the server.
+- `RpcClientRuntime`: manages client requests, pending responses, and notifications.
+- `RpcSession`: receives, dispatches, responds, and sends notifications on the server.
 - `TransportFrameCodec` / `TransformingTransport`: compression and encryption.
 
 The compact version is:
@@ -95,13 +95,13 @@ Many Unity + server projects start from a familiar pattern:
 3. Send a `messageId` from the client.
 4. Dispatch with a `switch` or dictionary on the server.
 5. Hand-write another response structure.
-6. Add a separate push protocol when the server needs to push.
+6. Add a separate notification protocol when the server needs to notify the client.
 
 That works, but the costs show up as the project grows:
 
 - message ids and business method names become two separate concepts
 - client and server can drift into maintaining separate protocol copies
-- callback push often becomes a different model from request/response
+- server notifications often become a different model from request/response
 - new team members cannot easily tell which message maps to which business interface
 - renaming interfaces or parameters does not automatically update dispatch code
 
@@ -114,7 +114,7 @@ ULinkRPC makes the opposite choice:
 You write:
 
 ```csharp
-[RpcService(1, Callback = typeof(IPlayerCallback))]
+[RpcService(1, NotificationContract = typeof(IPlayerNotifications))]
 public interface IPlayerService
 {
     [RpcMethod(1)]
@@ -138,7 +138,7 @@ That is the part that makes it more maintainable than a fully hand-written proto
 
 ## Why Each Method Takes One DTO
 
-ULinkRPC now has a clear design convergence: **do not map method parameter lists directly to network payloads; `RpcMethod` and `RpcPush` should each take one DTO argument.**
+ULinkRPC now has a clear design convergence: **do not map method parameter lists directly to network payloads; `RpcMethod` and `RpcNotification` should each take one DTO argument.**
 
 Write this:
 
@@ -146,7 +146,7 @@ Write this:
 [RpcMethod(1)]
 ValueTask<LoginReply> LoginAsync(LoginRequest req);
 
-[RpcPush(1)]
+[RpcNotification(1)]
 void OnNotify(PlayerNotify notify);
 ```
 
@@ -156,7 +156,7 @@ Not this:
 [RpcMethod(1)]
 ValueTask<LoginReply> LoginAsync(string account, string password);
 
-[RpcPush(1)]
+[RpcNotification(1)]
 void OnNotify(string message);
 ```
 
@@ -166,7 +166,7 @@ Allowing no-argument, bare single-argument, and multi-argument methods looks fle
 
 - changing the method signature changes the wire payload shape
 - multi-argument methods naturally depend on parameter order
-- callback style becomes inconsistent if bare parameters are allowed
+- notification style becomes inconsistent if bare parameters are allowed
 - the source generator must maintain branches for no-arg / DTO / multi-arg forms
 - docs and samples cannot settle on one clear convention
 
@@ -181,7 +181,7 @@ The current compromise is pragmatic:
 - do not introduce a field-number system
 - do not require a separate schema language
 - remove the riskiest part: sending raw method parameter lists over the network
-- unify on one request DTO / one response DTO / one push DTO
+- unify on one request DTO / one response DTO / one notification DTO
 
 ### What This Tradeoff Buys
 
@@ -213,10 +213,10 @@ In `ULinkRPC.Core`, the contract layer is thin. It is mainly attributes and meth
 
 - `RpcServiceAttribute`
 - `RpcMethodAttribute`
-- `RpcCallbackAttribute`
-- `RpcPushAttribute`
+- `RpcNotificationContractAttribute`
+- `RpcNotificationAttribute`
 - `RpcMethod<TArg, TResult>`
-- `RpcPushMethod<TArg>`
+- `RpcNotificationMethod<TArg>`
 
 This layer does not care whether you use TCP or WebSocket, JSON or MemoryPack, or how packets are sent and received.
 
@@ -366,7 +366,7 @@ The public API is strongly typed `CallAsync<TArg, TResult>`, but underneath it i
 
 Server-to-client messages use:
 
-- `RpcSession.PushAsync(serviceId, methodId, arg)`
+- `RpcSession.SendNotificationAsync(serviceId, methodId, arg)`
 
 So **server push and server response share the same connection and framing; only the frame type differs.**
 
@@ -539,25 +539,25 @@ One of ULinkRPC's practical strengths is that server push is not designed as a s
 The model is unified:
 
 - client -> server: `[RpcService] + [RpcMethod]`
-- server -> client: `[RpcCallback] + [RpcPush]`
+- server -> client: `[RpcNotificationContract] + [RpcNotification]`
 
 The data flow looks like this:
 
 ```mermaid
 sequenceDiagram
     participant SB as Server Business Code
-    participant CP as PlayerCallbackProxy<br/>(generated)
+    participant CP as PlayerNotificationsProxy<br/>(generated)
     participant S as RpcSession
     participant ST as Server Transport
     participant CT as Client Transport
     participant CR as RpcClientRuntime
-    participant CB as PlayerCallbackBinder<br/>(generated)
-    participant R as PlayerCallbackReceiver
+    participant CB as PlayerNotificationsBinder<br/>(generated)
+    participant R as PlayerNotificationsReceiver
 
     SB->>CP: OnNotify(PlayerNotify)
     CP->>CP: Serialize notify
     CP->>CP: Encode Push envelope
-    CP->>S: PushAsync(serviceId, methodId, payload)
+    CP->>S: SendNotificationAsync(serviceId, methodId, payload)
     S->>ST: SendFrameAsync(push frame)
     ST->>CT: network frame
     CT->>CR: ReceiveFrameAsync()
@@ -578,31 +578,31 @@ Many projects handle request and push with separate systems:
 ULinkRPC puts callbacks into the same contract:
 
 ```csharp
-[RpcService(1, Callback = typeof(IPlayerCallback))]
+[RpcService(1, NotificationContract = typeof(IPlayerNotifications))]
 public interface IPlayerService
 {
     [RpcMethod(1)]
     ValueTask<LoginReply> LoginAsync(LoginRequest req);
 }
 
-[RpcCallback(typeof(IPlayerService))]
-public interface IPlayerCallback
+[RpcNotificationContract(typeof(IPlayerService))]
+public interface IPlayerNotifications
 {
-    [RpcPush(1)]
+    [RpcNotification(1)]
     void OnNotify(PlayerNotify notify);
 }
 ```
 
-This does not mean "the service also happens to have a push interface." It means:
+This does not mean "the service also happens to have an event subscription." It means:
 
-**`IPlayerService` naturally has a reverse callback channel.**
+**`IPlayerService` naturally has a server-to-client notification contract.**
 
-### How the Server Callback Proxy Works
+### How the Server Notification Proxy Works
 
-Generated server code emits a `PlayerCallbackProxy`. It implements `IPlayerCallback`, but its method bodies do not run local logic. They:
+Generated server code emits a `PlayerNotificationsProxy`. It implements `IPlayerNotifications`, but its method bodies do not run local logic. They:
 
 - serialize the argument
-- call `RpcSession.PushAsync`
+- call `RpcSession.SendNotificationAsync`
 - send a `Push` frame
 
 So when service code writes:
@@ -611,25 +611,25 @@ So when service code writes:
 _callback.OnNotify(new PlayerNotify { Message = "hello" })
 ```
 
-it looks like a local object call, but it actually sends a server-to-client push frame through a callback proxy.
+it looks like a local object call, but it actually sends a server-to-client notification through a notification proxy.
 
-**Push appears as "call an interface" in business code, not "hand-build a push packet."**
+**Notification appears as "call an interface" in business code, not "hand-build a push packet."**
 
-### What the Client Callback Binder Does
+### What the Client Notification Binder Does
 
-The generated `PlayerCallbackBinder` maps `(serviceId, methodId)` to the callback receiver registered by client code.
+The generated `PlayerNotificationsBinder` maps `(serviceId, methodId)` to the notification receiver registered by client code.
 
 When the client runtime receives a `Push` frame:
 
 1. decode `serviceId` / `methodId`
-2. find the matching push handler
+2. find the matching notification handler
 3. deserialize the payload
 4. call the user's receiver
 
 The two sides close the loop:
 
-- server callback proxy turns interface calls into `Push` frames
-- client callback binder turns `Push` frames back into interface calls
+- server notification proxy turns interface calls into `Push` frames
+- client notification binder turns `Push` frames back into interface calls
 
 ---
 
@@ -724,7 +724,7 @@ It extracts:
 - method list
 - parameter type and order
 - return type
-- callback interface and push methods
+- notification interface and notification methods
 - required `using` directives
 
 The input is source contracts, not DLLs. Benefits:
@@ -744,16 +744,16 @@ Its job is simple:
 
 Users get a call shape close to a local interface.
 
-## 3. Generate Client Callback Binders
+## 3. Generate Client Notification Binders
 
-If a service declares a callback, the generator emits `XxxCallbackBinder`.
+If a service declares a notification contract, the generator emits `XxxNotificationsBinder`.
 
 It:
 
-- predefines `RpcPushMethod<TArg>`
-- registers push handlers with the runtime
-- deserializes push arguments
-- invokes the callback receiver supplied by user code
+- predefines `RpcNotificationMethod<TArg>`
+- registers notification handlers with the runtime
+- deserializes notification arguments
+- invokes the notification receiver supplied by user code
 
 ## 4. Generate the Unified Client Facade `RpcApi`
 
@@ -786,9 +786,9 @@ They register each `(serviceId, methodId)` with `RpcServiceRegistry` and, inside
 
 Client proxies translate local calls into network requests. Server binders translate network requests back into local calls.
 
-## 6. Generate Server Callback Proxies and the Aggregate Binder
+## 6. Generate Server Notification Proxies and the Aggregate Binder
 
-If a service has callbacks, the server also gets callback proxies. Together with `AllServicesBinder`, this supports:
+If a service has notifications, the server also gets notification proxies. Together with `AllServicesBinder`, this supports:
 
 - automatic service implementation discovery
 - automatic rule-based binding
@@ -835,7 +835,7 @@ The default semantics are:
 Benefits:
 
 - state on one connection can naturally live on the service instance
-- callback proxy can be tied to the current session
+- notification proxy can be tied to the current session
 - users do not need to maintain a "connection -> service object" map
 
 This fits connection-stateful business logic such as:

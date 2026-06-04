@@ -57,8 +57,8 @@ With ULinkRPC, you define interfaces and DTOs once. `ULinkRPC.Analyzers` generat
 ```mermaid
 flowchart LR
     Contracts["Shared Contracts<br/>interfaces + DTOs"] --> SourceGen["ULinkRPC.Analyzers<br/>source generator"]
-    SourceGen --> ClientApi["Generated Client API<br/>proxy / facade / callback binder"]
-    SourceGen --> ServerBinders["Generated Server Binders<br/>routing / callback proxy"]
+    SourceGen --> ClientApi["Generated Client API<br/>proxy / facade / notification binder"]
+    SourceGen --> ServerBinders["Generated Server Binders<br/>routing / notification proxy"]
 
     Client["Unity / Godot Client"] --> ClientApi
     ClientApi --> Runtime["ULinkRPC Runtime"]
@@ -126,9 +126,9 @@ var reply = await client.Api.Game.Account.LoginAsync(new LoginRequest
 });
 ```
 
-## Server Push
+## Server Notifications
 
-Server-to-client push uses callback contracts instead of a separate message system:
+Server-to-client notifications are declared as typed notification contracts instead of a separate message system:
 
 ```csharp
 public sealed class PlayerNotify
@@ -136,22 +136,22 @@ public sealed class PlayerNotify
     public string Message { get; set; } = "";
 }
 
-[RpcService(1, Callback = typeof(IPlayerCallback))]
+[RpcService(1, NotificationContract = typeof(IPlayerNotifications))]
 public interface IPlayerService
 {
     [RpcMethod(1)]
     ValueTask<LoginReply> LoginAsync(LoginRequest request);
 }
 
-[RpcCallback(typeof(IPlayerService))]
-public interface IPlayerCallback
+[RpcNotificationContract(typeof(IPlayerService))]
+public interface IPlayerNotifications
 {
-    [RpcPush(1)]
+    [RpcNotification(1)]
     void OnNotify(PlayerNotify notify);
 }
 ```
 
-The generated server callback proxy turns `OnNotify(...)` into a push frame. The generated client callback binder turns the push frame back into a typed callback receiver call.
+The generated server notification proxy turns `OnNotify(...)` into a push frame on the wire. The generated client notification binder turns that frame back into a typed notification receiver call.
 
 ## What ULinkRPC Does Not Own
 

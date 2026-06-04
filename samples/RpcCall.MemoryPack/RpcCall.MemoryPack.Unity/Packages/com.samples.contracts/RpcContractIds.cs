@@ -15,7 +15,7 @@ namespace Game.Rpc.Contracts
             public const int IncrStep = 2;
         }
 
-        public static class PlayerCallbackPushes
+        public static class PlayerNotifications
         {
             public const int OnPlayerNotify = 1;
         }
@@ -26,7 +26,7 @@ namespace Game.Rpc.Contracts
             public const int IncrRevision = 2;
         }
 
-        public static class InventoryCallbackPushes
+        public static class InventoryNotifications
         {
             public const int OnInventoryNotify = 1;
         }
@@ -37,7 +37,7 @@ namespace Game.Rpc.Contracts
             public const int IncrProgress = 2;
         }
 
-        public static class QuestCallbackPushes
+        public static class QuestNotifications
         {
             public const int OnQuestNotify = 1;
         }

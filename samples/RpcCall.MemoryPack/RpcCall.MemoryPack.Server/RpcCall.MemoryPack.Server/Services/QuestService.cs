@@ -4,13 +4,13 @@ namespace RpcCall.MemoryPack.Server.Services;
 
 public class QuestService : IQuestService
 {
-    private readonly IQuestCallback _callback;
+    private readonly IQuestNotifications _notifications;
     private int _progress;
     private bool _announced;
 
-    public QuestService(IQuestCallback callback)
+    public QuestService(IQuestNotifications notifications)
     {
-        _callback = callback;
+        _notifications = notifications;
     }
 
     public ValueTask<ProgressReply> GetProgressAsync(ProgressRequest req)
@@ -18,7 +18,7 @@ public class QuestService : IQuestService
         if (!_announced)
         {
             _announced = true;
-            _callback.OnQuestNotify(new QuestNotify
+            _notifications.OnQuestNotify(new QuestNotify
             {
                 Message = "Quest tracker ready."
             });
@@ -33,7 +33,7 @@ public class QuestService : IQuestService
     public ValueTask<ProgressReply> IncrProgress(ProgressRequest req)
     {
         _progress++;
-        _callback.OnQuestNotify(new QuestNotify
+        _notifications.OnQuestNotify(new QuestNotify
         {
             Message = $"Quest progress => {_progress}"
         });

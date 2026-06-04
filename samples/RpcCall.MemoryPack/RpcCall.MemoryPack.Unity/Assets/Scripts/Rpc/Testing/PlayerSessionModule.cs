@@ -8,7 +8,7 @@ using ULinkRPC.Client;
 
 namespace Rpc.Testing
 {
-    internal sealed class PlayerSessionModule : RpcClient.PlayerCallbackBase
+    internal sealed class PlayerSessionModule : RpcClient.PlayerNotificationsBase
     {
         private readonly IConnectionSessionHost _host;
         private IPlayerService? _service;

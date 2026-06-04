@@ -8,7 +8,7 @@ using ULinkRPC.Client;
 
 namespace Rpc.Testing
 {
-    internal sealed class QuestSessionModule : RpcClient.QuestCallbackBase
+    internal sealed class QuestSessionModule : RpcClient.QuestNotificationsBase
     {
         private readonly IConnectionSessionHost _host;
         private IQuestService? _service;

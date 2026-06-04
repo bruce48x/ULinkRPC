@@ -65,18 +65,18 @@ Returns: The deserialized response DTO.
 Exceptions:
 - `System.InvalidOperationException`: Thrown by the default runtime when the remote response status is not `ULinkRPC.Core.RpcStatus.Ok`.
 
-### Method `ULinkRPC.Core.IRpcClient.RegisterPushHandler(ULinkRPC.Core.RpcPushMethod<T0>,System.Action<T0>)`
+### Method `ULinkRPC.Core.IRpcClient.RegisterNotificationHandler(ULinkRPC.Core.RpcNotificationMethod<T0>,System.Func<T0,System.Threading.Tasks.ValueTask>)`
 
-Registers a handler for a server-to-client push method.
+Registers the handler for a server-to-client notification method.
 
-Remarks: The default runtime invokes handlers from its internal push-processing loop. It does not marshal callbacks to the Unity main thread.
+Remarks: The default runtime invokes handlers from its internal notification-processing loop. It does not marshal notifications to the Unity main thread.
 
 Parameters:
-- `method`: Generated push descriptor containing the service id and push method id.
-- `handler`: Handler invoked with the deserialized push DTO.
+- `method`: Generated notification descriptor containing the service id and notification method id.
+- `handler`: Handler invoked with the deserialized notification DTO.
 
 Type parameters:
-- `TArg`: Push DTO type.
+- `TArg`: Notification DTO type.
 
 ### Method `ULinkRPC.Core.IRpcConnectionAcceptor.AcceptAsync(System.Threading.CancellationToken)`
 
@@ -311,13 +311,13 @@ Parameters:
 
 Releases the underlying payload frame.
 
-### Method `ULinkRPC.Core.RpcPushMethod.constructor(System.Int32,System.Int32)`
+### Method `ULinkRPC.Core.RpcNotificationMethod.constructor(System.Int32,System.Int32)`
 
-Creates a push descriptor from stable protocol ids.
+Creates a notification descriptor from stable protocol ids.
 
 Parameters:
 - `serviceId`: Stable service id declared by `ULinkRPC.Core.RpcServiceAttribute`.
-- `methodId`: Stable push method id declared by `ULinkRPC.Core.RpcPushAttribute`.
+- `methodId`: Stable notification method id declared by `ULinkRPC.Core.RpcNotificationAttribute`.
 
 ### Method `ULinkRPC.Core.RpcRequestFrame.constructor(System.UInt32,System.Int32,System.Int32,ULinkRPC.Core.TransportFrame)`
 
@@ -420,11 +420,11 @@ Serialized push payload.
 
 Generated numeric identifier for the target client service.
 
-### Property `ULinkRPC.Core.RpcPushMethod.MethodId`
+### Property `ULinkRPC.Core.RpcNotificationMethod.MethodId`
 
-Stable push method id used on the wire.
+Stable notification method id used on the wire.
 
-### Property `ULinkRPC.Core.RpcPushMethod.ServiceId`
+### Property `ULinkRPC.Core.RpcNotificationMethod.ServiceId`
 
 Stable service id used on the wire.
 
@@ -548,9 +548,9 @@ Transport boundary for RPC: sends and receives complete frames (one message). TC
 
 Network framing: uint32 length prefix (big-endian) + payload bytes. Matches Unity client's LengthPrefix for wire compatibility.
 
-### Type `ULinkRPC.Core.RpcCallbackAttribute`
+### Type `ULinkRPC.Core.RpcNotificationContractAttribute`
 
-Marks an interface as the callback contract for a specific RPC service.
+Marks an interface as the server-to-client notification contract for a specific RPC service.
 
 ### Type `ULinkRPC.Core.RpcEnvelopeCodec`
 
@@ -590,9 +590,9 @@ Marks an interface method as an RPC method. MethodId must be stable within a ser
 
 Central defaults for RPC protocol payload, transport frame, and security transform limits.
 
-### Type `ULinkRPC.Core.RpcPushAttribute`
+### Type `ULinkRPC.Core.RpcNotificationAttribute`
 
-Marks an interface method as a server-to-client push callback. MethodId must be stable within a callback contract.
+Marks an interface method as a server-to-client notification. MethodId must be stable within a notification contract.
 
 ### Type `ULinkRPC.Core.RpcPushEnvelope`
 
@@ -602,12 +602,12 @@ Mutable push envelope used before encoding a server-to-client notification.
 
 Decoded push envelope with an owned payload frame slice.
 
-### Type `ULinkRPC.Core.RpcPushMethod`
+### Type `ULinkRPC.Core.RpcNotificationMethod`
 
-Typed descriptor for a server-to-client push method.
+Typed descriptor for a server-to-client notification method.
 
 Type parameters:
-- `TArg`: Push DTO type.
+- `TArg`: Notification DTO type.
 
 ### Type `ULinkRPC.Core.RpcRequestEnvelope`
 
@@ -757,16 +757,16 @@ Remarks: The options object owns the selected transport and serializer reference
 
 ### Type `ULinkRPC.Client.RpcClientRuntime`
 
-Default client runtime for ULinkRPC request/response calls and server push dispatch.
+Default client runtime for ULinkRPC request/response calls and server notification dispatch.
 
-Remarks: The runtime owns background receive, push, and keepalive loops after `ULinkRPC.Client.RpcClientRuntime.StartAsync(System.Threading.CancellationToken)`. Push handlers run on the runtime push loop and are not marshalled to the Unity main thread.
+Remarks: The runtime owns background receive, notification, and keepalive loops after `ULinkRPC.Client.RpcClientRuntime.StartAsync(System.Threading.CancellationToken)`. Notification handlers run on the runtime notification loop and are not marshalled to the Unity main thread.
 
-### Type `ULinkRPC.Client.RpcPushPayloadHandler`
+### Type `ULinkRPC.Client.RpcNotificationPayloadHandler`
 
-Handles a serialized server-to-client push payload.
+Handles a serialized server-to-client notification payload.
 
 Parameters:
-- `payload`: Serialized push payload.
+- `payload`: Serialized notification payload.
 
 ## ULinkRPC.Server
 
@@ -1041,18 +1041,18 @@ Type parameters:
 
 Returns: The existing or newly created service instance.
 
-### Method `ULinkRPC.Server.RpcSession.PushAsync(System.Int32,System.Int32,T0,System.Threading.CancellationToken)`
+### Method `ULinkRPC.Server.RpcSession.SendNotificationAsync(System.Int32,System.Int32,T0,System.Threading.CancellationToken)`
 
-Sends a server-to-client push frame.
+Sends a server-to-client notification.
 
 Parameters:
 - `serviceId`: Stable service id.
-- `methodId`: Stable push method id.
-- `arg`: Push DTO instance.
+- `methodId`: Stable notification method id.
+- `arg`: Notification DTO instance.
 - `ct`: Cancellation token for the send operation.
 
 Type parameters:
-- `TArg`: Push DTO type.
+- `TArg`: Notification DTO type.
 
 ### Method `ULinkRPC.Server.RpcSession.Register(System.Int32,System.Int32,ULinkRPC.Server.RpcHandler)`
 

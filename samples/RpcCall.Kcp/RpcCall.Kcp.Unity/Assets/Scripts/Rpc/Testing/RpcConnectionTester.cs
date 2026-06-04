@@ -39,7 +39,7 @@ namespace Rpc.Testing
         public bool AutoConnect = true;
 
         private readonly CancellationTokenSource _cts = new();
-        private readonly RpcClient.RpcCallbackBindings _callbacks;
+        private readonly RpcClient.RpcNotificationBindings _callbacks;
         private RpcClient? _connection;
         private IPlayerService? _player;
         private Task? _pollingTask;
@@ -48,7 +48,7 @@ namespace Rpc.Testing
 
         public RpcConnectionTester()
         {
-            _callbacks = new RpcClient.RpcCallbackBindings();
+            _callbacks = new RpcClient.RpcNotificationBindings();
             _callbacks.Add(new PlayerCallbacks(this));
         }
 
@@ -190,7 +190,7 @@ namespace Rpc.Testing
                 Debug.LogWarning($"[KCP] Disconnected: {ex.Message}");
         }
 
-        private sealed class PlayerCallbacks : RpcClient.PlayerCallbackBase
+        private sealed class PlayerCallbacks : RpcClient.PlayerNotificationsBase
         {
             private readonly RpcConnectionTester _owner;
 

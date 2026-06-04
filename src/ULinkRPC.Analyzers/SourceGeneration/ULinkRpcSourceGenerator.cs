@@ -65,11 +65,11 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 $"{Naming.GetClientTypeName(service.InterfaceName)}.g.cs",
                 SourceText.From(ClientSourceEmitter.GenerateClient(service, generatedNamespace), Encoding.UTF8));
 
-            if (service.HasCallback)
+            if (service.HasNotificationContract)
             {
                 context.AddSource(
-                    $"{Naming.GetCallbackBinderTypeName(service.CallbackInterfaceName!)}.g.cs",
-                    SourceText.From(ClientSourceEmitter.GenerateCallbackBinder(service, generatedNamespace), Encoding.UTF8));
+                    $"{Naming.GetNotificationBinderTypeName(service.NotificationContractInterfaceName!)}.g.cs",
+                    SourceText.From(ClientSourceEmitter.GenerateNotificationBinder(service, generatedNamespace), Encoding.UTF8));
             }
         }
 
@@ -86,11 +86,11 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 $"{Naming.GetBinderTypeName(service.InterfaceName)}.g.cs",
                 SourceText.From(ServerSourceEmitter.GenerateBinder(service, generatedNamespace), Encoding.UTF8));
 
-            if (service.HasCallback)
+            if (service.HasNotificationContract)
             {
                 context.AddSource(
-                    $"{Naming.GetCallbackProxyTypeName(service.CallbackInterfaceName!)}.g.cs",
-                    SourceText.From(ServerSourceEmitter.GenerateCallbackProxy(service, generatedNamespace), Encoding.UTF8));
+                    $"{Naming.GetNotificationProxyTypeName(service.NotificationContractInterfaceName!)}.g.cs",
+                    SourceText.From(ServerSourceEmitter.GenerateNotificationProxy(service, generatedNamespace), Encoding.UTF8));
             }
         }
 
@@ -210,7 +210,7 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
     {
         public static List<RpcServiceModel> FindServices(Compilation compilation)
         {
-            var callbacks = new Dictionary<string, CallbackModel>(StringComparer.Ordinal);
+            var notificationContracts = new Dictionary<string, NotificationContractModel>(StringComparer.Ordinal);
             var services = new List<RpcServiceModel>();
 
             foreach (var type in EnumerateCandidateTypes(compilation))
@@ -218,12 +218,12 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 if (type.TypeKind != TypeKind.Interface)
                     continue;
 
-                var callbackAttribute = GetAttribute(type, "RpcCallbackAttribute");
-                if (callbackAttribute is not null)
+                var notificationContractAttribute = GetAttribute(type, "RpcNotificationContractAttribute");
+                if (notificationContractAttribute is not null)
                 {
-                    var callback = TryCreateCallback(type, callbackAttribute);
-                    if (callback is not null)
-                        callbacks[callback.FullName] = callback;
+                    var notificationContract = TryCreateNotificationContract(type, notificationContractAttribute);
+                    if (notificationContract is not null)
+                        notificationContracts[notificationContract.FullName] = notificationContract;
                 }
 
                 var serviceAttribute = GetAttribute(type, "RpcServiceAttribute");
@@ -237,18 +237,18 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             ValidateServiceIds(services);
             foreach (var service in services)
             {
-                if (service.CallbackInterfaceFullName is null)
+                if (service.NotificationContractInterfaceFullName is null)
                     continue;
 
-                if (!callbacks.TryGetValue(service.CallbackInterfaceFullName, out var callback))
+                if (!notificationContracts.TryGetValue(service.NotificationContractInterfaceFullName, out var notificationContract))
                     throw new InvalidOperationException(
-                        $"Callback interface '{service.CallbackInterfaceFullName}' declared by service '{service.FullName}' was not found or is missing a valid [RpcCallback] contract.");
+                        $"Notification contract interface '{service.NotificationContractInterfaceFullName}' declared by service '{service.FullName}' was not found or is missing a valid [RpcNotificationContract] contract.");
 
-                if (!string.Equals(callback.ServiceFullName, service.FullName, StringComparison.Ordinal))
+                if (!string.Equals(notificationContract.ServiceFullName, service.FullName, StringComparison.Ordinal))
                     throw new InvalidOperationException(
-                        $"Callback interface '{callback.FullName}' is associated with '{callback.ServiceFullName}', but service '{service.FullName}' declared it as its callback.");
+                        $"Notification contract interface '{notificationContract.FullName}' is associated with '{notificationContract.ServiceFullName}', but service '{service.FullName}' declared it as its notification contract.");
 
-                service.CallbackMethods = callback.Methods;
+                service.NotificationMethods = notificationContract.Methods;
             }
 
             return services
@@ -322,46 +322,52 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             if (methods.Count == 0)
                 throw new InvalidOperationException($"RPC service '{type.Name}' must declare at least one [RpcMethod] contract.");
 
-            TryGetTypeArgument(attribute, out var callbackName, out var callbackFullName);
+            TryGetTypeArgument(attribute, out var notificationContractName, out var notificationContractFullName);
             return new RpcServiceModel(
                 type.Name,
                 TypeName(type),
                 type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
                 serviceId,
                 methods,
-                callbackName,
-                callbackFullName);
+                notificationContractName,
+                notificationContractFullName);
         }
 
-        private static CallbackModel? TryCreateCallback(INamedTypeSymbol type, AttributeData attribute)
+        private static NotificationContractModel? TryCreateNotificationContract(INamedTypeSymbol type, AttributeData attribute)
         {
             if (!TryGetTypeArgument(attribute, out _, out var serviceFullName) || serviceFullName is null)
                 return null;
 
-            var methods = new List<RpcCallbackMethodModel>();
+            var methods = new List<RpcNotificationMethodModel>();
             foreach (var member in type.GetMembers().OfType<IMethodSymbol>().OrderBy(static method => method.Name, StringComparer.Ordinal))
             {
-                var pushAttribute = GetAttribute(member, "RpcPushAttribute");
-                if (pushAttribute is null || !TryGetIntId(pushAttribute, out var methodId))
+                var notificationAttribute = GetAttribute(member, "RpcNotificationAttribute");
+                if (notificationAttribute is null || !TryGetIntId(notificationAttribute, out var methodId))
                     continue;
 
+                var returnsValueTask = false;
                 if (!member.ReturnsVoid)
-                    throw new InvalidOperationException($"RPC callback method '{type.Name}.{member.Name}' must return void.");
+                {
+                    if (!IsValueTask(member.ReturnType, out var resultType, out var isVoid) || !isVoid || resultType is not null)
+                        throw new InvalidOperationException($"RPC notification method '{type.Name}.{member.Name}' must return void or ValueTask.");
 
-                methods.Add(new RpcCallbackMethodModel(member.Name, methodId, CreateParameters(member.Parameters)));
+                    returnsValueTask = true;
+                }
+
+                methods.Add(new RpcNotificationMethodModel(member.Name, methodId, CreateParameters(member.Parameters), returnsValueTask));
             }
 
-            ValidateMethodIds(methods, type.Name, "PushId", "[RpcPush]");
+            ValidateMethodIds(methods, type.Name, "NotificationId", "[RpcNotification]");
             if (methods.Count == 0)
-                throw new InvalidOperationException($"RPC callback interface '{type.Name}' must declare at least one valid [RpcPush] contract.");
+                throw new InvalidOperationException($"RPC notification contract interface '{type.Name}' must declare at least one valid [RpcNotification] method.");
 
-            return new CallbackModel(type.Name, TypeName(type), serviceFullName, methods);
+            return new NotificationContractModel(type.Name, TypeName(type), serviceFullName, methods);
         }
 
         private static List<RpcParameterModel> CreateParameters(ImmutableArray<IParameterSymbol> parameters)
         {
             if (parameters.Length != 1)
-                throw new InvalidOperationException("RPC methods and callbacks must declare exactly one DTO payload parameter.");
+                throw new InvalidOperationException("RPC methods and notifications must declare exactly one DTO payload parameter.");
 
             return parameters
                 .Select(static parameter => new RpcParameterModel(TypeName(parameter.Type), parameter.Name))
@@ -550,7 +556,7 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             return writer.ToString();
         }
 
-        public static string GenerateCallbackBinder(RpcServiceModel service, string generatedNamespace)
+        public static string GenerateNotificationBinder(RpcServiceModel service, string generatedNamespace)
         {
             var writer = new SourceWriter();
             writer.Header();
@@ -558,18 +564,26 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             writer.Line($"using {CoreRuntimeUsing};");
             writer.Line();
             writer.OpenBlock($"namespace {generatedNamespace}");
-            writer.OpenBlock($"public static class {Naming.GetCallbackBinderTypeName(service.CallbackInterfaceName!)}");
+            writer.OpenBlock($"public static class {Naming.GetNotificationBinderTypeName(service.NotificationContractInterfaceName!)}");
             writer.Line($"private const int ServiceId = {service.ServiceId};");
 
-            foreach (var method in service.CallbackMethods)
-                writer.Line($"private static readonly RpcPushMethod<{method.PayloadType}> {Naming.GetCallbackMethodFieldName(method.Name)} = new(ServiceId, {method.MethodId});");
+            foreach (var method in service.NotificationMethods)
+                writer.Line($"private static readonly RpcNotificationMethod<{method.PayloadType}> {Naming.GetNotificationMethodFieldName(method.Name)} = new(ServiceId, {method.MethodId});");
 
             writer.Line();
-            writer.OpenBlock($"public static void Bind(IRpcClient client, {service.CallbackFullName} receiver)");
-            foreach (var method in service.CallbackMethods)
+            writer.OpenBlock($"public static void Bind(IRpcClient client, {service.NotificationContractFullName} receiver)");
+            foreach (var method in service.NotificationMethods)
             {
-                writer.OpenBlock($"client.RegisterPushHandler({Naming.GetCallbackMethodFieldName(method.Name)}, arg =>");
-                writer.Line($"receiver.{method.Name}(arg);");
+                writer.OpenBlock($"client.RegisterNotificationHandler({Naming.GetNotificationMethodFieldName(method.Name)}, arg =>");
+                if (method.ReturnsValueTask)
+                {
+                    writer.Line($"return receiver.{method.Name}(arg);");
+                }
+                else
+                {
+                    writer.Line($"receiver.{method.Name}(arg);");
+                    writer.Line("return default;");
+                }
                 writer.CloseBlock(");");
             }
 
@@ -587,7 +601,7 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
                 .Select(static group => new FacadeGroupModel(group.Key, group.OrderBy(static service => service.InterfaceName, StringComparer.Ordinal).ToList()))
                 .ToList();
 
-            var callbacks = services.Where(static service => service.HasCallback).OrderBy(static service => service.CallbackInterfaceName, StringComparer.Ordinal).ToList();
+            var notificationContracts = services.Where(static service => service.HasNotificationContract).OrderBy(static service => service.NotificationContractInterfaceName, StringComparer.Ordinal).ToList();
             var writer = new SourceWriter();
             writer.Header();
             writer.Line("using System;");
@@ -626,8 +640,8 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
 
             writer.OpenBlock("public sealed class RpcClient : IAsyncDisposable");
             writer.Line("private readonly RpcClientRuntime _runtime;");
-            if (callbacks.Count > 0)
-                writer.Line("private readonly RpcCallbackBindings? _callbacks;");
+            if (notificationContracts.Count > 0)
+                writer.Line("private readonly RpcNotificationBindings? _notifications;");
             writer.Line($"private global::{generatedNamespace}.RpcApi? _api;");
             writer.Line();
             writer.OpenBlock("public RpcClient(RpcClientOptions options)");
@@ -636,13 +650,13 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             writer.CloseBlock();
             writer.Line();
 
-            if (callbacks.Count > 0)
+            if (notificationContracts.Count > 0)
             {
-                writer.OpenBlock("public RpcClient(RpcClientOptions options, RpcCallbackBindings callbacks) : this(options)");
-                writer.Line("_callbacks = callbacks ?? throw new ArgumentNullException(nameof(callbacks));");
+                writer.OpenBlock("public RpcClient(RpcClientOptions options, RpcNotificationBindings notifications) : this(options)");
+                writer.Line("_notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));");
                 writer.CloseBlock();
                 writer.Line();
-                EmitCallbackTypes(writer, callbacks, generatedNamespace);
+                EmitNotificationTypes(writer, notificationContracts, generatedNamespace);
             }
 
             writer.OpenBlock("public event Action<Exception?>? Disconnected");
@@ -650,14 +664,24 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             writer.Line("remove => _runtime.Disconnected -= value;");
             writer.CloseBlock();
             writer.Line();
+            writer.OpenBlock("public event Action<RpcUnhandledNotificationContext>? UnhandledNotificationReceived");
+            writer.Line("add => _runtime.UnhandledNotificationReceived += value;");
+            writer.Line("remove => _runtime.UnhandledNotificationReceived -= value;");
+            writer.CloseBlock();
+            writer.Line();
+            writer.OpenBlock("public event Action<RpcNotificationHandlerExceptionContext>? NotificationHandlerException");
+            writer.Line("add => _runtime.NotificationHandlerException += value;");
+            writer.Line("remove => _runtime.NotificationHandlerException -= value;");
+            writer.CloseBlock();
+            writer.Line();
             writer.Line("public RpcClientOptions Options { get; }");
             writer.Line($"public global::{generatedNamespace}.RpcApi Api => _api ??= new global::{generatedNamespace}.RpcApi(_runtime);");
             writer.Line();
             writer.OpenBlock("public ValueTask ConnectAsync(CancellationToken ct = default)");
-            if (callbacks.Count > 0)
+            if (notificationContracts.Count > 0)
             {
-                writer.Line("if (_callbacks is not null)");
-                writer.Line("    _callbacks.Bind(_runtime);");
+                writer.Line("if (_notifications is not null)");
+                writer.Line("    _notifications.Bind(_runtime);");
             }
             writer.Line("return _runtime.StartAsync(ct);");
             writer.CloseBlock();
@@ -670,18 +694,18 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             return writer.ToString();
         }
 
-        private static void EmitCallbackTypes(SourceWriter writer, List<RpcServiceModel> callbacks, string generatedNamespace)
+        private static void EmitNotificationTypes(SourceWriter writer, List<RpcServiceModel> notificationContracts, string generatedNamespace)
         {
-            writer.OpenBlock("public sealed class RpcCallbackBindings");
-            foreach (var service in callbacks)
+            writer.OpenBlock("public sealed class RpcNotificationBindings");
+            foreach (var service in notificationContracts)
             {
-                var field = "_" + Naming.GetCallbackReceiverParamName(service.CallbackInterfaceName!);
-                var parameter = Naming.GetCallbackReceiverParamName(service.CallbackInterfaceName!);
-                writer.Line($"private {service.CallbackFullName}? {field};");
-                writer.OpenBlock($"public void Add({service.CallbackFullName} {parameter})");
+                var field = "_" + Naming.GetNotificationReceiverParamName(service.NotificationContractInterfaceName!);
+                var parameter = Naming.GetNotificationReceiverParamName(service.NotificationContractInterfaceName!);
+                writer.Line($"private {service.NotificationContractFullName}? {field};");
+                writer.OpenBlock($"public void Add({service.NotificationContractFullName} {parameter})");
                 writer.Line($"if ({parameter} is null) throw new ArgumentNullException(nameof({parameter}));");
                 writer.OpenBlock($"if ({field} is not null)");
-                writer.Line($"throw new InvalidOperationException(\"Callback receiver for '{service.CallbackInterfaceName}' is already registered.\");");
+                writer.Line($"throw new InvalidOperationException(\"Notification receiver for '{service.NotificationContractInterfaceName}' is already registered.\");");
                 writer.CloseBlock();
                 writer.Line($"{field} = {parameter};");
                 writer.CloseBlock();
@@ -690,24 +714,29 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
 
             writer.OpenBlock("internal void Bind(IRpcClient client)");
             writer.Line("if (client is null) throw new ArgumentNullException(nameof(client));");
-            foreach (var service in callbacks)
+            foreach (var service in notificationContracts)
             {
-                var field = "_" + Naming.GetCallbackReceiverParamName(service.CallbackInterfaceName!);
+                var field = "_" + Naming.GetNotificationReceiverParamName(service.NotificationContractInterfaceName!);
                 writer.OpenBlock($"if ({field} is not null)");
-                writer.Line($"global::{generatedNamespace}.{Naming.GetCallbackBinderTypeName(service.CallbackInterfaceName!)}.Bind(client, {field});");
+                writer.Line($"global::{generatedNamespace}.{Naming.GetNotificationBinderTypeName(service.NotificationContractInterfaceName!)}.Bind(client, {field});");
                 writer.CloseBlock();
             }
             writer.CloseBlock();
             writer.CloseBlock();
             writer.Line();
 
-            foreach (var service in callbacks)
+            foreach (var service in notificationContracts)
             {
-                writer.OpenBlock($"public abstract class {Naming.GetServiceTypeName(service.CallbackInterfaceName!)}Base : {service.CallbackFullName}");
-                foreach (var method in service.CallbackMethods.OrderBy(static method => method.MethodId))
+                writer.OpenBlock($"public abstract class {Naming.GetServiceTypeName(service.NotificationContractInterfaceName!)}Base : {service.NotificationContractFullName}");
+                foreach (var method in service.NotificationMethods.OrderBy(static method => method.MethodId))
                 {
                     writer.Line();
-                    writer.OpenBlock($"public virtual void {method.Name}({Naming.GetParameterSignature(method.Parameters)})");
+                    if (method.ReturnsValueTask)
+                        writer.OpenBlock($"public virtual ValueTask {method.Name}({Naming.GetParameterSignature(method.Parameters)})");
+                    else
+                        writer.OpenBlock($"public virtual void {method.Name}({Naming.GetParameterSignature(method.Parameters)})");
+                    if (method.ReturnsValueTask)
+                        writer.Line("return default;");
                     writer.CloseBlock();
                 }
                 writer.CloseBlock();
@@ -762,13 +791,13 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             }
 
             writer.CloseBlock();
-            if (service.HasCallback)
+            if (service.HasNotificationContract)
             {
                 writer.Line();
-                writer.OpenBlock($"public static void Bind(RpcServiceRegistry registry, Func<{service.CallbackFullName}, {service.FullName}> implFactory)");
+                writer.OpenBlock($"public static void Bind(RpcServiceRegistry registry, Func<{service.NotificationContractFullName}, {service.FullName}> implFactory)");
                 writer.Line("if (registry is null) throw new ArgumentNullException(nameof(registry));");
                 writer.Line("if (implFactory is null) throw new ArgumentNullException(nameof(implFactory));");
-                writer.Line($"BindFactory(registry, session => implFactory(new {Naming.GetCallbackProxyTypeName(service.CallbackInterfaceName!)}(session)) ?? throw new InvalidOperationException(\"Service implementation factory returned null.\"));");
+                writer.Line($"BindFactory(registry, session => implFactory(new {Naming.GetNotificationProxyTypeName(service.NotificationContractInterfaceName!)}(session)) ?? throw new InvalidOperationException(\"Service implementation factory returned null.\"));");
                 writer.CloseBlock();
             }
             writer.CloseBlock();
@@ -776,23 +805,31 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             return writer.ToString();
         }
 
-        public static string GenerateCallbackProxy(RpcServiceModel service, string generatedNamespace)
+        public static string GenerateNotificationProxy(RpcServiceModel service, string generatedNamespace)
         {
             var writer = new SourceWriter();
             writer.Header();
+            writer.Line("using System.Threading.Tasks;");
             writer.Line($"using {ServerRuntimeUsing};");
             writer.Line();
             writer.OpenBlock($"namespace {generatedNamespace}");
-            writer.OpenBlock($"public sealed class {Naming.GetCallbackProxyTypeName(service.CallbackInterfaceName!)} : {service.CallbackFullName}");
+            writer.OpenBlock($"public sealed class {Naming.GetNotificationProxyTypeName(service.NotificationContractInterfaceName!)} : {service.NotificationContractFullName}");
             writer.Line($"private const int ServiceId = {service.ServiceId};");
             writer.Line("private readonly RpcSession _session;");
             writer.Line();
-            writer.Line($"public {Naming.GetCallbackProxyTypeName(service.CallbackInterfaceName!)}(RpcSession session) {{ _session = session; }}");
+            writer.Line($"public {Naming.GetNotificationProxyTypeName(service.NotificationContractInterfaceName!)}(RpcSession session) {{ _session = session; }}");
             writer.Line();
-            foreach (var method in service.CallbackMethods)
+            foreach (var method in service.NotificationMethods)
             {
-                writer.OpenBlock($"public void {method.Name}({Naming.GetParameterSignature(method.Parameters)})");
-                writer.Line($"_ = _session.PushAsync<{method.PayloadType}>(ServiceId, {method.MethodId}, {method.PayloadValue}).AsTask();");
+                if (method.ReturnsValueTask)
+                    writer.OpenBlock($"public ValueTask {method.Name}({Naming.GetParameterSignature(method.Parameters)})");
+                else
+                    writer.OpenBlock($"public void {method.Name}({Naming.GetParameterSignature(method.Parameters)})");
+
+                if (method.ReturnsValueTask)
+                    writer.Line($"return _session.SendNotificationAsync<{method.PayloadType}>(ServiceId, {method.MethodId}, {method.PayloadValue});");
+                else
+                    writer.Line($"_ = _session.SendNotificationAsync<{method.PayloadType}>(ServiceId, {method.MethodId}, {method.PayloadValue}).AsTask();");
                 writer.CloseBlock();
                 writer.Line();
             }
@@ -818,8 +855,8 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             foreach (var service in services)
             {
                 var binder = Naming.GetBinderTypeName(service.InterfaceName);
-                if (service.HasCallback)
-                    writer.Line($"{binder}.Bind(registry, CreateCallbackServiceFactory<{service.FullName}, {service.CallbackFullName}>());");
+                if (service.HasNotificationContract)
+                    writer.Line($"{binder}.Bind(registry, CreateNotificationServiceFactory<{service.FullName}, {service.NotificationContractFullName}>());");
                 else
                     writer.Line($"{binder}.BindFactory(registry, CreateServiceFactory<{service.FullName}>());");
             }
@@ -834,23 +871,23 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             writer.Line("return _ => (TService)ctor.Invoke(Array.Empty<object?>());");
             writer.CloseBlock();
             writer.Line();
-            writer.OpenBlock("private static Func<TCallback, TService> CreateCallbackServiceFactory<TService, TCallback>()");
+            writer.OpenBlock("private static Func<TNotificationContract, TService> CreateNotificationServiceFactory<TService, TNotificationContract>()");
             writer.Line("var implType = ResolveImplementationType(typeof(TService));");
-            writer.Line("var callbackType = typeof(TCallback);");
-            writer.Line("var callbackCtor = implType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)");
+            writer.Line("var notificationContractType = typeof(TNotificationContract);");
+            writer.Line("var notificationCtor = implType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)");
             writer.Line("    .SingleOrDefault(static ctor =>");
             writer.Line("    {");
             writer.Line("        var parameters = ctor.GetParameters();");
-            writer.Line("        return parameters.Length == 1 && parameters[0].ParameterType.IsAssignableFrom(typeof(TCallback));");
+            writer.Line("        return parameters.Length == 1 && parameters[0].ParameterType.IsAssignableFrom(typeof(TNotificationContract));");
             writer.Line("    });");
-            writer.OpenBlock("if (callbackCtor is not null)");
-            writer.Line("return callback => (TService)callbackCtor.Invoke(new object?[] { callback });");
+            writer.OpenBlock("if (notificationCtor is not null)");
+            writer.Line("return notifications => (TService)notificationCtor.Invoke(new object?[] { notifications });");
             writer.CloseBlock();
             writer.Line("var defaultCtor = implType.GetConstructor(Type.EmptyTypes);");
             writer.OpenBlock("if (defaultCtor is not null)");
             writer.Line("return _ => (TService)defaultCtor.Invoke(Array.Empty<object?>());");
             writer.CloseBlock();
-            writer.Line("throw new InvalidOperationException($\"No suitable public constructor found for service implementation '{implType.FullName}'. Expected either a parameterless constructor or one accepting '{callbackType.FullName}'.\");");
+            writer.Line("throw new InvalidOperationException($\"No suitable public constructor found for service implementation '{implType.FullName}'. Expected either a parameterless constructor or one accepting '{notificationContractType.FullName}'.\");");
             writer.CloseBlock();
             writer.Line();
             writer.OpenBlock("private static Type ResolveImplementationType(Type serviceType)");
@@ -886,16 +923,16 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
             string metadataName,
             int serviceId,
             List<RpcMethodModel> methods,
-            string? callbackInterfaceName,
-            string? callbackFullName)
+            string? notificationContractInterfaceName,
+            string? notificationContractFullName)
         {
             InterfaceName = interfaceName;
             FullName = fullName;
             MetadataName = metadataName;
             ServiceId = serviceId;
             Methods = methods;
-            CallbackInterfaceName = callbackInterfaceName;
-            CallbackFullName = callbackFullName;
+            NotificationContractInterfaceName = notificationContractInterfaceName;
+            NotificationContractFullName = notificationContractFullName;
         }
 
         public string InterfaceName { get; }
@@ -903,16 +940,16 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
         public string MetadataName { get; }
         public int ServiceId { get; }
         public List<RpcMethodModel> Methods { get; }
-        public string? CallbackInterfaceName { get; }
-        public string? CallbackFullName { get; }
-        public string? CallbackInterfaceFullName => CallbackFullName;
-        public List<RpcCallbackMethodModel> CallbackMethods { get; set; } = new();
-        public bool HasCallback => CallbackFullName is not null && CallbackMethods.Count > 0;
+        public string? NotificationContractInterfaceName { get; }
+        public string? NotificationContractFullName { get; }
+        public string? NotificationContractInterfaceFullName => NotificationContractFullName;
+        public List<RpcNotificationMethodModel> NotificationMethods { get; set; } = new();
+        public bool HasNotificationContract => NotificationContractFullName is not null && NotificationMethods.Count > 0;
     }
 
-    private sealed class CallbackModel
+    private sealed class NotificationContractModel
     {
-        public CallbackModel(string name, string fullName, string serviceFullName, List<RpcCallbackMethodModel> methods)
+        public NotificationContractModel(string name, string fullName, string serviceFullName, List<RpcNotificationMethodModel> methods)
         {
             Name = name;
             FullName = fullName;
@@ -923,7 +960,7 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
         public string Name { get; }
         public string FullName { get; }
         public string ServiceFullName { get; }
-        public List<RpcCallbackMethodModel> Methods { get; }
+        public List<RpcNotificationMethodModel> Methods { get; }
     }
 
     private sealed class RpcMethodModel : IRpcMethodContract
@@ -946,18 +983,20 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
         public string PayloadValue => Parameters[0].Name;
     }
 
-    private sealed class RpcCallbackMethodModel : IRpcMethodContract
+    private sealed class RpcNotificationMethodModel : IRpcMethodContract
     {
-        public RpcCallbackMethodModel(string name, int methodId, List<RpcParameterModel> parameters)
+        public RpcNotificationMethodModel(string name, int methodId, List<RpcParameterModel> parameters, bool returnsValueTask)
         {
             Name = name;
             MethodId = methodId;
             Parameters = parameters;
+            ReturnsValueTask = returnsValueTask;
         }
 
         public string Name { get; }
         public int MethodId { get; }
         public List<RpcParameterModel> Parameters { get; }
+        public bool ReturnsValueTask { get; }
         public string PayloadType => Parameters[0].TypeName;
         public string PayloadValue => Parameters[0].Name;
     }
@@ -995,13 +1034,13 @@ public sealed class ULinkRpcSourceGenerator : ISourceGenerator
 
         public static string GetClientTypeName(string interfaceName) => GetServiceTypeName(interfaceName) + "Client";
         public static string GetBinderTypeName(string interfaceName) => GetServiceTypeName(interfaceName) + "Binder";
-        public static string GetCallbackProxyTypeName(string callbackInterfaceName) => GetServiceTypeName(callbackInterfaceName) + "Proxy";
-        public static string GetCallbackBinderTypeName(string callbackInterfaceName) => GetServiceTypeName(callbackInterfaceName) + "Binder";
+        public static string GetNotificationProxyTypeName(string notificationContractInterfaceName) => GetServiceTypeName(notificationContractInterfaceName) + "Proxy";
+        public static string GetNotificationBinderTypeName(string notificationContractInterfaceName) => GetServiceTypeName(notificationContractInterfaceName) + "Binder";
         public static string GetClientExtensionTypeName(string interfaceName) => GetServiceTypeName(interfaceName) + "ClientExtensions";
         public static string GetClientFactoryMethodName(string interfaceName) => "Create" + GetServiceTypeName(interfaceName);
         public static string GetClientMethodFieldName(string methodName) => ToCamelCase(methodName) + "RpcMethod";
-        public static string GetCallbackMethodFieldName(string methodName) => ToCamelCase(methodName) + "PushMethod";
-        public static string GetCallbackReceiverParamName(string callbackInterfaceName) => ToCamelCase(GetServiceTypeName(callbackInterfaceName));
+        public static string GetNotificationMethodFieldName(string methodName) => ToCamelCase(methodName) + "NotificationMethod";
+        public static string GetNotificationReceiverParamName(string notificationContractInterfaceName) => ToCamelCase(GetServiceTypeName(notificationContractInterfaceName));
 
         public static string GetParameterSignature(IReadOnlyList<RpcParameterModel> parameters) =>
             string.Join(", ", parameters.Select(static parameter => parameter.TypeName + " " + parameter.Name));

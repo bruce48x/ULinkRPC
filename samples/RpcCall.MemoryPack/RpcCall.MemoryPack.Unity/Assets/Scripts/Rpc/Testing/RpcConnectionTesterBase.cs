@@ -613,7 +613,7 @@ namespace Rpc.Testing
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
-            private readonly RpcClient.RpcCallbackBindings _callbacks;
+            private readonly RpcClient.RpcNotificationBindings _callbacks;
             private readonly InventorySessionModule _inventoryModule;
             private readonly PlayerSessionModule _playerModule;
             private readonly QuestSessionModule _questModule;
@@ -630,7 +630,7 @@ namespace Rpc.Testing
                 _playerModule = new PlayerSessionModule(this);
                 _inventoryModule = new InventorySessionModule(this);
                 _questModule = new QuestSessionModule(this);
-                _callbacks = new RpcClient.RpcCallbackBindings();
+                _callbacks = new RpcClient.RpcNotificationBindings();
                 _callbacks.Add(_inventoryModule);
                 _callbacks.Add(_playerModule);
                 _callbacks.Add(_questModule);

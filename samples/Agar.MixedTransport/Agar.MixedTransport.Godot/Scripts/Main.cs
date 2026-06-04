@@ -203,7 +203,7 @@ public partial class Main : Control
     {
         await ShutdownBattleAsync();
 
-        var callbacks = new RpcClient.RpcCallbackBindings();
+        var callbacks = new RpcClient.RpcNotificationBindings();
         callbacks.Add(new BattleCallbacks(this));
         _battleClient = new RpcClient(new RpcClientOptions(
             new KcpTransport(host, kcpPort, conv),
@@ -443,7 +443,7 @@ public partial class Main : Control
         await DisposeAuthClientAsync();
     }
 
-    private sealed class BattleCallbacks : RpcClient.BattleCallbackBase
+    private sealed class BattleCallbacks : RpcClient.BattleNotificationsBase
     {
         private readonly Main _owner;
 

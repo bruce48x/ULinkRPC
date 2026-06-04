@@ -11,8 +11,8 @@ This document records the current judgment and future optimization direction. It
 
 Areas that can be stabilized first:
 
-- C# contract-first workflow: `[RpcService]`, `[RpcMethod]`, `[RpcCallback]`, `[RpcPush]`
-- Basic usage of the generated client facade, server binder, and callback binder
+- C# contract-first workflow: `[RpcService]`, `[RpcMethod]`, `[RpcNotificationContract]`, `[RpcNotification]`
+- Basic usage of the generated client facade, server binder, and notification binder
 - Main entry points such as `ITransport`, `IRpcSerializer`, `RpcClientOptions`, and `RpcServerHostBuilder`
 - Package boundaries for TCP, WebSocket, KCP, and Loopback transports
 - Replacement boundary between JSON and MemoryPack serializers
@@ -22,7 +22,6 @@ Areas that should not be hard-frozen yet:
 
 - Public commitment boundary for low-level frame/envelope/session types
 - RPC status taxonomy and remaining error model details
-- Push callback registration and unregistration model
 - Restart and reuse semantics for runtime, transport, and session objects
 - Naming rules and conflict handling for generated facades
 - Server-side advanced APIs such as `RpcSession` constructor overloads, `RpcServiceRegistry`, and low-level handler delegates
@@ -49,7 +48,7 @@ This layer primarily supports source generator output. Users can see it and may 
 
 - `IRpcClient`
 - `RpcMethod<TArg, TResult>`
-- `RpcPushMethod<TArg>`
+- `RpcNotificationMethod<TArg>`
 - `RpcGeneratedServicesBinderAttribute`
 - registry and handler entry points used by generated server binders
 
@@ -97,17 +96,13 @@ Clients now throw `RpcException` for non-OK remote responses. `RpcException` is 
 
 Before freezing, evaluate whether framework-level statuses such as overloaded, decode failure, and bad request should be separated. Business errors should still stay in application DTOs or business return models, not be forced into the low-level runtime.
 
-### 3. Revisit the Push Callback API
+### 3. Stabilize Server Notification API
 
-Callback registration is currently one-shot: `RegisterPushHandler(..., Action<T>)`. Before freezing, decide whether to support:
+Server notification registration is intentionally one-shot per generated notification method. It models a notification contract implementation, not a general event subscription system.
 
-- handler unregistration
-- async handlers
-- duplicate registration policy
-- handler exception observability
-- keeping Unity, Tuanjie, and Godot main-thread dispatch solely as application-layer responsibility
+The runtime now uses `RegisterNotificationHandler(..., Func<T, ValueTask>)` as the core handler shape, keeps a synchronous convenience overload on `RpcClientRuntime`, and fails fast on duplicate registration. It does not provide unregistration and does not support multiple handlers for the same notification method. Applications that need fan-out should do that inside their notification implementation.
 
-If registration should return `IDisposable`, or if a `Func<T, ValueTask>` shape should be added, do it before the hard freeze.
+Handler exceptions and unhandled notification frames are observable through runtime events and do not disconnect the RPC transport by default. Unity, Tuanjie, and Godot main-thread dispatch remains an application-layer responsibility.
 
 ### 4. Lock Down Lifetime Semantics
 

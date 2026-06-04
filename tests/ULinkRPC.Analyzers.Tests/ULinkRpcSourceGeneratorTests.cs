@@ -30,14 +30,18 @@ public sealed class ULinkRpcSourceGeneratorTests
             .ToArray();
 
         Assert.Contains("PingServiceClient.g.cs", generatedHintNames);
-        Assert.Contains("PingCallbackBinder.g.cs", generatedHintNames);
+        Assert.Contains("PingNotificationsBinder.g.cs", generatedHintNames);
         Assert.Contains("RpcApi.g.cs", generatedHintNames);
         Assert.Contains("PingServiceBinder.g.cs", generatedHintNames);
-        Assert.Contains("PingCallbackProxy.g.cs", generatedHintNames);
+        Assert.Contains("PingNotificationsProxy.g.cs", generatedHintNames);
         Assert.Contains("AllServicesBinder.g.cs", generatedHintNames);
 
         var allServicesBinder = runResult.Results.Single().GeneratedSources.Single(static source => source.HintName == "AllServicesBinder.g.cs").SourceText.ToString();
         Assert.Contains("[assembly: RpcGeneratedServicesBinder(typeof(Server.Generated.AllServicesBinder))]", allServicesBinder);
+
+        var rpcApi = runResult.Results.Single().GeneratedSources.Single(static source => source.HintName == "RpcApi.g.cs").SourceText.ToString();
+        Assert.Contains("public event Action<RpcUnhandledNotificationContext>? UnhandledNotificationReceived", rpcApi);
+        Assert.Contains("public event Action<RpcNotificationHandlerExceptionContext>? NotificationHandlerException", rpcApi);
     }
 
     [Fact]
@@ -109,6 +113,33 @@ public sealed class ULinkRpcSourceGeneratorTests
         Assert.Contains("PingServiceClient", generatedSource);
     }
 
+    [Fact]
+    public void SourceGenerator_NotificationPush_AllowsVoidAndValueTaskReturns()
+    {
+        var compilation = AnalyzerTestHelpers.CreateCompilation(ContractWithAsyncCallbackSource);
+        var runResult = AnalyzerTestHelpers.RunGenerator(
+            compilation,
+            new Dictionary<string, string>
+            {
+                ["build_property.ULinkRPCGenerateClient"] = "true",
+                ["build_property.ULinkRPCGenerateServer"] = "true"
+            },
+            out var outputCompilation);
+
+        Assert.Empty(runResult.Diagnostics);
+        Assert.Empty(AnalyzerTestHelpers.ErrorDiagnostics(outputCompilation));
+
+        var callbackBinder = runResult.Results
+            .Single()
+            .GeneratedSources
+            .Single(static source => source.HintName == "PingNotificationsBinder.g.cs")
+            .SourceText
+            .ToString();
+
+        Assert.Contains("receiver.OnNotify(arg);", callbackBinder);
+        Assert.Contains("return receiver.OnNotifyAsync(arg);", callbackBinder);
+    }
+
     private const string ContractWithCallbackSource = """
         using System.Threading.Tasks;
         using ULinkRPC.Core;
@@ -130,17 +161,17 @@ public sealed class ULinkRpcSourceGeneratorTests
                 public string Message { get; set; } = string.Empty;
             }
 
-            [RpcService(1, Callback = typeof(IPingCallback))]
+            [RpcService(1, NotificationContract = typeof(IPingNotifications))]
             public interface IPingService
             {
                 [RpcMethod(1)]
                 ValueTask<PingReply> PingAsync(PingRequest request);
             }
 
-            [RpcCallback(typeof(IPingService))]
-            public interface IPingCallback
+            [RpcNotificationContract(typeof(IPingService))]
+            public interface IPingNotifications
             {
-                [RpcPush(1)]
+                [RpcNotification(1)]
                 void OnNotify(NotifyRequest request);
             }
         }
@@ -178,6 +209,35 @@ public sealed class ULinkRpcSourceGeneratorTests
             {
                 [RpcMethod(1)]
                 ValueTask<PingReply> PingAsync(PingRequest request);
+            }
+        }
+        """;
+
+    private const string ContractWithAsyncCallbackSource = """
+        using System.Threading.Tasks;
+        using ULinkRPC.Core;
+
+        namespace Game.Contracts
+        {
+            public sealed class PingRequest { }
+            public sealed class PingReply { }
+            public sealed class NotifyRequest { }
+
+            [RpcService(1, NotificationContract = typeof(IPingNotifications))]
+            public interface IPingService
+            {
+                [RpcMethod(1)]
+                ValueTask<PingReply> PingAsync(PingRequest request);
+            }
+
+            [RpcNotificationContract(typeof(IPingService))]
+            public interface IPingNotifications
+            {
+                [RpcNotification(1)]
+                void OnNotify(NotifyRequest request);
+
+                [RpcNotification(2)]
+                ValueTask OnNotifyAsync(NotifyRequest request);
             }
         }
         """;

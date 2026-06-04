@@ -19,7 +19,7 @@ public static class RpcContractIds
         public const int UpdateInputAsync = 2;
     }
 
-    public static class BattleCallbackPushes
+    public static class BattleNotifications
     {
         public const int OnSnapshot = 1;
     }

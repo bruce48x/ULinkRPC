@@ -23,6 +23,6 @@ Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
 - RPC attributes: `RpcServiceAttribute`, `RpcMethodAttribute`
 - Contract analyzers for non-positive ids and duplicate service/method/push ids
 - Transport and serializer abstractions: `ITransport`, `IRpcSerializer`, `IRpcClient`
-- Envelopes, status, and exceptions: `RpcRequestEnvelope`, `RpcResponseEnvelope`, `RpcStatus`, `RpcException`, `RpcVoid`
+- Envelopes, status, exceptions, and notification diagnostics: `RpcRequestEnvelope`, `RpcResponseEnvelope`, `RpcStatus`, `RpcException`, `RpcNotificationHandlerExceptionContext`, `RpcUnhandledNotificationContext`, `RpcVoid`
 - Envelope codec: `RpcEnvelopeCodec`
 - Shared framing/security helpers: `LengthPrefix`, `TransportFrameCodec`, `TransformingTransport`, `TransportSecurityConfig`

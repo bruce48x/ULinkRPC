@@ -14,16 +14,16 @@ namespace ULinkRPC.Core
         }
 
         public int ServiceId { get; }
-        public Type? Callback { get; set; }
+        public Type? NotificationContract { get; set; }
     }
 
     /// <summary>
-    ///     Marks an interface as the callback contract for a specific RPC service.
+    ///     Marks an interface as the server-to-client notification contract for a specific RPC service.
     /// </summary>
     [AttributeUsage(AttributeTargets.Interface)]
-    public sealed class RpcCallbackAttribute : Attribute
+    public sealed class RpcNotificationContractAttribute : Attribute
     {
-        public RpcCallbackAttribute(Type serviceType)
+        public RpcNotificationContractAttribute(Type serviceType)
         {
             ServiceType = serviceType;
         }
@@ -47,12 +47,12 @@ namespace ULinkRPC.Core
     }
 
     /// <summary>
-    ///     Marks an interface method as a server-to-client push callback. MethodId must be stable within a callback contract.
+    ///     Marks an interface method as a server-to-client notification. MethodId must be stable within a notification contract.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class RpcPushAttribute : Attribute
+    public sealed class RpcNotificationAttribute : Attribute
     {
-        public RpcPushAttribute(int methodId)
+        public RpcNotificationAttribute(int methodId)
         {
             MethodId = methodId;
         }

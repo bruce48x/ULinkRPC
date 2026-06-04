@@ -610,7 +610,7 @@ namespace Rpc.Testing
         {
             private readonly RpcConnectionTesterBase _owner;
             private readonly CancellationTokenSource _cts = new();
-            private readonly RpcClient.RpcCallbackBindings _callbacks;
+            private readonly RpcClient.RpcNotificationBindings _callbacks;
             private RpcClient? _connection;
             private bool _disposed;
             private Task? _pollingTask;
@@ -621,7 +621,7 @@ namespace Rpc.Testing
             {
                 _owner = owner;
                 Index = index;
-                _callbacks = new RpcClient.RpcCallbackBindings();
+                _callbacks = new RpcClient.RpcNotificationBindings();
                 _callbacks.Add(new PlayerCallbacks(this));
             }
 
@@ -734,7 +734,7 @@ namespace Rpc.Testing
                 _owner.OnSessionDisconnected(this, ex);
             }
 
-            private sealed class PlayerCallbacks : RpcClient.PlayerCallbackBase
+            private sealed class PlayerCallbacks : RpcClient.PlayerNotificationsBase
             {
                 private readonly ConnectionSession _owner;
 

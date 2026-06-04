@@ -8,7 +8,7 @@ using ULinkRPC.Client;
 
 namespace Rpc.Testing
 {
-    internal sealed class InventorySessionModule : RpcClient.InventoryCallbackBase
+    internal sealed class InventorySessionModule : RpcClient.InventoryNotificationsBase
     {
         private readonly IConnectionSessionHost _host;
         private IInventoryService? _service;
