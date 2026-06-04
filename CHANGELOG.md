@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.0 / 0.2.0 / 0.4.0
+
+- Release packages:
+	- `ULinkRPC.Core` `0.12.0`
+	- `ULinkRPC.Client` `0.12.0`
+	- `ULinkRPC.Server` `0.12.0`
+	- `ULinkRPC.Analyzers` `0.2.0`
+	- `ULinkRPC.Starter` `0.4.0`
+- Raised the package line after the API stability, notification naming, lifecycle, error model, generated facade naming, and server API boundary changes.
+- Updated the starter release manifest so newly scaffolded projects use the `0.12.0` runtime packages and `0.2.0` analyzer package.
+
 ## 0.11.13 / 0.3.7
 
 - Release packages:
