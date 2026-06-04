@@ -840,6 +840,8 @@ Exceptions:
 
 Manually configures service handlers.
 
+Remarks: This is generated-binder support and advanced runtime configuration. Regular server applications should prefer generated service binding through `RpcServerHostBuilder` and should not hand-write `(serviceId, methodId)` handler dictionaries.
+
 Parameters:
 - `configure`: Registry configuration callback.
 
@@ -998,6 +1000,8 @@ Returns: This builder.
 
 Creates a session and optionally disposes the transport when the session is disposed.
 
+Remarks: `RpcSession` is runtime implementation support for one accepted connection. Regular server applications should use `RpcServerHostBuilder` instead of constructing sessions directly.
+
 Parameters:
 - `transport`: Transport for this connection.
 - `serializer`: Serializer used for RPC payloads.
@@ -1084,6 +1088,8 @@ Type parameters:
 
 Registers a low-level request handler for one service method.
 
+Remarks: This is runtime-internal handler wiring. Regular applications should define RPC contracts and service implementations, then let generated binders register handlers.
+
 Parameters:
 - `serviceId`: Stable service id.
 - `methodId`: Stable method id.
@@ -1158,6 +1164,8 @@ Remote endpoint of the connected client, if the underlying transport supports it
 
 Low-level handler for a decoded RPC request.
 
+Remarks: This delegate is runtime-internal handler wiring, not a normal application extension point.
+
 Parameters:
 - `req`: Request envelope.
 - `ct`: Cancellation token for request processing.
@@ -1174,5 +1182,5 @@ Remarks: The builder composes serializer, transport acceptor, generated service 
 
 Runtime for one accepted client connection.
 
-Remarks: A session owns receive, dispatch, optional keepalive, and server push for one transport connection. Generated server binders usually create session-scoped service instances through `ULinkRPC.Server.RpcSession.GetOrAddScopedService(System.Int32,System.Func)`.
+Remarks: A session owns receive, dispatch, optional keepalive, and server push for one transport connection. `RpcSession` is runtime implementation support, not a supported user-authored server host API. Regular server applications should use `ULinkRPC.Server.RpcServerHostBuilder` and generated binders.
 

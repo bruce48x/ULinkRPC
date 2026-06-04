@@ -22,11 +22,10 @@ Design boundary: https://bruce48x.github.io/ULinkRPC/concepts/design-boundary/
 
 ## Includes
 
-- `RpcServiceRegistry`
-- `RpcSession`
 - `RpcServerHostBuilder`
 - `RpcServerHost`
 - `RpcGeneratedServiceBinder`
+- runtime dispatch infrastructure used by generated service binders
 
 ## Recommended Usage
 
@@ -44,28 +43,18 @@ await builder.RunAsync();
 
 When the entry assembly contains code-generated `AllServicesBinder`, the builder binds it automatically.
 
-## Low-Level Usage
+## Extension Boundary
 
-Pass `ITransport` and `IRpcSerializer` explicitly when you need a manually managed per-connection session:
+Server applications should not create `RpcSession` directly or hand-write `(serviceId, methodId)` handler dictionaries. `RpcSession`, `RpcServiceRegistry`, and low-level handler delegates are runtime implementation and generated-binder support APIs.
 
-```csharp
-var session = new RpcSession(transport, serializer);
-```
-
-Optional transport ownership:
-
-```csharp
-await using var session = new RpcSession(transport, serializer, ownsTransport: true);
-```
-
-When `ownsTransport` is `true`, disposing the session also disposes the transport.
+Custom transports and serializers are supported extension points. Implement `ITransport`, `IRpcConnectionAcceptor`, or `IRpcSerializer`, then pass those implementations into `RpcServerHostBuilder`.
 
 ## KeepAlive
 
 `RpcServerHostBuilder.UseKeepAlive(...)` enables connection-level idle timeout handling for accepted sessions.
 
 - The server automatically replies to client keepalive pings with pong.
-- When enabled on the host, each `RpcSession` also tracks idle time and disconnects sessions that remain inactive longer than the configured timeout.
+- When enabled on the host, each accepted connection also tracks idle time and disconnects sessions that remain inactive longer than the configured timeout.
 
 ## Authentication And Authorization Boundary
 

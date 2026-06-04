@@ -13,24 +13,25 @@ Areas that can be stabilized first:
 
 - C# contract-first workflow: `[RpcService]`, `[RpcMethod]`, `[RpcNotificationContract]`, `[RpcNotification]`
 - Basic usage of the generated client facade, server binder, and notification binder
-- Main entry points such as `ITransport`, `IRpcSerializer`, `RpcClientOptions`, and `RpcServerHostBuilder`
+- Main user entry points such as `RpcClientOptions` and `RpcServerHostBuilder`
+- Extension entry points such as `ITransport`, `IRpcSerializer`, `IRpcConnectionAcceptor`, `RpcAcceptedConnection`, and `TransportFrame`
 - Package boundaries for TCP, WebSocket, KCP, and Loopback transports
 - Replacement boundary between JSON and MemoryPack serializers
 - Basic wire semantics for request / response / push / keepalive
 
 Areas that should not be hard-frozen yet:
 
-- Public commitment boundary for low-level frame/envelope/session types
+- Public commitment boundary for low-level frame/envelope/session types that still appear in API reference
 - RPC status taxonomy and remaining error model details
 - Restart and reuse semantics for runtime, transport, and session objects
 - Naming rules and conflict handling for generated facades
-- Server-side advanced APIs such as `RpcSession` constructor overloads, `RpcServiceRegistry`, and low-level handler delegates
+- Generated server binding shape that currently exposes `RpcSession`
 
-## API Layers
+## API Commitment Layers
 
-Future documentation and release notes should divide public APIs into three layers.
+Future documentation and release notes should divide public APIs into five layers.
 
-### Stable API
+### Stable User API
 
 This layer targets regular users. After a hard freeze, it should mostly receive only compatible additions.
 
@@ -39,8 +40,26 @@ This layer targets regular users. After a hard freeze, it should mostly receive 
 - generated `RpcClient` facade lifetime
 - `RpcClientOptions`
 - `RpcServerHostBuilder`
+- `RpcServerHost`
+- `RpcServerLimits`
 - transport construction entry points
 - serializer construction entry points
+- `RpcKeepAliveOptions`
+- `RpcException`
+- `RpcStatus`
+
+### Stable Extension API
+
+This layer targets third-party transport, serializer, and connection acceptor authors. Official transport and serializer packages cannot cover every production environment, so these interfaces are long-term extension points.
+
+- `ITransport`
+- `IRpcSerializer`
+- `IRpcConnectionAcceptor`
+- `IRemoteEndPointProvider`
+- `RpcAcceptedConnection`
+- `TransportFrame`
+
+This layer needs focused contract tests before hard freeze.
 
 ### Generated-Support API
 
@@ -50,22 +69,36 @@ This layer primarily supports source generator output. Users can see it and may 
 - `RpcMethod<TArg, TResult>`
 - `RpcNotificationMethod<TArg>`
 - `RpcGeneratedServicesBinderAttribute`
-- registry and handler entry points used by generated server binders
+- `RpcGeneratedServiceBinder`
+- `RpcServiceRegistry`, until generator output no longer exposes registry binding directly
 
 When this layer has a breaking change, releases must explicitly require users to rebuild so the source generator regenerates glue code, and they should avoid silent failures from combining a new runtime with old generated code.
 
-### Advanced API
+### Runtime Internal API
 
-This layer is for transports, serializers, test utilities, and custom host integration. It can remain public, but before a hard freeze the project needs to clarify which parts are long-term commitments and which may still change.
+This layer should not be presented as a user extension surface. If a type remains public temporarily, it should be hidden from normal user docs and documented as implementation support.
 
-- `TransportFrame`
+- `RpcSession`
+- `RpcHandler`
+- `RpcSessionHandler`
+- direct `(serviceId, methodId)` handler registration
+- low-level session notification sending
+
+ULinkRPC does not support user-authored server hosts as the normal extension model. Server applications should use `RpcServerHostBuilder` and generated binders.
+
+### Protocol and Infrastructure API
+
+This layer is for protocol tools, tests, diagnostics, and package-internal cooperation. It is not a business application entry point.
+
 - `RpcEnvelopeCodec`
 - envelope/frame DTOs
-- `RpcSession`
-- `RpcServiceRegistry`
-- `IRpcConnectionAcceptor`
+- `RpcFrameType`
+- `RpcProtocolLimits`
+- `LengthPrefix`
+- `TransportFrameCodec`
 - `TransformingTransport`
 - `TransportSecurityConfig`
+- `PooledFrameBufferWriter`
 
 If a type is public only for package-internal cooperation or tests, prefer narrowing its visibility. If it must remain public, add documentation and contract tests.
 
@@ -76,8 +109,9 @@ If a type is public only for package-internal cooperation or tests, prefer narro
 The current API Reference lists many low-level types as public APIs. Before freezing, decide:
 
 - which types are stable user entry points
+- which types are stable extension points
 - which types only support generated code
-- which types belong to advanced integration
+- which types are runtime internal support
 - which types can become internal or hide behind narrower facades
 
 The goal is not to reduce every public type, but to prevent temporary public surface area from being mistaken for a long-term stability promise.

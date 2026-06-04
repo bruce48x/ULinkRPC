@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.12 / 0.3.6
+
+- Release packages:
+	- `ULinkRPC.Server` `0.11.12`
+	- `ULinkRPC.Starter` `0.3.6`
+- Updated Server package README guidance so regular applications use `RpcServerHostBuilder` instead of direct `RpcSession` construction.
+- Added public API layer documentation that separates stable user APIs, stable extension APIs, generated-support APIs, runtime internals, and protocol infrastructure.
+- Updated the starter release manifest to reference `ULinkRPC.Server` `0.11.12`.
+
 ## 0.11.12 / 0.11.11
 
 - Release packages:
