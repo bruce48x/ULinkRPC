@@ -1,7 +1,7 @@
 {
-  "Core": "0.11.8",
+  "Core": "0.11.9",
   "Server": "0.11.9",
-  "Client": "0.11.4",
+  "Client": "0.11.5",
   "TransportTcp": "0.11.4",
   "TransportWebSocket": "0.11.6",
   "TransportKcp": "0.11.13",

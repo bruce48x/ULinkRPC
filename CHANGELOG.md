@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.9 / 0.11.5
+
+- Release packages:
+	- `ULinkRPC.Core` `0.11.9`
+	- `ULinkRPC.Client` `0.11.5`
+- Documented the ULinkRPC wire protocol v1 envelope format and added golden byte tests for request, response, push, and keepalive frames.
+- Added `RpcException` as the dedicated client-side exception for non-OK remote RPC responses, carrying status, error message, request id, service id, and method id.
+- Updated `RpcClientRuntime` to throw `RpcException` for non-OK remote responses.
+
 ## 0.3.3
 
 - Release packages:
