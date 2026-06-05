@@ -13,6 +13,7 @@ These documents are contributor-facing. Public user documentation and blog conte
 ## Protocol
 
 - [Wire Protocol v1](protocol/wire-protocol-v1.md)
+- [RPC Status Error Model](protocol/rpc-status-error-model.md)
 
 ## Archive
 

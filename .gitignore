@@ -189,6 +189,7 @@ pack.cmd
 .nuget/
 
 # Hexo site
+/docs/superpowers/
 /docs/node_modules/
 /docs/public/
 /docs/.deploy_git/
