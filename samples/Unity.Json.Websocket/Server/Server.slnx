@@ -4,5 +4,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="RpcCall.Json.Server/RpcCall.Json.Server.csproj" />
+  <Project Path="Server/Server.csproj" />
 </Solution>

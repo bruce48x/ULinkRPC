@@ -1,6 +1,6 @@
 using Game.Rpc.Contracts;
 
-namespace RpcCall.MemoryPack.Server.Services;
+namespace Samples.Server.Services;
 
 public class QuestService : IQuestService
 {

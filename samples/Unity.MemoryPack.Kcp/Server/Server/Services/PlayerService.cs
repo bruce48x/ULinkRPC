@@ -1,6 +1,6 @@
 using Game.Rpc.Contracts;
 
-namespace RpcCall.MemoryPack.Server.Services;
+namespace Samples.Server.Services;
 
 public class PlayerService: IPlayerService
 {
@@ -14,9 +14,9 @@ public class PlayerService: IPlayerService
 
     public ValueTask<LoginReply> LoginAsync(LoginRequest req)
     {
-        _notifications.OnPlayerNotify(new PlayerNotify
+        _notifications.OnNotify(new PlayerNotify
         {
-            Message = $"Welcome {req.Account}, player login accepted."
+            Message = $"Welcome {req.Account}, login request accepted."
         });
 
         // Example: accept any account, return a dummy token.
@@ -31,9 +31,9 @@ public class PlayerService: IPlayerService
     public ValueTask<StepReply> IncrStep(StepRequest req)
     {
         _step++;
-        _notifications.OnPlayerNotify(new PlayerNotify
+        _notifications.OnNotify(new PlayerNotify
         {
-            Message = $"Player step => {_step}"
+            Message = $"IncrStep => {_step}"
         });
         return new ValueTask<StepReply>(new StepReply
         {

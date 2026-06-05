@@ -1,6 +1,6 @@
 using Game.Rpc.Contracts;
 
-namespace RpcCall.Json.Server.Services;
+namespace Samples.Server.Services;
 
 public class PlayerService: IPlayerService
 {
