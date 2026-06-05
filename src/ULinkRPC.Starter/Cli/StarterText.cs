@@ -77,13 +77,6 @@ internal sealed class StarterText
         _ => "Next steps:"
     };
 
-    public string SharedContractsStep => Language switch
-    {
-        StarterLanguage.SimplifiedChinese => "  4) 修改 Shared 合约后，构建 server/client 或等待编辑器编译；源生成会自动运行。",
-        StarterLanguage.TraditionalChinese => "  4) 修改 Shared 合約後，建置 server/client 或等待編輯器編譯；原始碼生成會自動執行。",
-        _ => "  4) After changing Shared contracts, build the server/client or let the editor compile; source generation runs automatically."
-    };
-
     public string InvalidClientEngineValue => Language switch
     {
         StarterLanguage.SimplifiedChinese => "--client-engine 的值无效。",

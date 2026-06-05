@@ -64,7 +64,6 @@ internal static class Program
         Console.WriteLine($"  1) cd \"{rootPath}\"");
         Console.WriteLine("  2) dotnet run --project \"Server/Server/Server.csproj\"");
         Console.WriteLine(text.OpenClientStep(clientEngine));
-        Console.WriteLine(text.SharedContractsStep);
         return 0;
     }
 

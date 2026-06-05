@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using ULinkRPC.Starter;
 using Xunit;
 
@@ -65,6 +66,50 @@ public sealed class StarterLocalizationTests
         Assert.Equal(expected, text.OpenClientStep(ClientEngineKind.UnityCn));
     }
 
+    [Fact]
+    public void NewCommand_PrintsOnlyThreeNextSteps()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ULinkRPC.Starter.Tests", Guid.NewGuid().ToString("N"));
+        var outputRoot = Path.Combine(root, "out");
+
+        try
+        {
+            Directory.CreateDirectory(outputRoot);
+            var output = WithUiCulture("en-US", CaptureStdout(() =>
+            {
+                var exitCode = InvokeMain([
+                    "new",
+                    "--name",
+                    "Sample",
+                    "--output",
+                    outputRoot,
+                    "--client-engine",
+                    "unity",
+                    "--transport",
+                    "websocket",
+                    "--serializer",
+                    "memorypack"
+                ]);
+
+                Assert.Equal(0, exitCode);
+            }));
+
+            Assert.Contains("Next steps:", output);
+            Assert.Contains("  1) cd \"", output);
+            Assert.Contains("  2) dotnet run --project \"Server/Server/Server.csproj\"", output);
+            Assert.Contains("  3) Open \"Client\" with Unity 2022 LTS.", output);
+            Assert.DoesNotContain("  4)", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Shared contracts", output, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static Func<string> CaptureStdout(Action action) => () =>
     {
         var previousOut = Console.Out;
@@ -98,5 +143,12 @@ public sealed class StarterLocalizationTests
             CultureInfo.CurrentCulture = previousCulture;
             CultureInfo.CurrentUICulture = previousUiCulture;
         }
+    }
+
+    private static int InvokeMain(string[] args)
+    {
+        var main = typeof(Program).GetMethod("Main", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(main);
+        return (int)main.Invoke(null, [args])!;
     }
 }
