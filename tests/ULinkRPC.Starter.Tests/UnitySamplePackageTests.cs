@@ -13,9 +13,9 @@ public sealed class UnitySamplePackageTests
         var sourceVersions = ReadSourcePackageVersions(repositoryRoot);
         var unityRoots = new[]
         {
-            Path.Combine(repositoryRoot, "samples", "RpcCall.Json", "RpcCall.Json.Unity"),
-            Path.Combine(repositoryRoot, "samples", "RpcCall.Kcp", "RpcCall.Kcp.Unity"),
-            Path.Combine(repositoryRoot, "samples", "RpcCall.MemoryPack", "RpcCall.MemoryPack.Unity")
+            Path.Combine(repositoryRoot, "samples", "Unity.Json.Websocket", "Client"),
+            Path.Combine(repositoryRoot, "samples", "Unity.MemoryPack.Kcp", "Client"),
+            Path.Combine(repositoryRoot, "samples", "Unity.MemoryPack.Tcp", "Client")
         };
 
         foreach (var unityRoot in unityRoots)
@@ -57,9 +57,9 @@ public sealed class UnitySamplePackageTests
         var expectedCoreVersion = ReadProjectVersion(repositoryRoot, "src", "ULinkRPC.Core", "ULinkRPC.Core.csproj");
         var unityRoots = new[]
         {
-            Path.Combine(repositoryRoot, "samples", "RpcCall.Json", "RpcCall.Json.Unity"),
-            Path.Combine(repositoryRoot, "samples", "RpcCall.Kcp", "RpcCall.Kcp.Unity"),
-            Path.Combine(repositoryRoot, "samples", "RpcCall.MemoryPack", "RpcCall.MemoryPack.Unity")
+            Path.Combine(repositoryRoot, "samples", "Unity.Json.Websocket", "Client"),
+            Path.Combine(repositoryRoot, "samples", "Unity.MemoryPack.Kcp", "Client"),
+            Path.Combine(repositoryRoot, "samples", "Unity.MemoryPack.Tcp", "Client")
         };
 
         foreach (var unityRoot in unityRoots)
@@ -81,7 +81,7 @@ public sealed class UnitySamplePackageTests
             Assert.Equal(expectedCoreVersion, assemblyName.Version?.ToString(fieldCount: 3));
 
             var coreAssembly = Assembly.LoadFrom(coreDll);
-        Assert.NotNull(coreAssembly.GetType("ULinkRPC.Core.RpcNotificationContractAttribute"));
+            Assert.NotNull(coreAssembly.GetType("ULinkRPC.Core.RpcNotificationContractAttribute"));
 
             var rpcServiceAttribute = coreAssembly.GetType("ULinkRPC.Core.RpcServiceAttribute");
             Assert.NotNull(rpcServiceAttribute?.GetProperty("NotificationContract"));

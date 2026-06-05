@@ -15,10 +15,10 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $sampleScript = Join-Path $repoRoot "scripts/sample.ps1"
 $samples = @(
-    "RpcCall.MemoryPack",
-    "RpcCall.Json",
-    "RpcCall.Kcp",
-    "Agar.MixedTransport"
+    "Unity.MemoryPack.Tcp",
+    "Unity.Json.Websocket",
+    "Unity.MemoryPack.Kcp",
+    "Godot.MixedTransport"
 )
 
 foreach ($sample in $samples) {

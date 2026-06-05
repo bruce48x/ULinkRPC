@@ -1,4 +1,4 @@
-# Agar.MixedTransport Godot Client
+# Godot.MixedTransport Client
 
 1. Open this folder with Godot 4.6 Mono.
 2. Let Godot restore the C# solution, or run `dotnet restore Client.csproj`.

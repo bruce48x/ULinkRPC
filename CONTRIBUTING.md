@@ -78,7 +78,7 @@ No circular dependencies between assemblies.
 For Unity samples that keep contracts in a local UPM package, server projects should link those sources, for example:
 
 ```xml
-<Compile Include="..\..\RpcCall.Json.Unity\Packages\com.samples.contracts\**\*.cs" />
+<Compile Include="..\..\Client\Packages\com.samples.contracts\**\*.cs" />
 ```
 
 ---

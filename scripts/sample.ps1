@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("RpcCall.MemoryPack", "RpcCall.Json", "RpcCall.Kcp", "Agar.MixedTransport")]
-    [string]$Sample = "RpcCall.MemoryPack",
+    [ValidateSet("Unity.MemoryPack.Tcp", "Unity.Json.Websocket", "Unity.MemoryPack.Kcp", "Godot.MixedTransport")]
+    [string]$Sample = "Unity.MemoryPack.Tcp",
 
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Debug",
@@ -26,25 +26,25 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
 $sampleConfig = @{
-    "RpcCall.MemoryPack" = @{
-        Project = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server.csproj"
+    "Unity.MemoryPack.Tcp" = @{
+        Project = "samples/Unity.MemoryPack.Tcp/Server/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server.csproj"
         AssemblyName = "RpcCall.MemoryPack.Server"
-        Contracts = "samples/RpcCall.MemoryPack/RpcCall.MemoryPack.Unity/Packages/com.samples.contracts"
+        Contracts = "samples/Unity.MemoryPack.Tcp/Client/Packages/com.samples.contracts"
     }
-    "RpcCall.Json" = @{
-        Project = "samples/RpcCall.Json/RpcCall.Json.Server/RpcCall.Json.Server/RpcCall.Json.Server.csproj"
+    "Unity.Json.Websocket" = @{
+        Project = "samples/Unity.Json.Websocket/Server/RpcCall.Json.Server/RpcCall.Json.Server.csproj"
         AssemblyName = "RpcCall.Json.Server"
-        Contracts = "samples/RpcCall.Json/RpcCall.Json.Unity/Packages/com.samples.contracts"
+        Contracts = "samples/Unity.Json.Websocket/Client/Packages/com.samples.contracts"
     }
-    "RpcCall.Kcp" = @{
-        Project = "samples/RpcCall.Kcp/RpcCall.Kcp.Server/RpcCall.Kcp.Server/RpcCall.Kcp.Server.csproj"
+    "Unity.MemoryPack.Kcp" = @{
+        Project = "samples/Unity.MemoryPack.Kcp/Server/RpcCall.Kcp.Server/RpcCall.Kcp.Server.csproj"
         AssemblyName = "RpcCall.Kcp.Server"
-        Contracts = "samples/RpcCall.Kcp/RpcCall.Kcp.Unity/Packages/com.samples.contracts"
+        Contracts = "samples/Unity.MemoryPack.Kcp/Client/Packages/com.samples.contracts"
     }
-    "Agar.MixedTransport" = @{
-        Project = "samples/Agar.MixedTransport/Agar.MixedTransport.Server/Agar.MixedTransport.Server/Agar.MixedTransport.Server.csproj"
+    "Godot.MixedTransport" = @{
+        Project = "samples/Godot.MixedTransport/Server/Agar.MixedTransport.Server/Agar.MixedTransport.Server.csproj"
         AssemblyName = "Agar.MixedTransport.Server"
-        Contracts = "samples/Agar.MixedTransport/Shared/Interfaces"
+        Contracts = "samples/Godot.MixedTransport/Shared/Interfaces"
     }
 }
 

@@ -181,20 +181,21 @@ If you need a higher-level gameplay/business framework on top of communication, 
 
 ## Samples
 
-- `samples/RpcCall.Json`: WebSocket + JSON sample
-- `samples/RpcCall.MemoryPack`: TCP + MemoryPack sample with multiple services
-- `samples/RpcCall.Kcp`: minimal KCP + MemoryPack sample
+- `samples/Unity.Json.Websocket`: Unity WebSocket + JSON sample
+- `samples/Unity.MemoryPack.Tcp`: Unity TCP + MemoryPack sample with multiple services
+- `samples/Unity.MemoryPack.Kcp`: Unity KCP + MemoryPack sample
+- `samples/Godot.MixedTransport`: Godot mixed transport sample
 
 Build or regenerate a sample from the repository root:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample Unity.Json.Websocket
 ```
 
 Run a sample server:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Json -Run
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample Unity.Json.Websocket -Run
 ```
 
 ## Packages

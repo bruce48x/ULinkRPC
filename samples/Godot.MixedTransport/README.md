@@ -1,4 +1,4 @@
-# Agar.MixedTransport
+# Godot.MixedTransport
 
 Godot client sample that uses two transports in one flow:
 
@@ -10,21 +10,21 @@ The client starts on a login screen. After login succeeds, the server returns a 
 ## Structure
 
 - `Shared`: contracts and DTOs used by both server and Godot client
-- `Agar.MixedTransport.Server`: .NET 10 dual-endpoint sample server
-- `Agar.MixedTransport.Godot`: Godot 4.6 C# client
+- `Server`: .NET 10 dual-endpoint sample server
+- `Client`: Godot 4.6 C# client
 
 ## Quick Start
 
 Generate binders and build the server:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample Agar.MixedTransport
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample Godot.MixedTransport
 ```
 
 Run the server:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample Agar.MixedTransport -Run
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample Godot.MixedTransport -Run
 ```
 
 Default ports:
@@ -32,4 +32,4 @@ Default ports:
 - TCP login: `20000`
 - KCP battle: `20001`
 
-Open `samples/Agar.MixedTransport/Agar.MixedTransport.Godot` in Godot 4.6 Mono, build once, then run `Main.tscn`.
+Open `samples/Godot.MixedTransport/Client` in Godot 4.6 Mono, build once, then run `Main.tscn`.

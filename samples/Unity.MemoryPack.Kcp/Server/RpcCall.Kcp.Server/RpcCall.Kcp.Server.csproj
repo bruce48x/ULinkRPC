@@ -6,8 +6,8 @@
         <UseAppHost>false</UseAppHost>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>RpcCall.MemoryPack.Server</RootNamespace>
-        <AssemblyName>RpcCall.MemoryPack.Server</AssemblyName>
+        <RootNamespace>RpcCall.Kcp.Server</RootNamespace>
+        <AssemblyName>RpcCall.Kcp.Server</AssemblyName>
         <ULinkRPCGenerateServer>true</ULinkRPCGenerateServer>
         <ULinkRPCServerGeneratedNamespace>Game.Rpc.Server.Generated</ULinkRPCServerGeneratedNamespace>
     </PropertyGroup>
@@ -22,14 +22,14 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <Compile Include="..\..\RpcCall.MemoryPack.Unity\Packages\com.samples.contracts\**\*.cs"/>
+        <Compile Include="..\..\Client\Packages\com.samples.contracts\**\*.cs"/>
         <ProjectReference Include="..\..\..\..\src\ULinkRPC.Analyzers\ULinkRPC.Analyzers.csproj"
                           ReferenceOutputAssembly="false"
                           OutputItemType="Analyzer"
                           PrivateAssets="all" />
         <ProjectReference Include="..\..\..\..\src\ULinkRPC.Server\ULinkRPC.Server.csproj" />
         <ProjectReference Include="..\..\..\..\src\ULinkRPC.Serializer.MemoryPack\ULinkRPC.Serializer.MemoryPack.csproj" />
-        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.Tcp\ULinkRPC.Transport.Tcp.csproj" />
+        <ProjectReference Include="..\..\..\..\src\ULinkRPC.Transport.Kcp\ULinkRPC.Transport.Kcp.csproj" />
     </ItemGroup>
 
     <ItemGroup>

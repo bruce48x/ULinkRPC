@@ -1,27 +1,27 @@
-# RpcCall.Kcp
+# Unity.MemoryPack.Kcp
 
 MemoryPack-based RPC sample over KCP.
 
 ## Structure
 
-- `RpcCall.Kcp.Server`: .NET 10 KCP server
-- `RpcCall.Kcp.Unity`: Unity 2022 LTS client
+- `Server`: .NET 10 KCP server
+- `Client`: Unity 2022 LTS client
 
 ## Quick Start
 
 Build or regenerate the sample from the repository root:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Kcp
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample Unity.MemoryPack.Kcp
 ```
 
 Run the server:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\sample.ps1 -Sample RpcCall.Kcp -Run
+pwsh -NoProfile -File .\scripts\sample.ps1 -Sample Unity.MemoryPack.Kcp -Run
 ```
 
-Open `samples/RpcCall.Kcp/RpcCall.Kcp.Unity`, load `Assets/Scenes/KcpConnectionTest.unity`, and press Play.
+Open `samples/Unity.MemoryPack.Kcp/Client`, load `Assets/Scenes/ConnectionTest.unity`, and press Play.
 
 The Unity client opens one KCP connection, logs in, then calls `IncrStep()` at a fixed interval. The server creates one `PlayerService` per `RpcSession`, so each client connection keeps its own counter.
 
