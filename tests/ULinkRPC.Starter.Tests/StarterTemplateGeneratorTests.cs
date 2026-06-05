@@ -64,18 +64,18 @@ public sealed class StarterTemplateGeneratorTests
         var jsonVersions = NuGetVersionResolver.ResolveVersions(TransportKind.WebSocket, SerializerKind.Json);
         var memoryPackVersions = NuGetVersionResolver.ResolveVersions(TransportKind.Kcp, SerializerKind.MemoryPack);
 
-        Assert.Equal("0.12.0", jsonVersions.Core);
-        Assert.Equal("0.12.0", jsonVersions.Server);
-        Assert.Equal("0.12.0", jsonVersions.Client);
-        Assert.Equal("0.11.6", jsonVersions.Transport);
-        Assert.Equal("0.11.1", jsonVersions.Serializer);
+        Assert.Equal(StarterReleaseVersions.Core, jsonVersions.Core);
+        Assert.Equal(StarterReleaseVersions.Server, jsonVersions.Server);
+        Assert.Equal(StarterReleaseVersions.Client, jsonVersions.Client);
+        Assert.Equal(StarterReleaseVersions.TransportWebSocket, jsonVersions.Transport);
+        Assert.Equal(StarterReleaseVersions.SerializerJson, jsonVersions.Serializer);
         Assert.Null(jsonVersions.SerializerRuntime);
         Assert.Null(jsonVersions.SerializerRuntimeCore);
 
-        Assert.Equal("0.11.13", memoryPackVersions.Transport);
-        Assert.Equal("0.11.1", memoryPackVersions.Serializer);
-        Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntime);
-        Assert.Equal("1.21.4", memoryPackVersions.SerializerRuntimeCore);
+        Assert.Equal(StarterReleaseVersions.TransportKcp, memoryPackVersions.Transport);
+        Assert.Equal(StarterReleaseVersions.SerializerMemoryPack, memoryPackVersions.Serializer);
+        Assert.Equal(StarterReleaseVersions.MemoryPackRuntime, memoryPackVersions.SerializerRuntime);
+        Assert.Equal(StarterReleaseVersions.MemoryPackRuntimeCore, memoryPackVersions.SerializerRuntimeCore);
     }
 
     [Fact]
