@@ -42,7 +42,7 @@ $sampleConfig = @{
         Contracts = "samples/Unity.MemoryPack.Kcp/Client/Packages/com.samples.contracts"
     }
     "Godot.MixedTransport" = @{
-        Project = "samples/Godot.MixedTransport/Server/Agar.MixedTransport.Server/Agar.MixedTransport.Server.csproj"
+        Project = "samples/Godot.MixedTransport/Server/Server/Server.csproj"
         AssemblyName = "Agar.MixedTransport.Server"
         Contracts = "samples/Godot.MixedTransport/Shared/Interfaces"
     }
