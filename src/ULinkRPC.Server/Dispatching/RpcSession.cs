@@ -522,7 +522,6 @@ namespace ULinkRPC.Server
         private void ResetRuntimeState(CancellationTokenSource serverCts)
         {
             _scopedServices.Clear();
-            Interlocked.Exchange(ref _terminated, 1);
 
             if (ReferenceEquals(_cts, serverCts))
             {
