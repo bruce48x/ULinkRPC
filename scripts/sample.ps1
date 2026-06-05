@@ -27,18 +27,18 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 
 $sampleConfig = @{
     "Unity.MemoryPack.Tcp" = @{
-        Project = "samples/Unity.MemoryPack.Tcp/Server/RpcCall.MemoryPack.Server/RpcCall.MemoryPack.Server.csproj"
-        AssemblyName = "RpcCall.MemoryPack.Server"
+        Project = "samples/Unity.MemoryPack.Tcp/Server/Server/Server.csproj"
+        AssemblyName = "Samples.Server"
         Contracts = "samples/Unity.MemoryPack.Tcp/Client/Packages/com.samples.contracts"
     }
     "Unity.Json.Websocket" = @{
-        Project = "samples/Unity.Json.Websocket/Server/RpcCall.Json.Server/RpcCall.Json.Server.csproj"
-        AssemblyName = "RpcCall.Json.Server"
+        Project = "samples/Unity.Json.Websocket/Server/Server/Server.csproj"
+        AssemblyName = "Samples.Server"
         Contracts = "samples/Unity.Json.Websocket/Client/Packages/com.samples.contracts"
     }
     "Unity.MemoryPack.Kcp" = @{
-        Project = "samples/Unity.MemoryPack.Kcp/Server/RpcCall.Kcp.Server/RpcCall.Kcp.Server.csproj"
-        AssemblyName = "RpcCall.Kcp.Server"
+        Project = "samples/Unity.MemoryPack.Kcp/Server/Server/Server.csproj"
+        AssemblyName = "Samples.Server"
         Contracts = "samples/Unity.MemoryPack.Kcp/Client/Packages/com.samples.contracts"
     }
     "Godot.MixedTransport" = @{
