@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>ULinkRPC.Serializer.Json</id>
@@ -10,13 +10,13 @@
     <projectUrl>https://github.com/bruce48x/ULinkRPC</projectUrl>
     <description>System.Text.Json based payload serializer for ULinkRPC.</description>
     <tags>rpc unity serializer json</tags>
-    <repository type="git" url="https://github.com/bruce48x/ULinkRPC" commit="2703e20249bb755fb1339f7310b2c69c27699a5a" />
+    <repository type="git" url="https://github.com/bruce48x/ULinkRPC" commit="eb095e53fdd0c3b0e342f8ce485006a5173d64f2" />
     <dependencies>
       <group targetFramework="net10.0">
-        <dependency id="ULinkRPC.Core" version="0.11.3" exclude="Build,Analyzers" />
+        <dependency id="ULinkRPC.Core" version="0.12.0" exclude="Build,Analyzers" />
       </group>
       <group targetFramework=".NETStandard2.1">
-        <dependency id="ULinkRPC.Core" version="0.11.3" exclude="Build,Analyzers" />
+        <dependency id="ULinkRPC.Core" version="0.12.0" exclude="Build,Analyzers" />
         <dependency id="System.Text.Json" version="10.0.2" exclude="Build,Analyzers" />
       </group>
     </dependencies>
